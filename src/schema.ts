@@ -1,0 +1,198 @@
+export type Confidence = "high" | "medium" | "low" | "unknown";
+export type ToolType = "mcp" | "skill" | "agent" | "framework" | "cli" | "prompt" | "rules" | "dataset" | "service";
+export type RiskLevel = "low" | "medium" | "high" | "critical" | "unknown";
+export type TrustLevel = "official" | "well_known_org" | "active_open_source" | "individual" | "commercial" | "unknown";
+export type RecommendationLevel = "recommended" | "consider" | "situational" | "avoid" | "insufficient_evidence";
+export type RecommendedAction = "use" | "compare" | "ask_human" | "avoid" | "no_reliable_match";
+
+export interface InstallMethod {
+  method: "npm" | "pip" | "brew" | "docker" | "source" | "hosted" | "manual" | "unknown";
+  command: string;
+  docs_url: string;
+  confidence: Confidence;
+}
+
+export interface Permission {
+  scope:
+    | "filesystem"
+    | "network"
+    | "browser"
+    | "email"
+    | "database"
+    | "cloud"
+    | "payment"
+    | "shell"
+    | "code_execution"
+    | "secrets"
+    | "unknown";
+  access: "read" | "write" | "read_write" | "execute" | "admin" | "unknown";
+  required: boolean;
+  notes: string;
+}
+
+export interface Maintenance {
+  status: "active" | "slow" | "inactive" | "deprecated" | "unknown";
+  last_release_at?: string;
+  last_commit_at?: string;
+  issue_activity: "active" | "limited" | "inactive" | "unknown";
+  maintainer_type: "official" | "company" | "community" | "individual" | "unknown";
+  signals: string[];
+}
+
+export interface Security {
+  risk_level: RiskLevel;
+  trust_level: TrustLevel;
+  known_risks: string[];
+  requires_human_approval: boolean;
+  security_notes: string;
+}
+
+export interface ToolCard {
+  id: string;
+  schema_version: "tool_card.v1";
+  name: string;
+  type: ToolType;
+  secondary_types?: ToolType[];
+  summary: string;
+  source_urls: string[];
+  repo_url?: string;
+  homepage_url?: string;
+  docs_url?: string;
+  package_urls?: string[];
+  license?: string;
+  primary_purpose: string;
+  use_cases: string[];
+  not_for: string[];
+  tags: string[];
+  supported_agents?: string[];
+  runtime_requirements?: Record<string, string>;
+  install_methods: InstallMethod[];
+  auth_required: "none" | "api_key" | "oauth" | "account" | "unknown";
+  permissions: Permission[];
+  maintenance: Maintenance;
+  security: Security;
+  maturity: "experimental" | "beta" | "stable" | "deprecated" | "unknown";
+  evidence_refs: string[];
+  last_checked_at: string;
+  confidence: Confidence;
+  created_at: string;
+  updated_at: string;
+  ai_decision_notes?: {
+    when_to_use: string[];
+    when_to_avoid: string[];
+    questions_to_ask_human: string[];
+    safe_defaults: string[];
+  };
+}
+
+export interface RatingExplanation {
+  dimension: string;
+  score: number;
+  reason: string;
+  evidence_refs: string[];
+}
+
+export interface RatingResult {
+  id: string;
+  schema_version: "rating_result.v1";
+  tool_id: string;
+  tool_type: ToolType;
+  rules_version: "rating_rules.v0.1-draft";
+  overall_score: number;
+  recommendation_level: RecommendationLevel;
+  risk_level: RiskLevel;
+  dimension_scores: Record<string, number>;
+  explanations: RatingExplanation[];
+  penalties: string[];
+  boosts: string[];
+  evidence_quality: Confidence;
+  rated_at: string;
+}
+
+export interface RecommendationQuery {
+  task: string;
+  language_or_stack?: string[];
+  environment?: string[];
+  preferred_tool_types?: ToolType[];
+  allowed_permissions?: string[];
+  risk_tolerance?: "low" | "medium" | "high";
+  existing_tools?: string[];
+  budget?: string;
+  output_format?: "json" | "markdown";
+  top_k?: number;
+}
+
+export interface QueryUnderstanding {
+  intent: string;
+  task_domains: string[];
+  required_capabilities: string[];
+  likely_permissions: string[];
+  tool_type_hints: ToolType[];
+  risk_flags: string[];
+  confidence: Confidence;
+}
+
+export interface RecommendationCandidate {
+  tool_id: string;
+  name: string;
+  rank: number;
+  recommendation_level: RecommendationLevel;
+  fit_score: number;
+  risk_level: RiskLevel;
+  tags: string[];
+  why: string[];
+  risks: string[];
+  not_for: string[];
+  next_steps: string[];
+  evidence_refs: string[];
+}
+
+export interface RejectedCandidate {
+  tool_id: string;
+  reason: string;
+}
+
+export interface RecommendationResult {
+  id: string;
+  schema_version: "recommendation_result.v1";
+  query: RecommendationQuery;
+  query_understanding: QueryUnderstanding;
+  recommended_action: RecommendedAction;
+  candidates: RecommendationCandidate[];
+  rejected_candidates: RejectedCandidate[];
+  no_match_reason?: string;
+}
+
+export interface SearchDocument {
+  tool_id: string;
+  text: string;
+  tags: string[];
+  type: ToolType;
+  rating_overall: number;
+  risk_level: RiskLevel;
+  confidence: Confidence;
+}
+
+export interface SearchIndex {
+  schema_version: "search_index.v1";
+  built_at: string;
+  documents: SearchDocument[];
+}
+
+export interface EvalCase {
+  id: string;
+  schema_version: "eval_case.v1";
+  category: "recommendation" | "safety" | "rating";
+  query: RecommendationQuery;
+  expected: {
+    acceptable_tool_types?: ToolType[];
+    must_include_tags?: string[];
+    must_warn_permissions?: string[];
+    recommended_action?: RecommendedAction;
+    should_not_recommend?: string[];
+  };
+  review_notes: string;
+  severity: "critical" | "major" | "minor";
+  owner: string;
+  updated_at: string;
+}

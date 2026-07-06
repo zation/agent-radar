@@ -1,0 +1,17 @@
+{
+  "name": "agent-radar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "clean": "rm -rf dist public/data public/reports",
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test dist/tests/**/*.test.js",
+    "pipeline": "npm run build && node dist/src/cli/build-artifacts.js",
+    "eval": "npm run build && node dist/src/cli/run-eval.js"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.12",
+    "typescript": "^5.5.4"
+  }
+}

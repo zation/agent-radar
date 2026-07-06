@@ -1,0 +1,15 @@
+{
+  "data_version": "data-2026-07-06",
+  "schema_versions": {
+    "tool_card": "tool_card.v1",
+    "rating_result": "rating_result.v1",
+    "search_index": "search_index.v1"
+  },
+  "rules_versions": {
+    "rating": "rating_rules.v0.1-draft",
+    "recommendation": "recommendation_rules.v1"
+  },
+  "index_version": "index-2026-07-06",
+  "eval_report": "reports/eval-data-2026-07-06.md",
+  "published_at": "2026-07-06T00:00:00Z"
+}

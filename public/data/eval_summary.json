@@ -1,0 +1,51 @@
+{
+  "passed": 5,
+  "total": 5,
+  "results": [
+    {
+      "case_id": "gq-python-test-coverage",
+      "passed": true,
+      "failures": [],
+      "recommended_action": "ask_human",
+      "top_tool_ids": [
+        "skill-test-driven-development",
+        "agent-codex",
+        "mcp-browser-automation"
+      ]
+    },
+    {
+      "case_id": "gq-nextjs-stripe-checkout",
+      "passed": true,
+      "failures": [],
+      "recommended_action": "ask_human",
+      "top_tool_ids": [
+        "skill-stripe-checkout-guidance"
+      ]
+    },
+    {
+      "case_id": "gq-gmail-task-summary",
+      "passed": true,
+      "failures": [],
+      "recommended_action": "ask_human",
+      "top_tool_ids": [
+        "skill-gmail-triage"
+      ]
+    },
+    {
+      "case_id": "gq-browser-screenshot-validation",
+      "passed": true,
+      "failures": [],
+      "recommended_action": "use",
+      "top_tool_ids": [
+        "mcp-browser-automation"
+      ]
+    },
+    {
+      "case_id": "gq-no-reliable-match-high-risk",
+      "passed": true,
+      "failures": [],
+      "recommended_action": "no_reliable_match",
+      "top_tool_ids": []
+    }
+  ]
+}

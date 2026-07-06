@@ -1,0 +1,88 @@
+{
+  "schema_version": "search_index.v1",
+  "built_at": "2026-07-06T00:00:00Z",
+  "documents": [
+    {
+      "tool_id": "skill-openai-docs",
+      "text": "openai docs skill guides agents to use official openai api and codex documentation as primary evidence. official_api_guidance answer openai api questions choose codex workflows cite official docs non-openai platform questions tasks requiring private account data coding research documentation openai codex",
+      "tags": [
+        "coding",
+        "research",
+        "documentation",
+        "openai"
+      ],
+      "type": "skill",
+      "rating_overall": 87,
+      "risk_level": "low",
+      "confidence": "high"
+    },
+    {
+      "tool_id": "skill-test-driven-development",
+      "text": "test driven development skill a workflow skill for writing a failing test before implementing features or bug fixes. testing_workflow add test coverage implement bug fixes guide coding agents through red-green-refactor throwaway prototypes without verification pure documentation edits testing coding workflow codex claude-code",
+      "tags": [
+        "testing",
+        "coding",
+        "workflow"
+      ],
+      "type": "skill",
+      "rating_overall": 83,
+      "risk_level": "medium",
+      "confidence": "high"
+    },
+    {
+      "tool_id": "mcp-browser-automation",
+      "text": "browser automation mcp exposes browser navigation, screenshots, and dom inspection to an agent. browser_validation open local web pages capture screenshots inspect rendered ui run browser checks handling secrets in untrusted pages bypassing website access controls browser_automation testing mcp web generic-mcp-client codex",
+      "tags": [
+        "browser_automation",
+        "testing",
+        "mcp",
+        "web"
+      ],
+      "type": "mcp",
+      "rating_overall": 83,
+      "risk_level": "medium",
+      "confidence": "medium"
+    },
+    {
+      "tool_id": "skill-gmail-triage",
+      "text": "gmail triage skill guides an agent to summarize gmail threads and extract action items with explicit authorization. email_task_summary summarize gmail tasks triage inbox draft email follow-ups accessing mail without user approval processing highly sensitive mail without scope limits communication email workflow codex",
+      "tags": [
+        "communication",
+        "email",
+        "workflow"
+      ],
+      "type": "skill",
+      "rating_overall": 78,
+      "risk_level": "high",
+      "confidence": "medium"
+    },
+    {
+      "tool_id": "skill-stripe-checkout-guidance",
+      "text": "stripe checkout guidance skill guides agents through stripe checkout integration using official docs and test-mode defaults. payment_integration_guidance integrate stripe checkout plan next.js payment work identify payment secret risks processing live refunds autonomously handling production payment operations without approval payment web_app coding secrets codex generic-cli-agent",
+      "tags": [
+        "payment",
+        "web_app",
+        "coding",
+        "secrets"
+      ],
+      "type": "skill",
+      "rating_overall": 80,
+      "risk_level": "critical",
+      "confidence": "high"
+    },
+    {
+      "tool_id": "agent-codex",
+      "text": "codex a coding agent that can inspect a workspace, edit files, run tests, and explain changes. coding_agent modify code run test suites prepare implementation plans review diffs executing unapproved destructive commands handling secrets without explicit approval coding testing agent workflow codex",
+      "tags": [
+        "coding",
+        "testing",
+        "agent",
+        "workflow"
+      ],
+      "type": "agent",
+      "rating_overall": 84,
+      "risk_level": "high",
+      "confidence": "high"
+    }
+  ]
+}
