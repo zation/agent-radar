@@ -24,7 +24,7 @@
 | 推荐误判 | 高风险工具排第一 | 新增 eval case，修评分 |
 | 评分异常 | deprecated 工具仍 recommended | 修规则或数据 |
 | schema 缺口 | 无法表达 hosted 数据外传 | 提出 schema 变更 |
-| 用户反馈 | 工具分类错误 | 核验证据后修 Tool Card |
+| 用户反馈 | 工具分类错误 | MVP 不支持；v0.3 后再转为待审核任务 |
 | 安全评测失败 | payment 工具未要求审批 | 修安全规则 |
 
 ## 可自动处理的任务
@@ -248,6 +248,7 @@ Agent 应：
 - 低风险 parser 修复。
 - 数据质量检查。
 - 手工触发 eval diff。
+- 允许 agent 后续自动创建 PR，修复 parser、data 和 eval 问题；PR 必须包含验证结果。
 
 ### v0.2
 

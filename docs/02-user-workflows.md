@@ -2,7 +2,7 @@
 
 ## 文档用途
 
-本文件描述人类开发者、coding agent、项目维护者和工具维护者如何使用 Agent Radar。它用于校准产品体验、MCP/API 设计、数据字段和安全边界。
+本文件描述人类开发者、coding agent、项目维护者和工具维护者如何使用 Agent Radar。它用于校准产品体验、Workers MCP API 设计、数据字段和安全边界。
 
 所有流程都服务 `docs/00-product-brief.md` 中的主路径：给定开发需求，找到合适 AI 工具，并解释为什么推荐、什么时候不推荐、风险在哪里。
 

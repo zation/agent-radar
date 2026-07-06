@@ -267,7 +267,7 @@ Rating Result 是评分引擎对 Tool Card 的输出。
 | `schema_version` | string | 是 | `rating_result.v1` | schema 版本 |
 | `tool_id` | string | 是 | `model-context-protocol-filesystem` | Tool Card ID |
 | `tool_type` | enum | 是 | `mcp` | 工具类型 |
-| `rules_version` | string | 是 | `rating_rules.v1` | 规则版本 |
+| `rules_version` | string | 是 | `rating_rules.v0.1-draft` | 规则版本 |
 | `overall_score` | number | 是 | `82` | 0-100 |
 | `recommendation_level` | enum | 是 | `recommended` | 推荐等级 |
 | `risk_level` | enum | 是 | `medium` | 风险等级 |

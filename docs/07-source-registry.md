@@ -9,9 +9,10 @@
 ## 来源原则
 
 - 优先官方来源和可验证公开来源。
+- MVP 只启用官方来源和人工审核来源。
 - 不采集需要绕过登录、验证码、付费墙或服务条款的数据。
 - 来源可信度影响字段置信度和评分，不等于工具质量。
-- 社区列表可作为发现信号，但不能单独支撑高置信推荐。
+- 社区列表、awesome list、新闻、博客和发布帖不进入 MVP 自动采集范围，可作为 v0.2 之后的候选方向。
 - 所有来源都必须记录频率、限制和失败处理。
 
 ## SourceDefinition Schema
@@ -90,7 +91,7 @@ last_reviewed_at:
 
 ### GitHub
 
-定义：GitHub repositories、topics、organizations、releases 和 README。
+定义：GitHub repositories、organizations、releases 和 README。MVP 只采集官方仓库或人工确认的仓库，不扫描 GitHub topics。
 
 用途：
 
@@ -123,6 +124,8 @@ last_reviewed_at:
 
 定义：社区维护的工具列表、awesome repositories、curated lists。
 
+MVP 状态：不启用。
+
 用途：
 
 - 发现新工具。
@@ -139,6 +142,8 @@ last_reviewed_at:
 ### 新闻、博客和发布帖
 
 定义：Hacker News、Product Hunt、博客、发布公告等。
+
+MVP 状态：不启用。
 
 用途：
 
@@ -206,11 +211,11 @@ rate_limits: "GitHub API rate limits"
 terms_notes: "使用公开 API，不采集私有仓库"
 parser: github_topic_parser
 failure_policy: "限流时跳过本次并保留上次结果"
-enabled: true
+enabled: false
 last_reviewed_at: 2026-07-06T00:00:00Z
 ```
 
-用途：发现开源 MCP 工具，需后续用官方 repo 或文档验证。
+用途：v0.2 之后可用于发现开源 MCP 工具；MVP 不启用，避免社区来源噪声。
 
 ### GitHub Topics: AI Agent
 
@@ -228,7 +233,7 @@ rate_limits: "GitHub API rate limits"
 terms_notes: "topic 噪声较大，只作为发现来源"
 parser: github_topic_parser
 failure_policy: "解析失败不阻断其他来源"
-enabled: true
+enabled: false
 last_reviewed_at: 2026-07-06T00:00:00Z
 ```
 
@@ -248,7 +253,7 @@ rate_limits: "遵守 npm registry 公共 API 限制"
 terms_notes: "只查询已发现包名，不做高频全量扫描"
 parser: npm_package_parser
 failure_policy: "包查询失败时保留旧版本并标记 stale"
-enabled: true
+enabled: false
 last_reviewed_at: 2026-07-06T00:00:00Z
 ```
 
@@ -268,7 +273,7 @@ rate_limits: "遵守 PyPI API 使用限制"
 terms_notes: "只查询已发现包名"
 parser: pypi_package_parser
 failure_policy: "包查询失败时保留旧版本并标记 stale"
-enabled: true
+enabled: false
 last_reviewed_at: 2026-07-06T00:00:00Z
 ```
 
@@ -288,7 +293,7 @@ rate_limits: "GitHub API rate limits"
 terms_notes: "只作为发现信号，不直接支撑高置信评分"
 parser: awesome_list_parser
 failure_policy: "解析失败时跳过该列表"
-enabled: true
+enabled: false
 last_reviewed_at: 2026-07-06T00:00:00Z
 ```
 
@@ -347,10 +352,10 @@ last_reviewed_at: 2026-07-06T00:00:00Z
 | --- | --- |
 | 官方 registry | weekly |
 | 官方文档 | weekly 或 monthly |
-| GitHub topics | weekly |
+| GitHub topics | MVP 不启用，v0.2 后评估 |
 | 包管理源 | weekly |
-| 社区目录 | monthly |
-| 新闻和发布帖 | manual 或 weekly |
+| 社区目录 | MVP 不启用 |
+| 新闻和发布帖 | MVP 不启用 |
 | 手动审核 | manual |
 
 高频采集只有在来源稳定、合法且成本低时才启用。

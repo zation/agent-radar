@@ -8,11 +8,11 @@
 
 ## 运维原则
 
-- MVP 优先静态数据和 GitHub Actions。
+- MVP 固定使用 Cloudflare 免费栈：Cloudflare Pages、Cloudflare Workers、Cloudflare D1 SQLite。
 - 发布前必须跑 schema、数据质量、安全和推荐评测。
 - 每次发布记录数据版本、规则版本和索引版本。
 - 失败时保留上一稳定版本。
-- 新增基础设施前必须说明成本和替代方案。
+- 不引入任何付费服务；新增基础设施前必须说明免费额度、成本和替代方案。
 
 ## 环境分层
 
@@ -29,8 +29,8 @@
 
 - 本地文件系统。
 - JSON/JSONL。
-- SQLite 或 DuckDB。
-- 本地 MCP server。
+- 本地 SQLite，保持与 Cloudflare D1 schema 兼容。
+- 本地 TypeScript MCP server，用于模拟 Workers MCP API。
 
 ### MVP 发布
 
@@ -38,14 +38,15 @@
 
 - 发布静态工具数据、评分和索引。
 - 提供基础 Web UI。
-- 提供轻量 MCP/API 查询。
+- 提供 Cloudflare Workers 上的标准轻量 MCP API。
 
 组件：
 
-- GitHub Actions。
-- GitHub Pages 或 Cloudflare Pages。
+- 手动触发构建或 `workflow_dispatch`。
+- Cloudflare Pages。
 - 静态 JSON/JSONL artifacts。
-- 可选 Cloudflare Workers MCP/API。
+- Cloudflare D1 SQLite。
+- Cloudflare Workers MCP API。
 
 ### 低成本生产
 
@@ -58,8 +59,8 @@
 组件：
 
 - Cloudflare Pages/Workers。
-- Cloudflare R2 或 S3 兼容对象存储。
-- SQLite/DuckDB 生成文件，或 Supabase Postgres。
+- Cloudflare D1 SQLite。
+- JSON artifacts。
 - 简单状态监控。
 
 ## MVP 架构
@@ -69,11 +70,13 @@ GitHub Actions
   -> crawl/parse/normalize
   -> validate schema
   -> rate
-  -> build static index
+  -> build static index + D1 import
   -> run eval
   -> publish artifacts
-  -> static Web UI / MCP API reads artifacts
+  -> Cloudflare Pages Web UI / Workers MCP API reads D1 + artifacts
 ```
+
+MVP 不启用自动 schedule。维护者手动触发更新和发布。
 
 ## 发布产物
 
@@ -96,7 +99,7 @@ Manifest 示例：
     "rating_result": "rating_result.v1"
   },
   "rules_versions": {
-    "rating": "rating_rules.v1",
+    "rating": "rating_rules.v0.1-draft",
     "recommendation": "recommendation_rules.v1"
   },
   "index_version": "index-2026-07-06",
@@ -105,16 +108,19 @@ Manifest 示例：
 }
 ```
 
-## GitHub Actions 流水线
+## 手动触发流水线
 
-### 定时任务
+### 触发策略
 
-建议：
+MVP 只使用手动触发：
 
-- 每日：检查高优先级来源和已知工具状态。
-- 每周：运行全量采集、评分、索引和评测。
-- 每月：生成数据质量和覆盖报告。
-- 手动：新增来源、修复 parser、发布前验证。
+- 新增或修正来源。
+- 新增或修正 Tool Card。
+- 修复 parser。
+- 发布前验证。
+- 需要刷新公开站点或 D1 数据。
+
+每日增量、每周全量和每月审核作为 v0.2 之后能力，不在 MVP 自动运行。
 
 ### 发布流程
 
@@ -152,11 +158,11 @@ checkout
 - 少量非关键字段缺失。
 - 非 critical golden query 排名轻微变化。
 
-## MCP/API 部署
+## Workers MCP API 部署
 
 ### MVP 方式
 
-MCP/API 可读取静态 artifacts，不需要写数据库。
+MCP API 部署在 Cloudflare Workers，读取 Cloudflare D1 SQLite 和静态 JSON artifacts。
 
 支持工具：
 
@@ -171,6 +177,7 @@ MCP/API 可读取静态 artifacts，不需要写数据库。
 - 不安装第三方工具。
 - 不访问用户 secret。
 - 不执行推荐候选。
+- 使用 Cloudflare 免费额度。
 
 ### Cloudflare Workers 方式
 
@@ -181,12 +188,13 @@ MCP/API 可读取静态 artifacts，不需要写数据库。
 
 数据读取：
 
-- 小数据：随 Worker 打包或从 Pages asset 读取。
-- 中等数据：R2 或 KV。
+- 主查询：Cloudflare D1 SQLite。
+- 辅助元数据：Pages 静态 JSON artifacts。
 
 注意：
 
-- KV 最终一致性可能影响刚发布数据，manifest 应指向稳定版本。
+- D1 schema 迁移必须和 manifest 版本一致。
+- Workers API 保持只读。
 
 ## Web UI 部署
 
@@ -200,7 +208,7 @@ MVP 页面：
 
 部署建议：
 
-- 静态站点优先。
+- Cloudflare Pages 作为公开站点。
 - 页面读取 manifest 中的数据版本。
 - 如果数据版本缺失，显示降级错误，不展示旧推荐为新数据。
 
@@ -284,10 +292,11 @@ MVP：
 - 保留最近 30 天 raw snapshot。
 - 保留所有发布 manifest。
 - 保留关键 eval report。
+- 保留 D1 schema migration。
 
 后续：
 
-- Raw snapshot 可迁移到对象存储。
+- Raw snapshot 如需迁移到对象存储，必须确认免费额度足够。
 - 对低价值社区来源快照设置生命周期。
 - 人工 override 和发布记录长期保留。
 
@@ -296,15 +305,15 @@ MVP：
 优先级：
 
 1. 静态文件。
-2. GitHub Actions 免费额度。
-3. Cloudflare Pages。
-4. Workers 免费/低成本额度。
-5. R2/Supabase 等按需引入。
+2. Cloudflare Pages 免费额度。
+3. Cloudflare Workers 免费额度。
+4. Cloudflare D1 免费额度。
+5. 仅在免费额度可承载时评估 R2。
 
-新增付费服务前必须说明：
+新增基础设施前必须确认仍在免费额度内，并说明：
 
 - 为什么静态方案不足。
-- 预估成本。
+- 免费额度和潜在成本上限。
 - 替代方案。
 - 迁移和回滚方式。
 
@@ -324,4 +333,4 @@ MVP：
 - 新增基础设施前必须说明成本、替代方案和运维负担。
 - 部署方案要优先支持可回放、可回滚和可观测。
 - 发布流程不能绕过安全评测。
-- MCP/API 服务保持只读，除非安全文档另行批准。
+- MCP API 服务保持只读，除非安全文档另行批准。

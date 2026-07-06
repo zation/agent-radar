@@ -10,7 +10,7 @@
 
 - 数据优先：先保证 Raw Snapshot、Source Record、Tool Card、Rating Result、Recommendation Result 可追溯。
 - 模块可替换：采集、解析、评分、推荐和展示应通过文件或清晰接口连接。
-- 静态优先：MVP 优先使用 JSON/JSONL、SQLite/DuckDB、静态索引和 GitHub Actions。
+- Cloudflare 免费栈优先：MVP 使用 TypeScript、JSON、Cloudflare D1 SQLite、Cloudflare Pages 和 Cloudflare Workers。
 - 可回放：任何评分或推荐结果都应能用相同数据版本和规则版本复现。
 - 安全默认保守：系统只推荐和解释，不自动安装、执行或授权第三方工具。
 
@@ -28,7 +28,7 @@ Source Registry
   -> Rating Engine
   -> Search Index Builder
   -> Recommendation Engine
-  -> MCP/API + Web UI + Reports
+  -> Cloudflare Workers MCP API + Cloudflare Pages Web UI + Reports
   -> Eval Runner
   -> Feedback / Override Records
 ```
@@ -37,7 +37,7 @@ Source Registry
 
 ### Source Registry
 
-职责：记录可采集来源及其可信度、采集策略和限制。
+职责：记录可采集来源及其可信度、采集策略和限制。MVP 只启用官方或人工审核来源，不启用社区目录和新闻来源。
 
 输入：
 
@@ -254,12 +254,12 @@ Source Registry
 输出：
 
 - 静态搜索索引。
-- 可选 SQLite/DuckDB 表。
+- Cloudflare D1 SQLite 表和可发布的静态 JSON 索引。
 
 存储建议：
 
-- MVP：JSONL + MiniSearch/FlexSearch 或 SQLite FTS。
-- 生产：Meilisearch、Typesense 或 Postgres FTS 可作为后续选项。
+- MVP：Cloudflare D1 SQLite FTS/LIKE 查询 + 构建期生成的静态 JSON 搜索索引。
+- 后续：仍优先扩展 D1 索引；只有免费方案不能满足公开站点查询时，再评估其他搜索服务。
 
 错误处理：
 
@@ -302,13 +302,13 @@ Source Registry
 - ranking eval。
 - 解释质量检查。
 
-### MCP/API Server
+### Cloudflare Workers MCP API
 
-职责：向 coding agent 暴露查询接口。
+职责：向 coding agent 暴露标准轻量 MCP API。
 
 输入：
 
-- MCP tool call 或 HTTP request。
+- MCP tool call。
 
 输出：
 
@@ -323,6 +323,7 @@ MVP 工具：
 
 错误处理：
 
+- 部署在 Cloudflare Workers 免费额度上。
 - 只读接口，不执行安装。
 - 参数不完整时返回可恢复错误。
 
@@ -442,32 +443,33 @@ user feedback / eval failure
 
 | 数据 | MVP 存储 | 后续可选 |
 | --- | --- | --- |
-| Source Registry | YAML/JSON | SQLite table |
+| Source Registry | JSON | D1 table |
 | Raw Snapshot | 文件系统 + Git LFS 或对象存储引用 | R2/S3 |
-| Source Record | JSONL | SQLite/DuckDB |
-| Tool Card | JSONL | SQLite/Postgres |
-| Rating Result | JSONL | SQLite/Postgres |
-| Search Index | 静态 JSON/SQLite FTS | Meilisearch/Typesense |
-| Eval Case | YAML/JSON | SQLite |
+| Source Record | JSONL + D1 | D1 table |
+| Tool Card | JSONL + D1 | D1 table |
+| Rating Result | JSONL + D1 | D1 table |
+| Search Index | D1 SQLite FTS/LIKE + 静态 JSON | D1 优化索引 |
+| Eval Case | JSON | D1 table |
 | Eval Report | Markdown/JSON | Dashboard |
 
 ## 技术选型建议
 
 ### MVP
 
-- 语言：TypeScript 或 Python，优先团队当前最熟悉的栈。
-- 数据：JSONL + schema validation。
-- 本地分析：DuckDB 或 SQLite。
-- 定时任务：GitHub Actions。
-- 静态站点：GitHub Pages 或 Cloudflare Pages。
-- MCP：轻量 Node.js 或 Python server。
+- 语言：TypeScript。
+- 数据：JSON 文件作为源文件和发布 artifacts，Cloudflare D1 SQLite 作为查询存储。
+- 本地开发：SQLite 兼容 D1 的 schema 和迁移。
+- 更新方式：手动触发构建/导入流程。
+- 静态站点：Cloudflare Pages，作为公开站点发布。
+- MCP：Cloudflare Workers 上的标准轻量 MCP API。
+- 成本：全部使用免费额度，不引入付费服务。
 
 ### 生产演进
 
-- API：Cloudflare Workers 或轻量 Node service。
-- 对象存储：Cloudflare R2。
-- 数据库：SQLite 文件发布、Supabase Postgres 或 DuckDB 生成流程。
-- 搜索：Postgres FTS、Typesense 或 Meilisearch。
+- API：Cloudflare Workers。
+- 对象存储：仅当免费额度足够且确有必要时评估 Cloudflare R2。
+- 数据库：Cloudflare D1 SQLite。
+- 搜索：优先基于 D1 和静态 JSON 索引演进。
 
 ## 模块边界规则
 

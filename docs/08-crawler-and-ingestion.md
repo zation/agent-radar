@@ -33,6 +33,8 @@ Source Registry
 - 检查高优先级官方来源。
 - 更新已知工具的 release、维护状态和失效链接。
 
+MVP 状态：不启用。MVP 只使用手动触发更新。
+
 范围：
 
 - 官方 registry。
@@ -43,9 +45,11 @@ Source Registry
 
 用途：
 
-- 扫描 GitHub topics、包管理源和社区目录。
+- 扫描官方来源、人工确认来源和已启用包管理源；GitHub topics 与社区目录留到 v0.2 后评估。
 - 发现新增工具。
 - 重新构建索引和评分。
+
+MVP 状态：不启用自动定时。需要时由维护者手动触发。
 
 ### 每月审核
 
@@ -63,6 +67,8 @@ Source Registry
 - 修复 parser。
 - 处理推荐误判。
 - 发布前验证。
+
+MVP 默认更新方式：所有采集、导入、评分、索引和发布流程均手动触发。
 
 ## Crawl Plan
 
@@ -230,7 +236,7 @@ Canonical URL 规则：
 
 ## 入库策略
 
-MVP 可使用文件存储：
+MVP 使用 JSON 文件和 Cloudflare D1 SQLite：
 
 ```text
 data/source_records/*.jsonl
@@ -238,10 +244,13 @@ data/tool_cards/*.jsonl
 data/ratings/*.jsonl
 data/index/*.json
 data/evals/*.json
+migrations/*.sql
 ```
 
 入库要求：
 
+- JSON/JSONL 作为源数据和发布 artifacts。
+- Cloudflare D1 SQLite 作为公开站点和 Workers MCP API 的查询存储。
 - 每次运行生成新版本，不直接覆盖已发布版本。
 - 发布指针指向当前稳定版本。
 - 支持回滚到上一版本。
@@ -302,15 +311,11 @@ data/evals/*.json
 - 私有 URL。
 - 用户私密数据。
 
-## GitHub Actions MVP 建议
+## 手动触发 MVP 流程
 
 ### 工作流
 
 ```text
-on:
-  schedule: weekly
-  workflow_dispatch:
-
 steps:
   - checkout
   - install dependencies
@@ -326,6 +331,12 @@ steps:
   - publish if main branch and eval passes
 ```
 
+要求：
+
+- MVP 不配置自动 schedule。
+- 维护者通过手动命令或 `workflow_dispatch` 触发。
+- 不引入付费 runner、付费数据库或闭源数据源。
+
 ### 成本控制
 
 - 限制每次运行来源数量。
@@ -335,7 +346,7 @@ steps:
 
 ## 失败不应阻断全部 pipeline 的情况
 
-- 单个社区列表解析失败。
+- 单个非 MVP 候选来源解析失败。
 - 单个工具页面 404。
 - 低优先级来源限流。
 - 个别 Tool Card 缺少非关键字段。

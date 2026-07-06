@@ -18,7 +18,7 @@
 
 | 阶段 | 目标 | 核心交付 |
 | --- | --- | --- |
-| MVP | 验证结构化推荐主路径 | 文档、Tool Card、少量来源、静态索引、基础推荐 |
+| MVP | 验证结构化推荐主路径 | 文档、MCP/Skill/Agent Tool Card、Cloudflare 免费栈、基础推荐 |
 | v0.2 | 扩展数据和基础体验 | 更多来源、Web UI、MCP 查询、golden queries |
 | v0.3 | 强化安全和自迭代 | 风险评分、反馈闭环、eval diff、自迭代任务 |
 | v1.0 | 稳定公开数据和接口 | 稳定 API/MCP、可复现评测、插件化扩展 |
@@ -49,13 +49,16 @@
   - 路线图。
 - Tool Card schema v1。
 - 初始分类体系。
-- 初始评分规则。
+- `rating_rules.v0.1-draft` 初始评分规则。
 - 初始安全风险模型。
-- 少量高质量来源注册。
-- 手动或半自动 Tool Card 生成流程。
-- 静态 JSON/JSONL 数据。
-- 基础搜索和推荐输出。
-- 轻量 MCP/API 查询设计。
+- 只覆盖 MCP、Skill 和 Agent 三类首批工具。
+- 少量高质量官方或人工审核来源注册。
+- 手动触发 Tool Card 生成流程。
+- JSON 数据 artifacts。
+- Cloudflare D1 SQLite 查询存储。
+- 基于 D1 的基础搜索和推荐输出。
+- Cloudflare Workers 标准轻量 MCP API 设计。
+- Cloudflare Pages 公开站点。
 - 5-10 个 golden queries。
 
 ### 验收标准
@@ -65,14 +68,18 @@
 - 没有可靠候选时能返回 `no_reliable_match`。
 - 高风险权限场景要求人工确认。
 - 文档之间术语和字段一致。
+- 不引入任何付费服务，全部运行在免费额度内。
 
 ### 不做
 
 - 全网自动爬虫。
+- 自动定时采集。
+- 社区目录、awesome list 和新闻来源采集。
 - 在线安装市场。
 - 账号系统。
 - 企业权限治理。
 - 大规模实时搜索。
+- 用户反馈闭环。
 
 ### 主要风险
 
@@ -82,7 +89,7 @@
 
 ### 应对
 
-- MVP 允许半自动和人工审核。
+- MVP 允许人工审核和手动触发更新。
 - 优先维护高价值工具。
 - 用 golden queries 驱动字段和评分迭代。
 
@@ -95,12 +102,12 @@
 ### 交付物
 
 - Source Registry 可执行配置。
-- GitHub、官方文档、包管理源的基础 parser。
+- 官方文档、官方仓库、包管理源的基础 parser。
 - Tool Card validator。
 - Rating Engine v1。
 - Search Index Builder。
 - 推荐引擎 v1。
-- MCP/API 只读查询：
+- Workers MCP API 只读查询：
   - `search_tools`
   - `get_tool_card`
   - `recommend_tools`
@@ -112,12 +119,13 @@
   - 比较页。
 - 20-50 张高质量 Tool Cards。
 - 10-20 个 golden queries。
+- 评估是否启用社区目录和 GitHub topics 作为发现信号。
 
 ### 验收标准
 
 - 发布流水线能生成数据、评分、索引和 eval report。
 - Web UI 能展示评分解释和安全风险。
-- MCP/API 返回稳定 JSON。
+- Workers MCP API 返回稳定 JSON。
 - golden queries critical cases 通过。
 - 新增来源不会破坏已有推荐。
 
@@ -137,7 +145,7 @@
 ### 应对
 
 - 控制来源数量。
-- 社区来源只作为发现信号。
+- 社区来源如启用，只作为发现信号。
 - UI 只服务浏览、比较和审核。
 
 ## v0.3
@@ -239,7 +247,7 @@
 
 ### 数据覆盖
 
-- MVP：少量高质量人工/半自动 Tool Cards。
+- MVP：少量高质量人工审核、手动触发更新的 Tool Cards。
 - v0.2：20-50 张高质量 Tool Cards。
 - v0.3：50-150 张高质量 Tool Cards。
 - v1.0：公开稳定数据集，覆盖核心生态。
@@ -261,7 +269,7 @@
 ### Agent 可用性
 
 - MVP：JSON 输出设计。
-- v0.2：MCP/API 只读查询。
+- v0.2：Workers MCP API 只读查询。
 - v0.3：自迭代任务生成。
 - v1.0：稳定 agent 决策上下文。
 
@@ -272,6 +280,7 @@
 - 账号系统。
 - 企业 SSO。
 - 付费 marketplace。
+- 任何付费基础设施。
 - 自动安装和执行第三方工具。
 - 私有代码扫描。
 - 浏览器或邮件数据采集。
