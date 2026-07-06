@@ -120,6 +120,33 @@ MVP 只使用手动触发：
 - 发布前验证。
 - 需要刷新公开站点或 D1 数据。
 
+### 当前 MVP 命令
+
+当前实现提供以下本地命令：
+
+```bash
+npm test
+npm run pipeline
+npm run eval
+npm run pages:build
+npm run dev -- --port 4173
+```
+
+命令说明：
+
+- `npm test`：运行 TypeScript 编译和 Node test suite，覆盖评分、推荐、pipeline、API 和 UI 数据装配。
+- `npm run pipeline`：生成 `public/data` artifacts、D1 seed SQL 和 `public/reports` eval report。
+- `npm run eval`：运行 5 个 MVP golden queries；critical query 失败时命令退出非 0。
+- `npm run pages:build`：构建 Cloudflare Pages 风格静态 UI，输出到本地 `dist-pages/`。
+- `npm run dev -- --port 4173`：本地预览 Pages UI。
+
+当前 D1 相关文件：
+
+- schema migration：`migrations/0001_mvp_read_model.sql`
+- data seed：`public/data/d1_seed.sql`
+
+当前 Workers 只读 API 入口：`src/worker.ts`。
+
 每日增量、每周全量和每月审核作为 v0.2 之后能力，不在 MVP 自动运行。
 
 ### 发布流程

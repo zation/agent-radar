@@ -31,6 +31,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await writeFile(join(publicDataDir, "tool_cards.jsonl"), toJsonl(seedToolCards), "utf8");
   await writeFile(join(publicDataDir, "ratings.jsonl"), toJsonl(ratings), "utf8");
   await writeFile(join(publicDataDir, "search_index.json"), JSON.stringify(index, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "d1_seed.sql"), renderD1SeedSql(seedToolCards, ratings, index.documents), "utf8");
   await writeFile(join(publicDataDir, "golden_queries.json"), JSON.stringify(goldenQueries, null, 2), "utf8");
   await writeFile(join(publicDataDir, "eval_summary.json"), JSON.stringify(evalSummary, null, 2), "utf8");
   await writeFile(join(reportsDir, `eval-${dataVersion}.md`), renderEvalReport(dataVersion, evalSummary), "utf8");
@@ -49,6 +50,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
           recommendation: "recommendation_rules.v1"
         },
         index_version: "index-2026-07-06",
+        d1_seed: "data/d1_seed.sql",
         eval_report: `reports/eval-${dataVersion}.md`,
         published_at: "2026-07-06T00:00:00Z"
       },
@@ -86,4 +88,57 @@ function renderEvalReport(dataVersion: string, summary: ReturnType<typeof runGol
     })
   ];
   return `${lines.join("\n")}\n`;
+}
+
+function renderD1SeedSql(
+  cards: typeof seedToolCards,
+  ratings: ReturnType<typeof rateAllToolCards>,
+  documents: ReturnType<typeof buildSearchIndex>["documents"]
+): string {
+  const statements = [
+    "BEGIN TRANSACTION;",
+    "DELETE FROM search_documents;",
+    "DELETE FROM ratings;",
+    "DELETE FROM tool_cards;",
+    ...cards.map((card) =>
+      `INSERT INTO tool_cards (id, type, name, summary, tags_json, risk_level, confidence, last_checked_at, document_json) VALUES (${[
+        sqlString(card.id),
+        sqlString(card.type),
+        sqlString(card.name),
+        sqlString(card.summary),
+        sqlString(JSON.stringify(card.tags)),
+        sqlString(card.security.risk_level),
+        sqlString(card.confidence),
+        sqlString(card.last_checked_at),
+        sqlString(JSON.stringify(card))
+      ].join(", ")});`
+    ),
+    ...ratings.map((rating) =>
+      `INSERT INTO ratings (tool_id, overall_score, recommendation_level, risk_level, evidence_quality, document_json) VALUES (${[
+        sqlString(rating.tool_id),
+        rating.overall_score,
+        sqlString(rating.recommendation_level),
+        sqlString(rating.risk_level),
+        sqlString(rating.evidence_quality),
+        sqlString(JSON.stringify(rating))
+      ].join(", ")});`
+    ),
+    ...documents.map((document) =>
+      `INSERT INTO search_documents (tool_id, type, tags_json, risk_level, confidence, rating_overall, search_text) VALUES (${[
+        sqlString(document.tool_id),
+        sqlString(document.type),
+        sqlString(JSON.stringify(document.tags)),
+        sqlString(document.risk_level),
+        sqlString(document.confidence),
+        document.rating_overall,
+        sqlString(document.text)
+      ].join(", ")});`
+    ),
+    "COMMIT;"
+  ];
+  return `${statements.join("\n")}\n`;
+}
+
+function sqlString(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
 }

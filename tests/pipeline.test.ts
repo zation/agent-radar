@@ -20,6 +20,11 @@ test("builds MVP data artifacts and an eval report", async () => {
 
     const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
     assert.ok(searchIndex.documents.length >= 5);
+
+    const d1SeedSql = await readFile(join(outputDir, "data", "d1_seed.sql"), "utf8");
+    assert.match(d1SeedSql, /INSERT INTO tool_cards/);
+    assert.match(d1SeedSql, /INSERT INTO ratings/);
+    assert.match(d1SeedSql, /INSERT INTO search_documents/);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

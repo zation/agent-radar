@@ -10,6 +10,7 @@
     "recommendation": "recommendation_rules.v1"
   },
   "index_version": "index-2026-07-06",
+  "d1_seed": "data/d1_seed.sql",
   "eval_report": "reports/eval-data-2026-07-06.md",
   "published_at": "2026-07-06T00:00:00Z"
 }
