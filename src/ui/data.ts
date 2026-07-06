@@ -36,11 +36,9 @@ export function createToolViewModels(cards: ToolCard[], ratings: RatingResult[])
 }
 
 export async function loadUiArtifacts(): Promise<UiArtifacts> {
-  const [cardsText, ratingsText, evalSummary] = await Promise.all([
-    fetch("/data/tool_cards.jsonl").then((response) => response.text()),
-    fetch("/data/ratings.jsonl").then((response) => response.text()),
-    fetch("/data/eval_summary.json").then((response) => response.json())
-  ]);
+  const cardsText = await fetch("/data/tool_cards.jsonl").then((response) => response.text());
+  const ratingsText = await fetch("/data/ratings.jsonl").then((response) => response.text());
+  const evalSummary = await fetch("/data/eval_summary.json").then((response) => response.json() as Promise<UiArtifacts["evalSummary"]>);
 
   return {
     tools: createToolViewModels(parseJsonl<ToolCard>(cardsText), parseJsonl<RatingResult>(ratingsText)),

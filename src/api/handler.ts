@@ -2,8 +2,6 @@ import { recommendTools } from "../recommendation/engine.js";
 import type { RecommendationQuery, SearchDocument } from "../schema.js";
 import type { ToolRepository } from "./repository.js";
 
-type JsonValue = unknown;
-
 export function createApiHandler(repository: ToolRepository): (request: Request) => Promise<Response> {
   return async (request: Request) => {
     const url = new URL(request.url);
@@ -28,7 +26,7 @@ export function createApiHandler(repository: ToolRepository): (request: Request)
 }
 
 function searchTools(repository: ToolRepository, input: Record<string, unknown>) {
-  const query = String(input.query ?? "").toLowerCase();
+  const query = readString(input.query).toLowerCase();
   const filters = (input.filters ?? {}) as { type?: string; tags?: string[]; risk_level?: string };
   const topK = Number(input.top_k ?? 5);
   const words = query.split(/\s+/).filter(Boolean);
@@ -109,12 +107,12 @@ async function readInput(request: Request, url: URL): Promise<Record<string, unk
 }
 
 function getRequiredToolId(input: Record<string, unknown>): string {
-  const toolId = String(input.tool_id ?? "");
+  const toolId = readString(input.tool_id);
   if (!toolId) throw new Error("tool_id is required");
   return toolId;
 }
 
-function json(body: JsonValue | Record<string, unknown>, status = 200): Response {
+function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body, null, 2), {
     status,
     headers: {
@@ -122,6 +120,10 @@ function json(body: JsonValue | Record<string, unknown>, status = 200): Response
       ...corsHeaders()
     }
   });
+}
+
+function readString(value: unknown): string {
+  return typeof value === "string" ? value : "";
 }
 
 function corsHeaders(): Record<string, string> {

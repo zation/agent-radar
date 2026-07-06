@@ -7,13 +7,12 @@ import {
   Filter,
   Gauge,
   GitCompare,
-  Info,
   Search,
   ShieldAlert,
   Sparkles
 } from "lucide-react";
 import { createRoot } from "react-dom/client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { RecommendationResult } from "../schema.js";
 import { loadUiArtifacts, recommendFromViewModels, type ToolViewModel, type UiArtifacts } from "./data.js";
 import "./styles.css";
@@ -30,7 +29,7 @@ export default function App() {
   const [recommendation, setRecommendation] = useState<RecommendationResult | null>(null);
 
   useEffect(() => {
-    loadUiArtifacts().then((loaded) => {
+    void loadUiArtifacts().then((loaded) => {
       setArtifacts(loaded);
       setSelectedId(loaded.tools[0]?.card.id ?? "");
       setRecommendation(recommendFromViewModels({ task: fallbackQuery, risk_tolerance: "low", top_k: 3 }, loaded.tools));
@@ -266,7 +265,7 @@ function CompareStrip({ tools }: { tools: ToolViewModel[] }) {
   );
 }
 
-function InfoBlock({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: string; detail?: string }) {
+function InfoBlock({ icon, label, value, detail }: { icon: ReactNode; label: string; value: string; detail?: string }) {
   return (
     <div className="info-block">
       <span>{icon}</span>
