@@ -5,13 +5,24 @@
   "type": "module",
   "scripts": {
     "clean": "rm -rf dist public/data public/reports",
+    "dev": "vite --host 127.0.0.1",
     "build": "tsc -p tsconfig.json",
+    "pages:build": "vite build",
     "test": "npm run build && node --test dist/tests/**/*.test.js",
     "pipeline": "npm run build && node dist/src/cli/build-artifacts.js",
     "eval": "npm run build && node dist/src/cli/run-eval.js"
   },
   "devDependencies": {
     "@types/node": "^20.14.12",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "typescript": "^5.5.4"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^6.0.3",
+    "lucide-react": "^1.23.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vite": "^8.1.3"
   }
 }
