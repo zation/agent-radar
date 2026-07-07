@@ -273,15 +273,15 @@ Source Registry
 
 ### Recommendation Engine
 
-职责：根据任务上下文召回、过滤、排序和解释候选工具。
+职责：根据任务上下文、Tool Cards、Rating Results 和用户风险偏好调用 LLM 生成推荐，并把 LLM 输出校验、归一化为可审计的 `Recommendation Result`。
 
 输入：
 
 - Recommendation Query。
-- Search Index。
 - Tool Cards。
 - Rating Results。
 - 用户或 agent 风险偏好。
+- 用户提供的 LLM API key 和模型。
 
 输出：
 
@@ -293,13 +293,15 @@ Source Registry
 
 错误处理：
 
+- 缺少 API key 或模型时返回可恢复错误。
+- LLM 返回未知 `tool_id` 时拒绝该候选并记录到 `rejected_candidates`。
 - 候选不足时返回 `no_reliable_match`。
-- 任务解析低置信时请求更多上下文。
+- 高风险候选不能被本地归一化为直接 `use`。
 
 测试方式：
 
-- golden queries。
-- ranking eval。
+- 使用 fake LLM client 的 contract tests。
+- 带真实 API key 的 golden queries。
 - 解释质量检查。
 
 ### Cloudflare Workers MCP API
@@ -477,7 +479,7 @@ user feedback / eval failure
 - Parser 不做评分。
 - Normalizer 不丢弃原始来源证据。
 - Rating Engine 不修改 Tool Card。
-- Recommendation Engine 不绕过安全规则。
+- Recommendation Engine 不绕过安全规则；LLM 输出必须经过本地 schema、已知工具 ID 和高风险动作校验。
 - Web UI 不生成不同于 API 的推荐逻辑。
 - Eval Runner 只评估，不静默修正 expected results。
 

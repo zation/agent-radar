@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { seedToolCards } from "../data/seed-tool-cards.js";
 import { goldenQueries } from "../eval/golden-queries.js";
-import { runGoldenQueries } from "../eval/runner.js";
+import { createBlockedEvalSummary, runGoldenQueries, type EvalSummary } from "../eval/runner.js";
 import { rateAllToolCards } from "../rating/engine.js";
 import { buildSearchIndex } from "../search/index-builder.js";
 
@@ -25,7 +25,11 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
 
   const ratings = rateAllToolCards(seedToolCards);
   const index = buildSearchIndex(seedToolCards, ratings);
-  const evalSummary = runGoldenQueries(goldenQueries, seedToolCards, ratings, index);
+  const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";
+  const model = process.env.AGENT_RADAR_LLM_MODEL ?? "gpt-4.1";
+  const evalSummary = apiKey
+    ? await runGoldenQueries(goldenQueries, seedToolCards, ratings, { apiKey, model })
+    : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.");
   const dataVersion = "data-2026-07-06";
 
   await writeFile(join(publicDataDir, "tool_cards.jsonl"), toJsonl(seedToolCards), "utf8");
@@ -72,7 +76,7 @@ function toJsonl(records: unknown[]): string {
   return `${records.map((record) => JSON.stringify(record)).join("\n")}\n`;
 }
 
-function renderEvalReport(dataVersion: string, summary: ReturnType<typeof runGoldenQueries>): string {
+function renderEvalReport(dataVersion: string, summary: EvalSummary): string {
   const lines = [
     `# Eval Report ${dataVersion}`,
     "",

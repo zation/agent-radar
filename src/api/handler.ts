@@ -1,8 +1,17 @@
-import { recommendTools } from "../recommendation/engine.js";
+import { recommendTools, type RecommendationLlmClient } from "../recommendation/engine.js";
 import type { RecommendationQuery, SearchDocument } from "../schema.js";
 import type { ToolRepository } from "./repository.js";
 
-export function createApiHandler(repository: ToolRepository): (request: Request) => Promise<Response> {
+export interface ApiHandlerOptions {
+  recommendationClient?: RecommendationLlmClient;
+}
+
+interface RecommendToolsInput extends RecommendationQuery {
+  api_key?: string;
+  model?: string;
+}
+
+export function createApiHandler(repository: ToolRepository, options: ApiHandlerOptions = {}): (request: Request) => Promise<Response> {
   return async (request: Request) => {
     const url = new URL(request.url);
     try {
@@ -14,7 +23,7 @@ export function createApiHandler(repository: ToolRepository): (request: Request)
 
       if (url.pathname === "/api/search_tools") return json(searchTools(repository, await readInput(request, url)));
       if (url.pathname === "/api/get_tool_card") return json(getToolCard(repository, getRequiredToolId(await readInput(request, url))));
-      if (url.pathname === "/api/recommend_tools") return json(recommend(repository, (await readInput(request, url)) as unknown as RecommendationQuery));
+      if (url.pathname === "/api/recommend_tools") return json(await recommend(repository, (await readInput(request, url)) as unknown as RecommendToolsInput, options));
       if (url.pathname === "/api/explain_rating") return json(explainRating(repository, getRequiredToolId(await readInput(request, url))));
 
       return json({ error: "not_found", message: "Unknown route." }, 404);
@@ -67,9 +76,16 @@ function getToolCard(repository: ToolRepository, toolId: string) {
   };
 }
 
-function recommend(repository: ToolRepository, query: RecommendationQuery) {
-  if (!query.task) throw new Error("recommend_tools requires task");
-  return recommendTools(query, repository.listToolCards(), repository.listRatings(), repository.getSearchIndex());
+async function recommend(repository: ToolRepository, input: RecommendToolsInput, options: ApiHandlerOptions) {
+  if (!input.task) throw new Error("recommend_tools requires task");
+  if (!input.api_key) throw new Error("recommend_tools requires api_key");
+  if (!input.model) throw new Error("recommend_tools requires model");
+  const { api_key: apiKey, model, ...query } = input;
+  return recommendTools(query, repository.listToolCards(), repository.listRatings(), {
+    apiKey,
+    model,
+    client: options.recommendationClient
+  });
 }
 
 function explainRating(repository: ToolRepository, toolId: string) {

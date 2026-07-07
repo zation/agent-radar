@@ -12,7 +12,26 @@ const repository = createStaticRepository({
   ratings,
   index: buildSearchIndex(seedToolCards, ratings)
 });
-const handler = createApiHandler(repository);
+const handler = createApiHandler(repository, {
+  recommendationClient: {
+    recommend() {
+      return Promise.resolve({
+        recommended_action: "ask_human",
+        query_understanding: {
+          intent: "gmail_summary",
+          task_domains: ["communication"],
+          required_capabilities: ["email_summary"],
+          likely_permissions: ["email"],
+          tool_type_hints: ["skill"],
+          risk_flags: ["email"],
+          confidence: "medium"
+        },
+        candidates: [{ tool_id: "skill-gmail-triage", fit_score: 88, why: ["Reads Gmail."], risks: ["email:read - personal data."], next_steps: [] }],
+        rejected_candidates: []
+      });
+    }
+  }
+});
 
 test("search_tools returns summaries with match reasons", async () => {
   const response = await handler(
@@ -42,7 +61,7 @@ test("recommend_tools returns recommendation result", async () => {
   const response = await handler(
     new Request("https://agent-radar.test/api/recommend_tools", {
       method: "POST",
-      body: JSON.stringify({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low" })
+      body: JSON.stringify({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low", api_key: "sk-test-secret", model: "gpt-4.1" })
     })
   );
 
@@ -50,6 +69,20 @@ test("recommend_tools returns recommendation result", async () => {
   const body = await response.json();
   assert.equal(body.schema_version, "recommendation_result.v1");
   assert.equal(body.recommended_action, "ask_human");
+});
+
+test("recommend_tools requires BYOK credentials", async () => {
+  const response = await handler(
+    new Request("https://agent-radar.test/api/recommend_tools", {
+      method: "POST",
+      body: JSON.stringify({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low" })
+    })
+  );
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { error: string; message: string };
+  assert.equal(body.error, "bad_request");
+  assert.match(body.message, /api_key/);
 });
 
 test("explain_rating returns dimension explanations", async () => {

@@ -1,5 +1,5 @@
-import type { EvalCase, RatingResult, RecommendationResult, SearchIndex, ToolCard } from "../schema.js";
-import { recommendTools } from "../recommendation/engine.js";
+import type { EvalCase, RatingResult, RecommendationResult, ToolCard } from "../schema.js";
+import { recommendTools, type RecommendToolsRuntime } from "../recommendation/engine.js";
 
 export interface EvalResult {
   case_id: string;
@@ -15,17 +15,31 @@ export interface EvalSummary {
   results: EvalResult[];
 }
 
-export function runGoldenQueries(
+export async function runGoldenQueries(
   cases: EvalCase[],
   cards: ToolCard[],
   ratings: RatingResult[],
-  index: SearchIndex
-): EvalSummary {
-  const results = cases.map((evalCase) => evaluateCase(evalCase, recommendTools(evalCase.query, cards, ratings, index), cards));
+  runtime: RecommendToolsRuntime
+): Promise<EvalSummary> {
+  const results = await Promise.all(cases.map(async (evalCase) => evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards)));
   return {
     passed: results.filter((result) => result.passed).length,
     total: results.length,
     results
+  };
+}
+
+export function createBlockedEvalSummary(cases: EvalCase[], reason: string): EvalSummary {
+  return {
+    passed: 0,
+    total: cases.length,
+    results: cases.map((evalCase) => ({
+      case_id: evalCase.id,
+      passed: false,
+      failures: [reason],
+      recommended_action: "blocked",
+      top_tool_ids: []
+    }))
   };
 }
 

@@ -1,6 +1,4 @@
-import type { RatingResult, RecommendationQuery, RecommendationResult, ToolCard } from "../schema.js";
-import { recommendTools } from "../recommendation/engine.js";
-import { buildSearchIndex } from "../search/index-builder.js";
+import type { RatingResult, ToolCard } from "../schema.js";
 
 export interface ToolViewModel {
   card: ToolCard;
@@ -44,10 +42,4 @@ export async function loadUiArtifacts(): Promise<UiArtifacts> {
     tools: createToolViewModels(parseJsonl<ToolCard>(cardsText), parseJsonl<RatingResult>(ratingsText)),
     evalSummary
   };
-}
-
-export function recommendFromViewModels(query: RecommendationQuery, tools: ToolViewModel[]): RecommendationResult {
-  const cards = tools.map((tool) => tool.card);
-  const ratings = tools.map((tool) => tool.rating);
-  return recommendTools(query, cards, ratings, buildSearchIndex(cards, ratings));
 }

@@ -12,7 +12,7 @@ Web UI 的目标不是做营销首页，而是把 Tool Card、评分、风险、
 - 信息密度适中，优先支持扫描、比较和复核。
 - 不隐藏低置信、高风险、权限和不适用条件。
 - UI 不生成不同于 API 的推荐逻辑；推荐结果必须来自共享推荐引擎或同源 artifacts。
-- 默认只读，不安装、不授权、不执行第三方工具。
+- 默认只读，不安装、不授权、不执行第三方工具。Recommend 提交会把当前请求的 API key 发送给后端用于 LLM 调用，但不持久化。
 - 优先使用 Cloudflare Pages 静态能力和 JSON artifacts，避免引入付费服务。
 
 ## 当前实现
@@ -106,7 +106,7 @@ Tools 页面不显示推荐输入，也不显示推荐结果。
 - 选择某个推荐候选后，在右侧展示与 Tools 页面一致的工具详情。
 - 对高风险场景显示 `ask_human` 或 `no_reliable_match`。
 
-当前 Recommend 页面仍直接复用 `src/recommendation/engine.ts` 的本地逻辑；API key 和模型选择是 BYOK/LLM 推荐增强的界面入口，不在 MVP 中发送到第三方服务，也不写入持久化存储。
+当前 Recommend 页面通过 `/api/recommend_tools` 调用后端 LLM 推荐引擎。API key 是 BYOK 请求参数，只用于本次 LLM 调用，不写入持久化存储、不进入响应体。
 
 布局：
 
@@ -120,7 +120,7 @@ Tools 页面不显示推荐输入，也不显示推荐结果。
 - 提交成功后输入区折叠成需求摘要和模型/风险信息。
 - 折叠摘要或 `Edit input` 可以重新展开输入区。
 
-后续接入 LLM 时，LLM 输出必须保留底层 Tool Card、Rating Result、风险和来源证据引用。UI 不能把 LLM 生成内容呈现成无证据的事实。
+LLM 输出必须保留底层 Tool Card、Rating Result、风险和来源证据引用。UI 不能把 LLM 生成内容呈现成无证据的事实。
 
 ### Eval 状态弹层
 
@@ -174,6 +174,8 @@ Tool Cards JSONL
   + Eval Summary JSON
   -> src/ui/data.ts
   -> src/ui/App.tsx
+  -> /api/recommend_tools
+  -> LLM-backed Recommendation Engine
   -> Cloudflare Pages static UI
 ```
 
@@ -181,7 +183,7 @@ UI 的数据装配由 `src/ui/data.ts` 负责：
 
 - `parseJsonl`：解析 JSONL artifacts。
 - `createToolViewModels`：把 Tool Card 与 Rating Result 关联。
-- `recommendFromViewModels`：在本地预览中复用推荐引擎。
+Recommend 页不再在浏览器端运行本地推荐逻辑。提交后由 Workers API 调用 LLM 推荐引擎并返回 `Recommendation Result`。
 
 生产环境可以改为读取 Workers API，但必须保持输出字段与 `docs/04-data-model.md`、`docs/09-recommendation-engine.md` 一致。
 
@@ -192,7 +194,7 @@ MVP Web UI 允许：
 - 搜索和筛选本地 artifacts。
 - 查看 Tool Card 和评分解释。
 - 输入推荐任务并查看推荐结果。
-- 输入 API key 和选择模型作为 BYOK 推荐增强的本地界面状态。
+- 输入 API key 和选择模型，用于本次 BYOK LLM 推荐请求。
 - 折叠和重新展开 Recommend 输入区。
 - 通过右上角状态弹层查看 eval 状态。
 - 比较少量候选。
@@ -200,7 +202,7 @@ MVP Web UI 允许：
 MVP Web UI 不允许：
 
 - 安装第三方工具。
-- 存储、记录或上传用户 API key、secret、token、邮箱内容或私有代码。
+- 存储、记录或把用户 API key、secret、token、邮箱内容或私有代码写入 artifacts、日志或页面状态以外的持久位置。
 - 修改 Tool Card、评分规则或来源数据。
 - 绕过 `ask_human` 执行高风险动作。
 - 把 UI 侧结果写回数据源。

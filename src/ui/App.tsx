@@ -1,3 +1,15 @@
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
   Bot,
@@ -15,7 +27,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { RecommendationResult } from "../schema.js";
-import { loadUiArtifacts, recommendFromViewModels, type ToolViewModel, type UiArtifacts } from "./data.js";
+import { loadUiArtifacts, type ToolViewModel, type UiArtifacts } from "./data.js";
 import { createEvalPopoverRows } from "./eval-popover.js";
 import { buildCollapsedRecommendationSummary, getRecommendationSubmitLabel } from "./recommendation-form.js";
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
@@ -23,41 +35,42 @@ import { createRecommendationItems, type RecommendationItem } from "./recommenda
 import "./styles.css";
 
 const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
-const recommendationSubmitDelayMs = 350;
 
 type Page = "tools" | "recommend";
+type RiskTolerance = "low" | "medium" | "high";
 
 const modelOptions = [
   "OpenAI GPT-4.1",
   "OpenAI GPT-4.1 mini",
-  "Anthropic Claude Sonnet",
-  "Google Gemini Pro"
+  "MiniMax M3",
+  "DeepSeek V4 Pro"
 ];
+
+const typeOptions = ["all", "skill", "mcp", "agent"];
+const riskOptions: RiskTolerance[] = ["low", "medium", "high"];
 
 export default function App() {
   const [artifacts, setArtifacts] = useState<UiArtifacts | null>(null);
   const [activePage, setActivePage] = useState<Page>("tools");
-  const [selectedId, setSelectedId] = useState<string>("");
-  const [selectedRecommendationToolId, setSelectedRecommendationToolId] = useState<string>("");
+  const [selectedId, setSelectedId] = useState("");
+  const [selectedRecommendationToolId, setSelectedRecommendationToolId] = useState("");
   const [query, setQuery] = useState(fallbackQuery);
   const [apiKey, setApiKey] = useState("");
   const [modelName, setModelName] = useState(modelOptions[0]);
-  const [riskTolerance, setRiskTolerance] = useState<"low" | "medium" | "high">("low");
+  const [riskTolerance, setRiskTolerance] = useState<RiskTolerance>("low");
   const [typeFilter, setTypeFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [recommendation, setRecommendation] = useState<RecommendationResult | null>(null);
   const [recommendationRun, setRecommendationRun] = useState<{ count: number; query: string } | null>(null);
+  const [recommendationError, setRecommendationError] = useState("");
   const [isRecommendationSubmitting, setIsRecommendationSubmitting] = useState(false);
   const [isRecommendationInputCollapsed, setIsRecommendationInputCollapsed] = useState(false);
 
   useEffect(() => {
     void loadUiArtifacts().then((loaded) => {
-      const initialRecommendation = recommendFromViewModels({ task: fallbackQuery, risk_tolerance: "low", top_k: 3 }, loaded.tools);
       setArtifacts(loaded);
       setSelectedId(loaded.tools[0]?.card.id ?? "");
-      setRecommendation(initialRecommendation);
-      setSelectedRecommendationToolId(initialRecommendation.candidates[0]?.tool_id ?? loaded.tools[0]?.card.id ?? "");
-      setRecommendationRun({ count: 1, query: fallbackQuery });
+      setSelectedRecommendationToolId(loaded.tools[0]?.card.id ?? "");
     });
   }, []);
 
@@ -90,9 +103,11 @@ export default function App() {
 
   if (!artifacts || !selectedTool || !selectedRecommendationTool) {
     return (
-      <main className="loading-shell">
-        <Bot size={28} />
-        <span>Loading Agent Radar data</span>
+      <main className="grid min-h-screen place-items-center bg-background text-muted-foreground">
+        <div className="flex items-center gap-2 text-sm">
+          <Bot />
+          <span>Loading Agent Radar data</span>
+        </div>
       </main>
     );
   }
@@ -100,45 +115,64 @@ export default function App() {
   async function runRecommendation() {
     if (!artifacts || isRecommendationSubmitting || query.trim().length === 0) return;
     const submittedQuery = query.trim();
+    const submittedApiKey = apiKey.trim();
+    if (!submittedApiKey) {
+      setRecommendationError("API key is required to run an LLM recommendation.");
+      return;
+    }
     setIsRecommendationSubmitting(true);
+    setRecommendationError("");
     try {
-      await new Promise((resolve) => setTimeout(resolve, recommendationSubmitDelayMs));
-      const nextRecommendation = recommendFromViewModels(
-        {
+      const response = await fetch("/api/recommend_tools", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
           task: submittedQuery,
           risk_tolerance: riskTolerance,
-          top_k: 4
-        },
-        artifacts.tools
-      );
+          top_k: 4,
+          api_key: submittedApiKey,
+          model: modelName
+        })
+      });
+      const body = (await response.json()) as RecommendationResult | { error?: string; message?: string };
+      if (!response.ok) {
+        throw new Error("message" in body && body.message ? body.message : "Recommendation request failed.");
+      }
+      const nextRecommendation = body as RecommendationResult;
       setRecommendation(nextRecommendation);
       setSelectedRecommendationToolId(nextRecommendation.candidates[0]?.tool_id ?? selectedRecommendationTool.card.id);
       setRecommendationRun((current) => ({ count: (current?.count ?? 0) + 1, query: submittedQuery }));
       setIsRecommendationInputCollapsed(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Recommendation request failed.";
+      setRecommendationError(message);
     } finally {
       setIsRecommendationSubmitting(false);
     }
   }
 
   return (
-    <main className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          <span className="brand-mark"><Bot size={18} /></span>
-          <strong>Agent Radar</strong>
+    <main className="app-shell min-h-screen bg-background text-foreground">
+      <header className="app-topbar sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
+        <div className="mx-auto grid h-auto max-w-[1500px] grid-cols-1 items-center gap-3 px-4 py-3 md:h-14 md:grid-cols-[250px_1fr_auto] md:px-6 md:py-0">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <span className="grid size-8 place-items-center rounded-lg bg-primary text-primary-foreground">
+              <Bot />
+            </span>
+            <strong>Agent Radar</strong>
+          </div>
+          <Tabs value={activePage} onValueChange={(value) => setActivePage(value as Page)}>
+            <TabsList>
+              <TabsTrigger value="tools">Tools</TabsTrigger>
+              <TabsTrigger value="recommend">Recommend</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <EvalStatusPopover summary={artifacts.evalSummary} />
         </div>
-        <nav className="tabs" aria-label="Primary">
-          {(["tools", "recommend"] as const).map((page) => (
-            <button key={page} className={activePage === page ? "active" : ""} onClick={() => setActivePage(page)}>
-              {page[0].toUpperCase() + page.slice(1)}
-            </button>
-          ))}
-        </nav>
-        <EvalStatusPopover summary={artifacts.evalSummary} />
       </header>
 
       {activePage === "tools" && (
-        <section className="workspace tools-page">
+        <section className="mx-auto grid max-w-[1500px] gap-4 p-3 md:grid-cols-[310px_minmax(520px,1fr)] md:p-5">
           <ToolRail
             tools={filteredTools}
             allToolCount={artifacts.tools.length}
@@ -149,7 +183,7 @@ export default function App() {
             onTypeFilterChange={setTypeFilter}
             onSelectTool={setSelectedId}
           />
-          <section className="detail-panel">
+          <section className="grid min-w-0 gap-4">
             <ToolDetail tool={selectedTool} />
             <CompareStrip tools={artifacts.tools.slice(0, 4)} />
           </section>
@@ -157,7 +191,7 @@ export default function App() {
       )}
 
       {activePage === "recommend" && (
-        <section className="workspace recommend-page">
+        <section className="mx-auto grid max-w-[1500px] gap-4 p-3 lg:grid-cols-[390px_minmax(520px,1fr)] md:p-5">
           <RecommendControlPanel
             query={query}
             apiKey={apiKey}
@@ -165,6 +199,7 @@ export default function App() {
             riskTolerance={riskTolerance}
             recommendation={recommendation}
             recommendationRun={recommendationRun}
+            recommendationError={recommendationError}
             recommendationItems={recommendationItems}
             selectedToolId={selectedRecommendationTool.card.id}
             isSubmitting={isRecommendationSubmitting}
@@ -177,12 +212,11 @@ export default function App() {
             onToggleInputCollapsed={setIsRecommendationInputCollapsed}
             onSelectRecommendation={setSelectedRecommendationToolId}
           />
-          <section className="detail-panel">
+          <section className="min-w-0">
             <ToolDetail tool={selectedRecommendationTool} />
           </section>
         </section>
       )}
-
     </main>
   );
 }
@@ -207,42 +241,62 @@ function ToolRail({
   onSelectTool: (toolId: string) => void;
 }) {
   return (
-    <aside className="tool-rail" id="tools">
-      <div className="rail-header">
-        <div>
-          <h1>Tool Cards</h1>
-          <p>{allToolCount} reviewed MVP records</p>
+    <Card className="app-card h-fit min-w-0 md:sticky md:top-20 md:max-h-[calc(100vh-6rem)]">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle>Tool Cards</CardTitle>
+            <CardDescription>{allToolCount} reviewed MVP records</CardDescription>
+          </div>
+          <Filter className="text-muted-foreground" />
         </div>
-        <Filter size={18} />
-      </div>
-      <label className="search-box">
-        <Search size={16} />
-        <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search tools, tags, risks" />
-      </label>
-      <div className="segmented" aria-label="Tool type filter">
-        {["all", "skill", "mcp", "agent"].map((type) => (
-          <button key={type} className={typeFilter === type ? "active" : ""} onClick={() => onTypeFilterChange(type)}>
-            {type}
-          </button>
-        ))}
-      </div>
-      <div className="tool-list">
-        {tools.map((tool) => (
-          <button
-            key={tool.card.id}
-            className={`tool-row ${selectedId === tool.card.id ? "selected" : ""}`}
-            onClick={() => onSelectTool(tool.card.id)}
-          >
-            <span className={`type-dot ${tool.card.type}`} />
-            <span>
-              <strong>{tool.card.name}</strong>
-              <small>{tool.card.type} · {tool.rating.recommendation_level}</small>
-            </span>
-            <b>{tool.rating.overall_score}</b>
-          </button>
-        ))}
-      </div>
-    </aside>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 overflow-auto">
+        <label className="relative block">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            value={search}
+            onChange={(event) => onSearchChange(event.target.value)}
+            placeholder="Search tools, tags, risks"
+          />
+        </label>
+        <ToggleGroup
+          className="w-full flex-wrap"
+          value={[typeFilter]}
+          onValueChange={(values) => {
+            const nextValue = values.at(-1);
+            if (nextValue) onTypeFilterChange(nextValue);
+          }}
+          variant="outline"
+          size="sm"
+        >
+          {typeOptions.map((type) => (
+            <ToggleGroupItem className="flex-1 capitalize" key={type} value={type} aria-label={`Filter ${type}`}>
+              {type}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+        <div className="grid gap-2">
+          {tools.map((tool) => (
+            <Button
+              key={tool.card.id}
+              type="button"
+              variant={selectedId === tool.card.id ? "secondary" : "ghost"}
+              className={cn("tool-row-button h-auto justify-start whitespace-normal rounded-lg p-2 text-left", selectedId === tool.card.id && "is-selected")}
+              onClick={() => onSelectTool(tool.card.id)}
+            >
+              <span className={`type-dot ${tool.card.type}`} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">{tool.card.name}</span>
+                <span className="block text-xs text-muted-foreground">{tool.card.type} · {tool.rating.recommendation_level}</span>
+              </span>
+              <Badge className="score-pill" variant="outline">{tool.rating.overall_score}</Badge>
+            </Button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -253,6 +307,7 @@ function RecommendControlPanel({
   riskTolerance,
   recommendation,
   recommendationRun,
+  recommendationError,
   recommendationItems,
   selectedToolId,
   isSubmitting,
@@ -268,9 +323,10 @@ function RecommendControlPanel({
   query: string;
   apiKey: string;
   modelName: string;
-  riskTolerance: "low" | "medium" | "high";
+  riskTolerance: RiskTolerance;
   recommendation: RecommendationResult | null;
   recommendationRun: { count: number; query: string } | null;
+  recommendationError: string;
   recommendationItems: RecommendationItem[];
   selectedToolId: string;
   isSubmitting: boolean;
@@ -278,7 +334,7 @@ function RecommendControlPanel({
   onQueryChange: (value: string) => void;
   onApiKeyChange: (value: string) => void;
   onModelNameChange: (value: string) => void;
-  onRiskToleranceChange: (value: "low" | "medium" | "high") => void;
+  onRiskToleranceChange: (value: RiskTolerance) => void;
   onRunRecommendation: () => void | Promise<void>;
   onToggleInputCollapsed: (value: boolean) => void;
   onSelectRecommendation: (toolId: string) => void;
@@ -286,132 +342,178 @@ function RecommendControlPanel({
   const collapsedSummary = buildCollapsedRecommendationSummary({ query, modelName, riskTolerance });
 
   return (
-    <aside className="recommend-config-panel" id="recommend">
-      <div className="panel-title">
-        <Sparkles size={18} />
-        <h1>Recommend</h1>
-      </div>
-      {isInputCollapsed ? (
-        <button className="collapsed-recommendation-input" type="button" onClick={() => onToggleInputCollapsed(false)}>
-          <span>Requirement</span>
-          <strong>{collapsedSummary.title}</strong>
-          <small>{collapsedSummary.meta}</small>
-        </button>
-      ) : (
-        <section className="recommendation-form" aria-label="Recommendation input">
-          <label className="field-stack">
-            <span>Requirement</span>
-            <textarea
-              value={query}
-              onChange={(event) => onQueryChange(event.target.value)}
-              placeholder="Describe a development task to get tool recommendations"
-            />
-          </label>
-          <label className="field-stack">
-            <span>API key</span>
-            <div className="input-with-icon">
-              <KeyRound size={16} />
-              <input
-                value={apiKey}
-                onChange={(event) => onApiKeyChange(event.target.value)}
-                type="password"
-                autoComplete="off"
-                placeholder="Paste provider key"
+    <Card className="app-card h-fit min-w-0 lg:sticky lg:top-20 lg:max-h-[calc(100vh-6rem)]">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles />
+          Recommend
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4 overflow-auto">
+        {isInputCollapsed ? (
+          <Button
+            className="h-auto flex-col items-start gap-1 whitespace-normal rounded-lg p-3"
+            variant="outline"
+            type="button"
+            onClick={() => onToggleInputCollapsed(false)}
+          >
+            <span className="text-xs text-muted-foreground">Requirement</span>
+            <strong className="line-clamp-2 text-sm">{collapsedSummary.title}</strong>
+            <span className="text-xs text-muted-foreground">{collapsedSummary.meta}</span>
+          </Button>
+        ) : (
+          <section className="flex flex-col gap-3" aria-label="Recommendation input">
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Requirement
+              <Textarea
+                className="min-h-28 resize-y"
+                value={query}
+                onChange={(event) => onQueryChange(event.target.value)}
+                placeholder="Describe a development task to get tool recommendations"
               />
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              API key
+              <span className="relative block">
+                <span className="api-key-icon text-muted-foreground">
+                  <KeyRound />
+                </span>
+                <Input
+                  className="api-key-input"
+                  value={apiKey}
+                  onChange={(event) => onApiKeyChange(event.target.value)}
+                  type="password"
+                  autoComplete="off"
+                  placeholder="Paste provider key"
+                />
+              </span>
+            </label>
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Model
+              <Select
+                items={modelOptions.map((model) => ({ label: model, value: model }))}
+                value={modelName}
+                onValueChange={(value) => onModelNameChange(value ?? modelOptions[0])}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false} sideOffset={6} className="recommend-model-menu">
+                  <SelectGroup>
+                    {modelOptions.map((model) => (
+                      <SelectItem key={model} value={model}>
+                        {model}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </label>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm font-medium">
+              <span>Risk</span>
+              <ToggleGroup
+                value={[riskTolerance]}
+                onValueChange={(values) => {
+                  const nextValue = values.at(-1) as RiskTolerance | undefined;
+                  if (nextValue) onRiskToleranceChange(nextValue);
+                }}
+                variant="outline"
+                size="sm"
+              >
+                {riskOptions.map((risk) => (
+                  <ToggleGroupItem className="capitalize" key={risk} value={risk} aria-label={`Risk ${risk}`}>
+                    {risk}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
             </div>
-          </label>
-          <label className="field-stack">
-            <span>Model</span>
-            <select value={modelName} onChange={(event) => onModelNameChange(event.target.value)}>
-              {modelOptions.map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="control-row">
-            <span>Risk</span>
-            <div className="segmented compact">
-              {(["low", "medium", "high"] as const).map((risk) => (
-                <button key={risk} className={riskTolerance === risk ? "active" : ""} onClick={() => onRiskToleranceChange(risk)}>
-                  {risk}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button className="primary-action" onClick={() => void onRunRecommendation()} disabled={isSubmitting || query.trim().length === 0}>
-            {isSubmitting ? <LoaderCircle className="button-spinner" size={16} /> : <Sparkles size={16} />}
-            {getRecommendationSubmitLabel(isSubmitting)}
-          </button>
-        </section>
-      )}
-      {isInputCollapsed && (
-        <button className="secondary-action" type="button" onClick={() => onToggleInputCollapsed(false)}>
-          Edit input
-        </button>
-      )}
-      {recommendation && recommendationRun && (
-        <p className="run-summary" aria-live="polite">
-          {buildRecommendationRunSummary({
-            runCount: recommendationRun.count,
-            action: recommendation.recommended_action,
-            query: recommendationRun.query
-          })}
-        </p>
-      )}
-      {recommendation && (
-        <RecommendationList
-          result={recommendation}
-          items={recommendationItems}
-          selectedToolId={selectedToolId}
-          onSelectRecommendation={onSelectRecommendation}
-        />
-      )}
-    </aside>
+            <Button className="primary-submit" onClick={() => void onRunRecommendation()} disabled={isSubmitting || query.trim().length === 0 || apiKey.trim().length === 0}>
+              {isSubmitting ? <LoaderCircle className="animate-spin" data-icon="inline-start" /> : <Sparkles data-icon="inline-start" />}
+              {getRecommendationSubmitLabel(isSubmitting)}
+            </Button>
+          </section>
+        )}
+        {isInputCollapsed && (
+          <Button className="secondary-edit" variant="outline" type="button" onClick={() => onToggleInputCollapsed(false)}>
+            Edit input
+          </Button>
+        )}
+        {recommendation && recommendationRun && (
+          <Alert aria-live="polite">
+            <Sparkles />
+            <AlertTitle>Latest run</AlertTitle>
+            <AlertDescription>
+              {buildRecommendationRunSummary({
+                runCount: recommendationRun.count,
+                action: recommendation.recommended_action,
+                query: recommendationRun.query
+              })}
+            </AlertDescription>
+          </Alert>
+        )}
+        {recommendationError && (
+          <Alert variant="destructive" aria-live="polite">
+            <AlertTriangle />
+            <AlertTitle>Recommendation failed</AlertTitle>
+            <AlertDescription>{recommendationError}</AlertDescription>
+          </Alert>
+        )}
+        {recommendation && (
+          <RecommendationList
+            result={recommendation}
+            items={recommendationItems}
+            selectedToolId={selectedToolId}
+            onSelectRecommendation={onSelectRecommendation}
+          />
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 function ToolDetail({ tool }: { tool: ToolViewModel }) {
   return (
-    <article className="tool-detail">
-      <div className="detail-heading">
-        <div>
-          <span className="muted-label">{tool.card.type} / {tool.card.primary_purpose}</span>
-          <h2>{tool.card.name}</h2>
-          <p>{tool.card.summary}</p>
-        </div>
-        <ScoreBadge score={tool.rating.overall_score} risk={tool.rating.risk_level} />
-      </div>
-      <div className="tag-row">
-        {tool.card.tags.map((tag) => <span key={tag}>{tag}</span>)}
-      </div>
-      <div className="detail-grid">
-        <InfoBlock icon={<Gauge size={18} />} label="Rating" value={tool.rating.recommendation_level} detail={tool.rating.explanations[0]?.reason} />
-        <InfoBlock icon={<ShieldAlert size={18} />} label="Risk" value={tool.rating.risk_level} detail={tool.card.security.security_notes} />
-        <InfoBlock icon={<Database size={18} />} label="Evidence" value={tool.rating.evidence_quality} detail={tool.card.source_urls[0]} />
-      </div>
-      <section className="dimension-list">
-        <h3>Rating Dimensions</h3>
-        {Object.entries(tool.rating.dimension_scores).map(([dimension, score]) => (
-          <div className="dimension-row" key={dimension}>
-            <span>{dimension.replaceAll("_", " ")}</span>
-            <div className="meter"><i style={{ width: `${score}%` }} /></div>
-            <b>{score}</b>
+    <Card className="app-card min-w-0">
+      <CardHeader>
+        <div className="grid gap-4 md:grid-cols-[1fr_auto]">
+          <div className="min-w-0">
+            <CardDescription>{tool.card.type} / {tool.card.primary_purpose}</CardDescription>
+            <CardTitle className="mt-1 text-xl">{tool.card.name}</CardTitle>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{tool.card.summary}</p>
           </div>
-        ))}
-      </section>
-      <section className="split-lists">
-        <div>
-          <h3>Use Cases</h3>
-          <ul>{tool.card.use_cases.map((item) => <li key={item}>{item}</li>)}</ul>
+          <ScoreBadge score={tool.rating.overall_score} risk={tool.rating.risk_level} />
         </div>
-        <div>
-          <h3>Not For</h3>
-          <ul>{tool.card.not_for.map((item) => <li key={item}>{item}</li>)}</ul>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        <div className="flex flex-wrap gap-1.5">
+          {tool.card.tags.map((tag) => (
+            <Badge key={tag} variant="outline">
+              {tag}
+            </Badge>
+          ))}
         </div>
-      </section>
-    </article>
+        <Separator />
+        <div className="grid gap-3 lg:grid-cols-3">
+          <InfoBlock icon={<Gauge />} label="Rating" value={tool.rating.recommendation_level} detail={tool.rating.explanations[0]?.reason} />
+          <InfoBlock icon={<ShieldAlert />} label="Risk" value={tool.rating.risk_level} detail={tool.card.security.security_notes} />
+          <InfoBlock icon={<Database />} label="Evidence" value={tool.rating.evidence_quality} detail={tool.card.source_urls[0]} />
+        </div>
+        <section className="grid gap-3">
+          <h3 className="text-sm font-medium">Rating Dimensions</h3>
+          {Object.entries(tool.rating.dimension_scores).map(([dimension, score]) => (
+            <div className="grid min-h-7 grid-cols-[minmax(104px,150px)_1fr_34px] items-center gap-2 text-xs" key={dimension}>
+              <span className="truncate text-muted-foreground">{dimension.replaceAll("_", " ")}</span>
+              <Progress className="rating-progress" value={score} />
+              <b className="text-right">{score}</b>
+            </div>
+          ))}
+        </section>
+        <section className="grid gap-4 md:grid-cols-2">
+          <ListBlock title="Use Cases" items={tool.card.use_cases} />
+          <ListBlock title="Not For" items={tool.card.not_for} />
+        </section>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -426,26 +528,29 @@ function RecommendationList({
   selectedToolId: string;
   onSelectRecommendation: (toolId: string) => void;
 }) {
-  const actionClass = result.recommended_action.replaceAll("_", "-");
+  const isCaution = result.recommended_action === "ask_human" || result.recommended_action === "no_reliable_match";
 
   return (
-    <section className="recommendation-output">
-      <div className={`action-banner ${actionClass}`}>
-        <AlertTriangle size={17} />
-        <strong>{result.recommended_action}</strong>
-      </div>
-      {result.no_match_reason && <p className="no-match">{result.no_match_reason}</p>}
-      <div className="recommendation-list">
+    <section className="grid gap-3">
+      <Alert variant="default" className={cn("action-alert", isCaution ? "is-caution" : "is-use")}>
+        <AlertTriangle />
+        <AlertTitle>{result.recommended_action}</AlertTitle>
+        {result.no_match_reason && <AlertDescription>{result.no_match_reason}</AlertDescription>}
+      </Alert>
+      <div className="grid gap-2">
         {items.map((item) => (
-          <button
-            className={`candidate-row ${selectedToolId === item.tool.card.id ? "selected" : ""}`}
+          <Button
+            className={cn("candidate-row-button h-auto grid-cols-[24px_1fr] justify-start gap-x-2 gap-y-1 whitespace-normal rounded-lg p-3 text-left", selectedToolId === item.tool.card.id && "is-selected")}
+            variant={selectedToolId === item.tool.card.id ? "secondary" : "outline"}
             key={item.candidate.tool_id}
             onClick={() => onSelectRecommendation(item.tool.card.id)}
           >
-            <span>{item.candidate.rank}</span>
-            <strong>{item.candidate.name}</strong>
-            <small>{item.candidate.recommendation_level} · {item.candidate.risk_level} · {item.candidate.fit_score}</small>
-          </button>
+            <Badge className="rank-pill" variant="outline">{item.candidate.rank}</Badge>
+            <strong className="text-sm">{item.candidate.name}</strong>
+            <span className="col-start-2 text-xs text-muted-foreground">
+              {item.candidate.recommendation_level} · {item.candidate.risk_level} · {item.candidate.fit_score}
+            </span>
+          </Button>
         ))}
       </div>
     </section>
@@ -457,25 +562,25 @@ function EvalStatusPopover({ summary }: { summary: UiArtifacts["evalSummary"] })
 
   return (
     <div className="eval-status">
-      <button className="release-state" aria-describedby="eval-popover" type="button">
-        <CheckCircle2 size={16} />
-        <span>{summary.passed}/{summary.total} golden queries</span>
-      </button>
-      <section className="eval-popover" id="eval-popover" role="tooltip">
-        <div className="eval-popover-header">
-          <div>
-            <strong>Quality Checks</strong>
-            <small>Fixed release eval, not a live recommendation run</small>
-          </div>
-          <b>{summary.passed}/{summary.total}</b>
+      <Button className="eval-trigger w-fit" variant="outline" type="button" aria-describedby="eval-popover">
+        <CheckCircle2 data-icon="inline-start" />
+        {summary.passed}/{summary.total} golden queries
+      </Button>
+      <section className="eval-popover w-[min(380px,calc(100vw-28px))]" id="eval-popover" role="tooltip">
+        <div className="grid gap-0.5 text-sm">
+          <strong className="font-medium">Quality Checks</strong>
+          <p className="text-muted-foreground">Fixed release eval, not a live recommendation run</p>
         </div>
-        {rows.map((row) => (
-          <div className="eval-row" key={row.id}>
-            <span>{row.status === "passed" ? <CheckCircle2 size={15} /> : <CircleHelp size={15} />}</span>
-            <strong>{row.label}</strong>
-            <small>{row.action}</small>
-          </div>
-        ))}
+        <Separator />
+        <div className="grid gap-2">
+          {rows.map((row) => (
+            <div className="grid min-h-8 grid-cols-[18px_1fr_auto] items-center gap-2 text-xs" key={row.id}>
+              <span className="text-primary">{row.status === "passed" ? <CheckCircle2 /> : <CircleHelp />}</span>
+              <strong className="truncate font-medium">{row.label}</strong>
+              <span className="text-muted-foreground">{row.action}</span>
+            </div>
+          ))}
+        </div>
       </section>
     </div>
   );
@@ -483,41 +588,72 @@ function EvalStatusPopover({ summary }: { summary: UiArtifacts["evalSummary"] })
 
 function CompareStrip({ tools }: { tools: ToolViewModel[] }) {
   return (
-    <section className="compare-strip" id="compare">
-      <div className="panel-title">
-        <GitCompare size={18} />
-        <h2>Compare</h2>
-      </div>
-      <div className="compare-table">
-        {tools.map((tool) => (
-          <div className="compare-row" key={tool.card.id}>
-            <strong>{tool.card.name}</strong>
-            <span>{tool.card.type}</span>
-            <span>{tool.rating.risk_level}</span>
-            <b>{tool.rating.overall_score}</b>
-          </div>
-        ))}
-      </div>
-    </section>
+    <Card className="app-card">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <GitCompare />
+          Compare
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-hidden rounded-lg border">
+          {tools.map((tool) => (
+            <div className="grid min-h-11 grid-cols-[1fr_70px_82px_42px] items-center gap-2 border-b px-3 text-xs last:border-b-0" key={tool.card.id}>
+              <strong className="truncate font-medium">{tool.card.name}</strong>
+              <span className="text-muted-foreground">{tool.card.type}</span>
+              <span className="text-muted-foreground">{tool.rating.risk_level}</span>
+              <b className="text-right">{tool.rating.overall_score}</b>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 function InfoBlock({ icon, label, value, detail }: { icon: ReactNode; label: string; value: string; detail?: string }) {
   return (
-    <div className="info-block">
-      <span>{icon}</span>
-      <small>{label}</small>
-      <strong>{value}</strong>
-      <p>{detail}</p>
-    </div>
+    <Card size="sm" className="info-block-card min-h-32">
+      <CardHeader>
+        <CardDescription className="flex items-center gap-2">
+          <span className="text-primary">{icon}</span>
+          {label}
+        </CardDescription>
+        <CardTitle className="text-sm">{value}</CardTitle>
+      </CardHeader>
+      {detail && (
+        <CardContent>
+          <p className="break-words text-xs leading-5 text-muted-foreground">{detail}</p>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+function ListBlock({ title, items }: { title: string; items: string[] }) {
+  return (
+    <section className="grid gap-2">
+      <h3 className="text-sm font-medium">{title}</h3>
+      <ul className="grid gap-1 pl-4 text-sm leading-6 text-muted-foreground">
+        {items.map((item) => (
+          <li className="list-disc" key={item}>
+            {item}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
 function ScoreBadge({ score, risk }: { score: number; risk: string }) {
+  const highRisk = risk === "high" || risk === "critical";
+
   return (
-    <div className={`score-badge ${risk}`}>
-      <strong>{score}</strong>
-      <span>{risk}</span>
-    </div>
+    <Card className={cn("score-badge-card min-w-24", highRisk ? "is-risk" : "is-trusted")} size="sm">
+      <CardContent className="text-center">
+        <strong className="block text-2xl leading-none">{score}</strong>
+        <span className="text-xs">{risk}</span>
+      </CardContent>
+    </Card>
   );
 }

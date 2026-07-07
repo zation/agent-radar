@@ -30,7 +30,9 @@
   "existing_tools": ["codex"],
   "budget": "free_or_low_cost",
   "output_format": "json",
-  "top_k": 5
+  "top_k": 5,
+  "api_key": "sk-...",
+  "model": "gpt-4.1"
 }
 ```
 
@@ -48,6 +50,21 @@
 | `budget` | 否 | 成本偏好 |
 | `output_format` | 否 | `json`、`markdown` |
 | `top_k` | 否 | 返回数量 |
+| `api_key` | API 调用必填 | BYOK LLM API key，只用于当前请求 |
+| `model` | API 调用必填 | LLM 模型名称 |
+
+## LLM 推荐流程
+
+当前实现已移除本地关键词打分推荐逻辑。`recommend_tools` 使用用户提供的 API key 调用 LLM，由 LLM 完成查询理解、候选选择、排序解释和反推荐说明。
+
+本地代码只保留以下边界：
+
+- 组装 Tool Card、Rating Result、风险和证据上下文。
+- 要求 LLM 只返回已知 `tool_id`，不得发明工具。
+- 校验并归一化 LLM 输出为 `Recommendation Result`。
+- 对 unknown `tool_id` 返回 `no_reliable_match` 或加入 `rejected_candidates`。
+- 对 `high`、`critical`、`unknown` 风险候选保持保守，不能把高风险结果降级成可直接 `use`。
+- API key 只用于当前请求，不写入 artifacts、日志或响应体。
 
 ## 查询理解
 
@@ -75,7 +92,7 @@
 
 ## 候选召回
 
-召回来源：
+候选上下文来源：
 
 - Tool Card `name`、`summary`、`primary_purpose`、`use_cases`、`tags`。
 - Rating Result 分项分。
@@ -83,15 +100,7 @@
 - 适用 agent。
 - 来源可信度。
 
-召回方式：
-
-1. 关键词匹配。
-2. 标签和分类过滤。
-3. 技术栈匹配。
-4. 工具类型匹配。
-5. 基于 Cloudflare D1 SQLite 的全文或结构化召回。
-
-召回必须保留匹配原因，例如命中的字段和标签。
+召回和排序由 LLM 在给定候选上下文内完成。LLM 必须保留匹配原因，例如命中的能力、标签、评分、风险或证据字段。
 
 ## 硬过滤
 
@@ -111,30 +120,9 @@
 
 ## 排序规则
 
-排序使用合成分 `fit_score`，范围 0-100。
+排序由 LLM 生成 `fit_score`，范围 0-100。LLM 应综合任务匹配、Rating Result、证据质量、维护状态、集成适配和安全适配。
 
-建议公式：
-
-```text
-fit_score =
-  task_match * 0.35 +
-  rating_overall * 0.20 +
-  evidence_quality * 0.15 +
-  maintenance_health * 0.10 +
-  integration_fit * 0.10 +
-  safety_fit * 0.10
-```
-
-其中：
-
-- `task_match`：任务、标签、能力和技术栈匹配。
-- `rating_overall`：评分系统总分。
-- `evidence_quality`：证据质量映射分。
-- `maintenance_health`：维护状态映射分。
-- `integration_fit`：安装、认证、运行环境是否匹配。
-- `safety_fit`：权限与风险偏好是否匹配。
-
-MVP 搜索实现基于 Cloudflare D1 SQLite 和构建期 JSON 索引，不引入独立搜索服务。
+本地实现不维护固定排序公式，避免产生与 LLM 推荐相冲突的第二套推荐系统。若 LLM 未返回合法 `fit_score`，本地仅使用 Rating Result 总分作为展示兜底。
 
 ### 风险调整
 
@@ -370,15 +358,17 @@ Top 结果应避免全是同一类型，除非任务明确要求。
 - 同类工具排序 cases。
 - 推荐解释质量抽查。
 
+由于推荐依赖 LLM，离线构建没有 `AGENT_RADAR_LLM_API_KEY` 时应输出 blocked eval summary，而不是运行旧本地规则引擎。
+
 失败时必须输出：
 
 - 哪些 query 失败。
-- 排名如何变化。
-- 失败是数据问题、评分问题还是推荐逻辑问题。
+- 排名或推荐动作如何变化。
+- 失败是数据问题、评分问题、LLM 输出问题还是安全归一化问题。
 
 ## 维护规则
 
 - 推荐理由必须引用具体字段或评分依据。
 - 当没有合适工具时，应明确返回“暂无可靠推荐”，而不是强行推荐。
-- 修改排序规则必须运行推荐评测。
+- 修改 LLM prompt、输出归一化或安全闸门必须运行推荐评测。
 - 新增推荐输出字段必须同步更新数据模型和 Workers MCP API contract。
