@@ -330,6 +330,10 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 
 ### P1：v0.2 基础
 
+- 建立 Cloudflare Pages preview 审核流程：
+  - Preview build 生成网站、本体数据、eval report、ingestion review 和 artifact manifest。
+  - Reviewer 审核 preview URL，而不是只看本地构建日志。
+  - Production 只 promote 已审核的 preview deployment 或同一个 immutable bundle，不重新运行 pipeline/eval。
 - 增加 14-44 张高价值 Tool Cards，达到 20-50 张覆盖。
 - 实现最小采集 MVP：
   - 可执行 Source Registry 配置。

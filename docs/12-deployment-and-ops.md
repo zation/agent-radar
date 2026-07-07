@@ -11,6 +11,7 @@
 - MVP 固定使用 Cloudflare 免费栈：Cloudflare Pages、Cloudflare Workers、Cloudflare D1 SQLite。
 - 发布前必须跑 schema、数据质量、安全和推荐评测。
 - 每次发布记录数据版本、规则版本和索引版本。
+- 审核对象必须和发布对象一致；生产发布应 promote 已审核的 Cloudflare Pages preview deployment，而不是重新运行 pipeline 生成新产物。
 - 失败时保留上一稳定版本。
 - 不引入任何付费服务；新增基础设施前必须说明免费额度、成本和替代方案。
 
@@ -197,14 +198,51 @@ Browser UI
 
 ### 发布流程
 
+Agent Radar 的发布流程采用“build once, review preview, promote same deployment”原则。由于 LLM-backed eval 和数据采集都可能受时间、provider、来源内容变化影响，生产发布不应在 merge 后重新运行 `pipeline` 并发布新结果。PR 或手动 preview build 生成的 Cloudflare Pages preview deployment 才是 reviewer 实际审核的对象；审核通过后，生产环境 promote 同一个 deployment。
+
+### Preview Build 流程
+
 ```text
 checkout
   -> install dependencies
   -> npm test
+  -> npm run ingest
+  -> generate ingestion review assets
   -> npm run pipeline
+  -> npm run release:check
   -> npm run pages:build
-  -> upload public/data, public/reports, and dist-pages as release/deploy artifacts
+  -> copy review assets into dist-pages/review
+  -> write dist-pages/artifact-manifest.json
+  -> deploy dist-pages to Cloudflare Pages preview
 ```
+
+Preview deployment 应包含：
+
+- 产品网站本体。
+- `data/*`：Tool Cards、ratings、search index、eval summary、D1 seed。
+- `reports/*`：eval report。
+- `review/*`：ingestion review report，用于维护者审核采集候选。
+- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、构建时间和关键文件 checksum。
+
+### Production Promote 流程
+
+```text
+select approved preview deployment
+  -> verify artifact-manifest.json
+  -> verify eval passed == total
+  -> verify deployment git sha / branch / PR approval
+  -> promote the same Cloudflare Pages preview deployment to production
+  -> optional: import the same d1_seed.sql into Cloudflare D1
+  -> store deployment URL and manifest as release evidence
+```
+
+Production promote 不重新运行：
+
+- `npm run ingest`
+- `npm run pipeline`
+- `npm run eval`
+
+如果 Cloudflare API 无法直接 promote existing preview deployment，fallback 是下载 preview build 对应的 immutable bundle 并部署同一个 bundle 到 production；仍然不能重新 build。
 
 ### 发布门槛
 
@@ -217,6 +255,8 @@ checkout
 - golden queries critical cases。
 - index build。
 - manifest consistency check。
+- preview deployment review approval。
+- production promote 使用的 deployment id 或 bundle checksum 必须与审核记录一致。
 
 LLM-backed 推荐发布说明：
 
