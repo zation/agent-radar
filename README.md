@@ -31,6 +31,7 @@ npm run pipeline
 npm run eval
 npm run pages:build
 npm run dev:with-data
+npm run preview:build
 npm run dev -- --port 4173
 ```
 
@@ -46,6 +47,8 @@ npm run dev -- --port 4173
 开发环境通过 `npm run dev:with-data` 先生成本地 `public/data` 和 `public/reports`，再启动 Vite。发布环境通过 `npm run release:build` 在 CI 或发布机上重新生成同一批产物并构建 `dist-pages`。Cloudflare D1 初始化使用 `migrations/0001_mvp_read_model.sql`，数据导入使用生成的 `public/data/d1_seed.sql`。Workers 只读 API 入口在 `src/worker.ts`，Pages UI 入口在 `index.html` 和 `src/ui/App.tsx`。
 
 `npm run ingest` 运行 v0.2 数据采集 MVP 的本地草稿链路：读取 enabled Source Registry、保存 Raw Snapshot 到 `data/raw/`，并输出 Source Records 到 `data/source_records/`。这些文件是可再生成的采集产物，不进入 git；当前不会自动进入可靠推荐发布数据。
+
+`npm run preview:build` 在 `release:build` 后把审核材料写入 `dist-pages/review/ingestion.md`，并生成 `dist-pages/artifact-manifest.json`。Cloudflare Pages preview 应部署这个 `dist-pages` 目录；生产发布应 promote 已审核的 preview deployment，而不是重新生成产物。
 
 ## 文档入口
 

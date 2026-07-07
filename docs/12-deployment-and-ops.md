@@ -152,6 +152,7 @@ npm run eval
 npm run pages:build
 npm run dev:with-data
 npm run release:build
+npm run preview:build
 npm run dev -- --port 4173
 ```
 
@@ -163,6 +164,7 @@ npm run dev -- --port 4173
 - `npm run pages:build`：构建 Cloudflare Pages 风格静态 UI，输出到本地 `dist-pages/`。
 - `npm run dev:with-data`：先运行 pipeline 生成本地发布产物，再启动 Vite dev server。
 - `npm run release:build`：运行测试、生成发布产物并构建 Pages 输出，适合 CI 或手动发布前使用。
+- `npm run preview:build`：在 release build 后运行 ingest，把审核报告和 artifact manifest 写入 `dist-pages/`，用于 Cloudflare Pages preview 审核。
 - `npm run dev -- --port 4173`：本地预览 Pages UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler。
 
 LLM 推荐相关环境变量：
@@ -205,14 +207,7 @@ Agent Radar 的发布流程采用“build once, review preview, promote same dep
 ```text
 checkout
   -> install dependencies
-  -> npm test
-  -> npm run ingest
-  -> generate ingestion review assets
-  -> npm run pipeline
-  -> npm run release:check
-  -> npm run pages:build
-  -> copy review assets into dist-pages/review
-  -> write dist-pages/artifact-manifest.json
+  -> npm run preview:build
   -> deploy dist-pages to Cloudflare Pages preview
 ```
 
