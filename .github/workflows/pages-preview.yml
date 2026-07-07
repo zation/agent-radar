@@ -1,0 +1,89 @@
+name: Pages Preview
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to build"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  preview:
+    name: Build and deploy preview
+    runs-on: ubuntu-latest
+    env:
+      AGENT_RADAR_LLM_API_KEY: ${{ secrets.AGENT_RADAR_LLM_API_KEY }}
+      AGENT_RADAR_LLM_MODEL: ${{ vars.AGENT_RADAR_LLM_MODEL || 'deepseek-v4-flash' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build preview bundle
+        run: npm run preview:build
+
+      - name: Deploy Cloudflare Pages preview
+        id: deploy
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist-pages --project-name=${{ secrets.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ github.ref_name }}
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Write review summary
+        env:
+          DEPLOY_OUTPUT: ${{ steps.deploy.outputs.command-output }}
+        run: |
+          {
+            echo "## Agent Radar Preview"
+            echo
+            echo "- Ref: \`${GITHUB_REF_NAME}\`"
+            echo "- SHA: \`${GITHUB_SHA}\`"
+            echo
+            echo "### Cloudflare Deploy Output"
+            echo
+            echo '```text'
+            printf '%s\n' "$DEPLOY_OUTPUT"
+            echo '```'
+            echo
+            echo "### Artifact Manifest"
+            echo
+            node - <<'NODE'
+            const manifest = require("./dist-pages/artifact-manifest.json");
+            console.log(`- Schema: \`${manifest.schema_version}\``);
+            console.log(`- Git SHA: \`${manifest.git_sha}\``);
+            console.log(`- Data version: \`${manifest.data_version}\``);
+            console.log(`- Eval: ${manifest.eval.passed}/${manifest.eval.total} using \`${manifest.eval.model}\``);
+            console.log(`- Checksums: ${Object.keys(manifest.checksums).length} files`);
+            NODE
+            echo
+            cat artifacts/review/ingestion.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload preview bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-radar-preview-${{ github.run_id }}
+          path: |
+            dist-pages
+            artifacts/review
+          if-no-files-found: error

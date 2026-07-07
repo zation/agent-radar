@@ -204,6 +204,15 @@ Agent Radar 的发布流程采用“build once, review preview, promote same dep
 
 ### Preview Build 流程
 
+当前实现使用 `.github/workflows/pages-preview.yml`。触发方式：
+
+```bash
+git tag v0.2.0-preview.1
+git push origin v0.2.0-preview.1
+```
+
+也可以通过 `workflow_dispatch` 手动输入 ref。Preview workflow 使用 Cloudflare Pages Direct Upload，经 `cloudflare/wrangler-action@v3` 执行 `wrangler pages deploy dist-pages --project-name=<project> --branch=<tag>`。Cloudflare 官方 Direct Upload 文档要求提供 `CLOUDFLARE_ACCOUNT_ID` 和 `CLOUDFLARE_API_TOKEN`，API token 至少需要 Cloudflare Pages edit 权限。
+
 ```text
 checkout
   -> install dependencies
@@ -224,6 +233,21 @@ GitHub Actions summary 应包含：
 - `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选。
 - Cloudflare Pages preview URL。
 - `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数和 checksum 数量。
+
+GitHub 配置要求：
+
+| 名称 | 类型 | 用途 |
+| --- | --- | --- |
+| `AGENT_RADAR_LLM_API_KEY` | secret | `pipeline` / golden eval 使用的 BYOK provider key。 |
+| `AGENT_RADAR_LLM_MODEL` | repository variable | eval model；默认使用 `deepseek-v4-flash`。 |
+| `CLOUDFLARE_API_TOKEN` | secret | Wrangler Direct Upload 认证。 |
+| `CLOUDFLARE_ACCOUNT_ID` | secret | Cloudflare account id。 |
+| `CLOUDFLARE_PAGES_PROJECT_NAME` | secret | Cloudflare Pages project name。 |
+
+Preview workflow 上传的 artifact 包含：
+
+- `dist-pages`：可部署网站和 `artifact-manifest.json`。
+- `artifacts/review`：给 GitHub Actions Summary 和人工审核使用的 Markdown review。
 
 ### Production Promote 流程
 

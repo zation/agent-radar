@@ -50,6 +50,8 @@ npm run dev -- --port 4173
 
 `npm run preview:build` 在 `release:build` 后生成 `dist-pages/artifact-manifest.json`，并把审核材料写入 `artifacts/review/ingestion.md`。Cloudflare Pages preview 应部署 `dist-pages`；GitHub Actions 应把 `artifacts/review/ingestion.md` 追加到 step summary 供审核。生产发布应 promote 已审核的 preview deployment，而不是重新生成产物。
 
+Tag 触发的 preview 构建由 `.github/workflows/pages-preview.yml` 处理。推送正常 SemVer tag，例如 `v0.2.0-preview.1`，会运行 `preview:build`、部署 Cloudflare Pages preview、把 ingestion review 和 manifest 摘要写入 GitHub Actions Summary，并上传 `dist-pages` 与 `artifacts/review`。
+
 ## 文档入口
 
 - [产品简报](docs/00-product-brief.md)
