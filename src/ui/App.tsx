@@ -8,7 +8,6 @@ import {
   Gauge,
   GitCompare,
   KeyRound,
-  ListChecks,
   Search,
   ShieldAlert,
   Sparkles
@@ -16,13 +15,14 @@ import {
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { RecommendationResult } from "../schema.js";
 import { loadUiArtifacts, recommendFromViewModels, type ToolViewModel, type UiArtifacts } from "./data.js";
+import { createEvalPopoverRows } from "./eval-popover.js";
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
 import { createRecommendationItems, type RecommendationItem } from "./recommendation-view.js";
 import "./styles.css";
 
 const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
 
-type Page = "tools" | "recommend" | "eval";
+type Page = "tools" | "recommend";
 
 const modelOptions = [
   "OpenAI GPT-4.1",
@@ -115,16 +115,13 @@ export default function App() {
           <strong>Agent Radar</strong>
         </div>
         <nav className="tabs" aria-label="Primary">
-          {(["tools", "recommend", "eval"] as const).map((page) => (
+          {(["tools", "recommend"] as const).map((page) => (
             <button key={page} className={activePage === page ? "active" : ""} onClick={() => setActivePage(page)}>
               {page[0].toUpperCase() + page.slice(1)}
             </button>
           ))}
         </nav>
-        <div className="release-state">
-          <CheckCircle2 size={16} />
-          <span>{artifacts.evalSummary.passed}/{artifacts.evalSummary.total} golden queries</span>
-        </div>
+        <EvalStatusPopover summary={artifacts.evalSummary} />
       </header>
 
       {activePage === "tools" && (
@@ -170,11 +167,6 @@ export default function App() {
         </section>
       )}
 
-      {activePage === "eval" && (
-        <section className="workspace eval-page">
-          <EvalPanel summary={artifacts.evalSummary} />
-        </section>
-      )}
     </main>
   );
 }
@@ -421,21 +413,32 @@ function RecommendationList({
   );
 }
 
-function EvalPanel({ summary }: { summary: UiArtifacts["evalSummary"] }) {
+function EvalStatusPopover({ summary }: { summary: UiArtifacts["evalSummary"] }) {
+  const rows = createEvalPopoverRows(summary);
+
   return (
-    <section className="eval-panel" id="eval">
-      <div className="panel-title">
-        <ListChecks size={18} />
-        <h1>Quality Checks</h1>
-      </div>
-      {summary.results.map((result) => (
-        <div className="eval-row" key={result.case_id}>
-          <span>{result.passed ? <CheckCircle2 size={15} /> : <CircleHelp size={15} />}</span>
-          <strong>{result.case_id.replace("gq-", "")}</strong>
-          <small>{result.recommended_action}</small>
+    <div className="eval-status">
+      <button className="release-state" aria-describedby="eval-popover" type="button">
+        <CheckCircle2 size={16} />
+        <span>{summary.passed}/{summary.total} golden queries</span>
+      </button>
+      <section className="eval-popover" id="eval-popover" role="tooltip">
+        <div className="eval-popover-header">
+          <div>
+            <strong>Quality Checks</strong>
+            <small>Fixed release eval, not a live recommendation run</small>
+          </div>
+          <b>{summary.passed}/{summary.total}</b>
         </div>
-      ))}
-    </section>
+        {rows.map((row) => (
+          <div className="eval-row" key={row.id}>
+            <span>{row.status === "passed" ? <CheckCircle2 size={15} /> : <CircleHelp size={15} />}</span>
+            <strong>{row.label}</strong>
+            <small>{row.action}</small>
+          </div>
+        ))}
+      </section>
+    </div>
   );
 }
 

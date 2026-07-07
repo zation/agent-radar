@@ -42,13 +42,12 @@ UI 读取的发布 artifacts：
 
 ## 信息架构
 
-MVP 使用顶部导航切换三个页面：
+MVP 使用顶部导航切换两个主要页面：
 
 - `Tools`
 - `Recommend`
-- `Eval`
 
-每个页面服务不同任务，避免把搜索、推荐和质量检查混在一个工作区里。
+每个页面服务不同任务，避免把搜索和推荐混在一个工作区里。发布质量检查不再占用独立页面，而是收纳在右上角 `golden queries` 状态弹层中。
 
 ### Tools 页面
 
@@ -113,7 +112,7 @@ Tools 页面不显示推荐输入，也不显示推荐结果。
 
 后续接入 LLM 时，LLM 输出必须保留底层 Tool Card、Rating Result、风险和来源证据引用。UI 不能把 LLM 生成内容呈现成无证据的事实。
 
-### Eval 页面
+### Eval 状态弹层
 
 职责：
 
@@ -121,7 +120,12 @@ Tools 页面不显示推荐输入，也不显示推荐结果。
 - 展示每个 eval case 的推荐动作。
 - 帮助维护者判断当前数据版本是否可发布。
 
-UI 中的 eval 状态来自 `public/data/eval_summary.json`，不应在浏览器端重新计算。Eval 是固定发布质量检查，不随 Recommend 页的输入动态变化。
+入口：
+
+- 顶部右侧 `5/5 golden queries` 状态控件。
+- hover 或键盘 focus 后显示 eval 明细。
+
+UI 中的 eval 状态来自 `public/data/eval_summary.json`，不应在浏览器端重新计算。Eval 是固定发布质量检查，不随 Recommend 页的输入动态变化，也不作为独立导航页面呈现。
 
 ### 比较区域
 
@@ -179,7 +183,7 @@ MVP Web UI 允许：
 - 查看 Tool Card 和评分解释。
 - 输入推荐任务并查看推荐结果。
 - 输入 API key 和选择模型作为 BYOK 推荐增强的本地界面状态。
-- 查看 eval 状态。
+- 通过右上角状态弹层查看 eval 状态。
 - 比较少量候选。
 
 MVP Web UI 不允许：
@@ -215,9 +219,10 @@ npm run pipeline
 - 页面非空渲染。
 - 无框架错误 overlay。
 - 无 console error。
-- 桌面三栏布局可读。
+- 桌面工作区布局可读。
 - 移动视口无横向溢出。
 - 推荐查询按钮能更新结果。
+- 右上角 golden queries hover/focus 后显示 eval 明细。
 - 高风险场景显示 `ask_human` 或 `no_reliable_match`。
 - eval 状态与 `eval_summary.json` 一致。
 
