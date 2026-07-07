@@ -68,7 +68,7 @@
 
 ### 当前实现
 
-当前本地 MVP 发布流水线尚未接入真实采集模块。`npm run pipeline` 使用人工维护的 `src/data/seed-tool-cards.ts` 作为输入，生成评分、搜索索引、D1 seed SQL、golden query 数据和 eval report。
+当前本地 MVP 可靠发布流水线仍使用人工维护的 `src/data/seed-tool-cards.ts` 作为输入，生成评分、搜索索引、D1 seed SQL、golden query 数据和 eval report。`npm run ingest` 已提供 v0.2 采集草稿链路，但不会自动把采集结果发布为可靠 Tool Cards。
 
 ```text
 manual seed Tool Cards
@@ -80,7 +80,7 @@ manual seed Tool Cards
   -> Vite Web UI / Workers-style API reads artifacts
 ```
 
-当前没有实现 Source Registry 读取、crawler、parser、Raw Snapshot 保存或 Source Record 入库。`public/data/source_registry.json` 仍是目标发布产物，尚未由代码生成。
+当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存和 Source Record 输出，用于验证采集契约。尚未实现的是发布用 `source_registry.json` artifact、独立 validator、deduper、normalizer、人工 override，以及 Source Record 到 Tool Card 草稿/审核队列的接入。
 
 ### 目标形态
 
@@ -172,7 +172,7 @@ LLM 推荐相关环境变量：
 | 变量 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `AGENT_RADAR_LLM_API_KEY` | eval 必填 | 无 | BYOK provider key，仅用于当前 eval/provider 请求 |
-| `AGENT_RADAR_LLM_MODEL` | 否 | `gpt-4.1` | eval 使用的模型 ID 或已支持的 provider model label |
+| `AGENT_RADAR_LLM_MODEL` | 否 | `gpt-4.1` | eval 使用的模型 ID 或已支持的 provider model label；CI 可设置为 `deepseek-v4-flash` |
 
 当前 Web UI 支持用户在 Recommend 表单中输入一次性 API key 和模型。请求路径为：
 

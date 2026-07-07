@@ -252,7 +252,7 @@ MVP 必须实现：
 
 MVP 使用人工补全和手动触发更新，不做自动定时采集。
 
-当前代码实现仍是人工 seed 路径：`npm run pipeline` 从 `src/data/seed-tool-cards.ts` 读取 Tool Cards 并生成 artifacts。真正的 Source Registry 读取、crawler、Raw Snapshot、parser、Source Record 和人工 override 尚未实现。
+当前可靠发布路径仍是人工 seed：`npm run pipeline` 从 `src/data/seed-tool-cards.ts` 读取 Tool Cards 并生成 artifacts。`npm run ingest` 已提供 v0.2 最小采集草稿链路，可读取 enabled Source Registry、保存 Raw Snapshot 并输出 Source Records；但这些采集产物尚未进入可靠推荐发布数据，也没有接入 deduper、normalizer 或人工 override。
 
 ## 延期范围
 
@@ -281,13 +281,13 @@ MVP 使用人工补全和手动触发更新，不做自动定时采集。
 
 | 编号 | 能力 | 当前状态 | 主要输入 | 主要输出 | 验收方式 |
 | --- | --- | --- | --- | --- | --- |
-| FR-01 | 来源注册 | 设计完成，代码未完全落地 | 来源 URL 与元数据 | Source Registry | 字段检查、人工审核 |
-| FR-02 | 原始快照 | 未实现 | 来源响应 | Raw Snapshot | 哈希、时间戳、可回放 |
+| FR-01 | 来源注册 | v0.2 草稿链路已可执行，发布 artifact 未接入 | 来源 URL 与元数据 | Source Registry | 字段检查、人工审核 |
+| FR-02 | 原始快照 | v0.2 草稿链路已实现本地写入 | 来源响应 | Raw Snapshot | 哈希、时间戳、可回放 |
 | FR-03 | Tool Card | MVP 小样本已实现 | Source Record/人工种子数据 | 标准化卡片 | schema 校验、抽样审核 |
 | FR-04 | 分类 | MVP 标签体系已用于 Tool Cards | Tool Card 字段 | 多维标签 | 分类规则测试 |
 | FR-05 | 评分 | `rating_rules.v0.1-draft` 已实现 | Tool Card、规则版本 | Rating Result | 单元测试、eval diff |
 | FR-06 | 搜索 | 已实现基础搜索/API/UI | 查询词、过滤器 | 搜索结果 | golden search cases |
-| FR-07 | 推荐 | 已改为 BYOK LLM-backed 推荐，真实质量待 eval | 任务上下文、API key、model | Recommendation Result | golden queries |
+| FR-07 | 推荐 | BYOK LLM-backed 推荐已通过 MVP golden eval baseline | 任务上下文、API key、model | Recommendation Result | golden queries |
 | FR-08 | AI 输出 | JSON schema 已实现，Markdown 摘要未系统化 | 推荐结果 | JSON/Markdown | schema 校验 |
 | FR-09 | MCP 查询 | HTTP JSON API 已实现，完整 MCP 包装未完成 | MCP/API tool call | 查询响应 | 接口测试 |
 | FR-10 | Web UI | Tools/Recommend 主路径已实现 | 数据索引、用户任务 | 浏览、比较、推荐页面 | 手工验收 + Pages build |
@@ -300,9 +300,9 @@ MVP 使用人工补全和手动触发更新，不做自动定时采集。
 - 推荐能力不再维护本地关键词召回/排序引擎。`recommend_tools` 使用 BYOK LLM provider 生成推荐，本地代码负责 provider routing、prompt 上下文、schema 归一化、已知工具 ID 校验和高风险动作保护。
 - 当前支持 OpenAI、MiniMax 和 DeepSeek 的 OpenAI-compatible Chat Completions 路由。
 - 本地开发时 Vite dev server 已挂载 `/api/*`，与 Workers API 使用同一套 handler。
-- 数据采集代码尚未落地；当前发布数据来自人工维护的 `seedToolCards`，采集相关文档描述的是目标契约。
+- `npm run ingest` 已落地最小采集草稿链路；当前发布数据仍来自人工维护的 `seedToolCards`，采集产物进入 Tool Card 草稿和人工审核队列是 v0.2 后续工作。
 - 没有 `AGENT_RADAR_LLM_API_KEY` 时，推荐 eval 输出 blocked summary；这不是推荐质量通过，只表示缺少真实 provider 运行条件。
-- MVP 当前最主要验收风险是推荐质量尚未用真实 key 完成 golden query 验证。
+- MVP baseline 已用真实 provider key 跑通过 golden query 验证；后续风险转为数据覆盖、采集接入和 provider 错误分层。
 
 ## 维护规则
 

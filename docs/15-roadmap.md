@@ -25,7 +25,7 @@
 
 ## 当前进度快照
 
-截至当前分支，Agent Radar 已完成一个可演示的 MVP 主路径：
+截至当前分支，Agent Radar 已完成 MVP baseline：
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 首批 6 张人工审核 Tool Cards 已进入 JSON artifacts、评分、搜索索引和 D1 seed。
@@ -36,16 +36,18 @@
 - 当前支持的 LLM provider/model 选项：
   - OpenAI：`OpenAI GPT-4.1`、`OpenAI GPT-4.1 mini`
   - MiniMax：`MiniMax M3`
-  - DeepSeek：`DeepSeek V4 Pro`
+  - DeepSeek：`DeepSeek V4 Pro`、`DeepSeek V4 Flash`
 - LLM provider 请求会记录 provider、endpoint、model、状态码和脱敏错误体，不记录 API key。
 - 无 `AGENT_RADAR_LLM_API_KEY` 时，pipeline/eval 会生成 blocked eval summary，而不是运行旧本地推荐引擎。
+- 已用真实 provider key 跑通 5 个 MVP golden queries，并通过 release gate。
+- `npm run ingest` 已提供 v0.2 最小采集草稿链路：读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records。
+- Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
 
 当前主要缺口：
 
-- 推荐质量尚未用真实 provider key 跑完 golden queries；目前自动测试主要覆盖 schema、安全归一化和 provider 路由。
 - Tool Card 覆盖仍是 MVP 小样本，尚未达到 v0.2 的 20-50 张。
-- 数据源抓取代码尚未实现；当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成 artifacts。
-- Source Registry、crawler、parser、Raw Snapshot、Source Record、deduper、normalizer 和人工 override 仍主要停留在文档/设计层。
+- 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 的 Source Records 尚未进入 Tool Card 草稿、人工审核和发布数据。
+- 发布用 `source_registry.json` artifact、独立 validator、deduper、normalizer 和人工 override 尚未完成。
 - Workers API 当前是 HTTP/JSON 风格实现，尚未包装成完整 MCP server/tool manifest。
 - BYOK 模式已经可用，但还缺 provider 配置 UI、错误提示分层和 direct-to-provider/proxy 模式决策。
 
@@ -122,13 +124,13 @@
 
 ### 当前完成度
 
-MVP 已经具备端到端演示能力，但还没有完全达到“推荐质量可验证”的完成标准。建议把 MVP 收口标准定义为：
+MVP baseline 已完成。当前完成标准为：
 
-- 使用至少一个真实 LLM provider key 跑通 5 个 golden queries，并记录通过/失败原因。
-- 修正 LLM prompt 或 Tool Card 数据，使 critical cases 不出现高风险误推荐。
-- 明确采集 MVP 仍未落地；如要把数据覆盖从 6 张 seed card 扩展到 20-50 张，需要先实现最小 Source Registry + Raw Snapshot + parser 链路，或继续采用人工审核 seed 扩充。
-- 明确 BYOK proxy 模式的安全说明，决定是否在 v0.2 支持浏览器直连 provider。
-- 保持当前 6 张 Tool Cards 的字段完整、评分解释和 UI 展示一致。
+- 使用真实 LLM provider key 跑通 5 个 golden queries，并记录 eval summary。
+- Critical cases 不出现高风险误推荐，release gate 要求 golden eval 全部通过。
+- Cloudflare Pages preview build 可生成网站、本体数据、eval report、ingestion review 和 artifact manifest。
+- 生产发布遵循 build once、review preview、promote same deployment，不在 main release 重新运行 pipeline/eval。
+- 当前 6 张 Tool Cards 的字段完整、评分解释和 UI 展示一致。
 
 ## v0.2
 
@@ -321,26 +323,21 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 
 ## 下一步计划
 
-### P0：MVP 收口
+### P0：v0.2 数据接入
 
-- 用 OpenAI、MiniMax 或 DeepSeek 至少一个真实 key 跑 `npm run eval`。
-- 根据真实失败案例调整 LLM prompt、Tool Card 字段或安全归一化。
+- 增加 14-44 张高价值 Tool Cards，达到 20-50 张覆盖。
+- 把 `npm run ingest` 输出的 Source Records 接入 Tool Card 草稿和人工审核/标准化入口。
+- 实现发布用 `source_registry.json` artifact 和独立 Source Registry validator。
+- 补齐 deduper、normalizer 和最小人工 override record。
 - 把 provider 401/429/模型不可用/JSON 解析失败映射成前端可读错误。
-- 在 UI 中标明当前请求会走 Agent Radar proxy，并说明 key 不持久化。
 
 ### P1：v0.2 基础
 
-- 建立 Cloudflare Pages preview 审核流程：
-  - Preview build 生成网站、本体数据、eval report、ingestion review 和 artifact manifest。
-  - Reviewer 审核 preview URL，而不是只看本地构建日志。
+- 将 Cloudflare Pages preview 审核流程补齐到生产 promote 自动化：
+  - Reviewer 审核 preview URL、Actions Summary、artifact manifest 和 ingestion review。
   - Production 只 promote 已审核的 preview deployment 或同一个 immutable bundle，不重新运行 pipeline/eval。
-- 增加 14-44 张高价值 Tool Cards，达到 20-50 张覆盖。
-- 实现最小采集 MVP：
-  - 可执行 Source Registry 配置。
-  - 1-2 个官方来源的 crawler/parser。
-  - Raw Snapshot 保存和内容 hash。
-  - parser 输出 Source Record。
-  - Source Record 到 Tool Card 的人工审核/标准化入口。
+  - 记录 production deployment id、manifest checksum 和 D1 seed checksum。
+- 增加 1-2 个官方来源的 crawler/parser，保持 GitHub topics disabled 直到噪声评估完成。
 - 建立 provider registry，避免 provider endpoint/model label 分散在代码常量里。
 - 补齐 MCP tool 定义和 agent-facing 示例。
 - 让 eval report 区分 `blocked_no_key`、`provider_error`、`schema_error`、`quality_failure`。
