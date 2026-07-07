@@ -10,6 +10,8 @@
     "lint": "eslint .",
     "stylelint": "stylelint \"src/**/*.{css,scss}\"",
     "pages:build": "vite build",
+    "dev:with-data": "npm run pipeline && npm run dev -- --port 4173",
+    "release:build": "npm test && npm run pipeline && npm run pages:build",
     "test": "npm run build && node --test dist/tests/**/*.test.js",
     "pipeline": "npm run build && node dist/src/cli/build-artifacts.js",
     "eval": "npm run build && node dist/src/cli/run-eval.js"

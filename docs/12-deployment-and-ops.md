@@ -98,6 +98,8 @@ MVP 不启用自动 schedule。维护者手动触发更新和发布。
 
 ## 发布产物
 
+发布产物由 `npm run pipeline` 在本地或 CI 中生成，默认不作为源码长期提交。源码仓库保留 Tool Card seed、golden queries、评分/推荐代码、schema、migration 和文档；`public/data`、`public/reports`、`dist`、`dist-pages` 属于可再生成产物，应作为 GitHub Actions artifacts、GitHub Release assets 或 Pages 部署输出保存。
+
 | 产物 | 路径示例 | 用途 |
 | --- | --- | --- |
 | Source Registry | `public/data/source_registry.json` | 来源展示和审计 |
@@ -147,15 +149,19 @@ npm test
 npm run pipeline
 npm run eval
 npm run pages:build
+npm run dev:with-data
+npm run release:build
 npm run dev -- --port 4173
 ```
 
 命令说明：
 
 - `npm test`：运行 TypeScript 编译和 Node test suite，覆盖评分、推荐、pipeline、API 和 UI 数据装配。
-- `npm run pipeline`：生成 `public/data` artifacts、D1 seed SQL 和 `public/reports` eval report。
+- `npm run pipeline`：生成本地 `public/data` artifacts、D1 seed SQL 和 `public/reports` eval report；这些文件是发布产物，不再默认进入 git。
 - `npm run eval`：运行 5 个 MVP golden queries；需要 `AGENT_RADAR_LLM_API_KEY` 才会调用真实 LLM provider。缺少 key 时输出 blocked summary 并退出非 0。
 - `npm run pages:build`：构建 Cloudflare Pages 风格静态 UI，输出到本地 `dist-pages/`。
+- `npm run dev:with-data`：先运行 pipeline 生成本地发布产物，再启动 Vite dev server。
+- `npm run release:build`：运行测试、生成发布产物并构建 Pages 输出，适合 CI 或手动发布前使用。
 - `npm run dev -- --port 4173`：本地预览 Pages UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler。
 
 LLM 推荐相关环境变量：
@@ -194,17 +200,10 @@ Browser UI
 ```text
 checkout
   -> install dependencies
-  -> validate docs links
-  -> validate source registry
-  -> crawl enabled sources
-  -> parse snapshots
-  -> normalize tool cards
-  -> validate tool cards
-  -> run rating engine
-  -> build search index
-  -> run eval
-  -> compare eval diff
-  -> publish static artifacts
+  -> npm test
+  -> npm run pipeline
+  -> npm run pages:build
+  -> upload public/data, public/reports, and dist-pages as release/deploy artifacts
 ```
 
 ### 发布门槛

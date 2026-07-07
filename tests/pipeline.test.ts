@@ -11,8 +11,13 @@ interface EvalSummaryFile {
 
 test("builds MVP data artifacts and an eval report", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-"));
+  const originalApiKey = process.env.AGENT_RADAR_LLM_API_KEY;
+  const originalModel = process.env.AGENT_RADAR_LLM_MODEL;
 
   try {
+    delete process.env.AGENT_RADAR_LLM_API_KEY;
+    delete process.env.AGENT_RADAR_LLM_MODEL;
+
     const summary = await buildArtifacts({ outputDir });
 
     assert.equal(summary.toolCount >= 5, true);
@@ -34,6 +39,10 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.match(d1SeedSql, /INSERT INTO ratings/);
     assert.match(d1SeedSql, /INSERT INTO search_documents/);
   } finally {
+    if (originalApiKey === undefined) delete process.env.AGENT_RADAR_LLM_API_KEY;
+    else process.env.AGENT_RADAR_LLM_API_KEY = originalApiKey;
+    if (originalModel === undefined) delete process.env.AGENT_RADAR_LLM_MODEL;
+    else process.env.AGENT_RADAR_LLM_MODEL = originalModel;
     await rm(outputDir, { recursive: true, force: true });
   }
 });

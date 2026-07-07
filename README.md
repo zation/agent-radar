@@ -29,10 +29,11 @@ npm test
 npm run pipeline
 npm run eval
 npm run pages:build
+npm run dev:with-data
 npm run dev -- --port 4173
 ```
 
-核心产物：
+核心发布产物由 `npm run pipeline` 生成，不再作为源码长期提交：
 
 - `public/data/tool_cards.jsonl`
 - `public/data/ratings.jsonl`
@@ -41,7 +42,7 @@ npm run dev -- --port 4173
 - `public/data/manifest.json`
 - `public/reports/eval-data-2026-07-06.md`
 
-Cloudflare D1 初始化使用 `migrations/0001_mvp_read_model.sql`，数据导入使用 `public/data/d1_seed.sql`。Workers 只读 API 入口在 `src/worker.ts`，Pages UI 入口在 `index.html` 和 `src/ui/App.tsx`。
+开发环境通过 `npm run dev:with-data` 先生成本地 `public/data` 和 `public/reports`，再启动 Vite。发布环境通过 `npm run release:build` 在 CI 或发布机上重新生成同一批产物并构建 `dist-pages`。Cloudflare D1 初始化使用 `migrations/0001_mvp_read_model.sql`，数据导入使用生成的 `public/data/d1_seed.sql`。Workers 只读 API 入口在 `src/worker.ts`，Pages UI 入口在 `index.html` 和 `src/ui/App.tsx`。
 
 ## 文档入口
 

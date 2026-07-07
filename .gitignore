@@ -1,5 +1,7 @@
 dist/
 dist-pages/
 node_modules/
+public/data/
+public/reports/
 .DS_Store
 *.log
