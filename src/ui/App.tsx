@@ -8,6 +8,7 @@ import {
   Gauge,
   GitCompare,
   KeyRound,
+  LoaderCircle,
   Search,
   ShieldAlert,
   Sparkles
@@ -16,11 +17,13 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { RecommendationResult } from "../schema.js";
 import { loadUiArtifacts, recommendFromViewModels, type ToolViewModel, type UiArtifacts } from "./data.js";
 import { createEvalPopoverRows } from "./eval-popover.js";
+import { buildCollapsedRecommendationSummary, getRecommendationSubmitLabel } from "./recommendation-form.js";
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
 import { createRecommendationItems, type RecommendationItem } from "./recommendation-view.js";
 import "./styles.css";
 
 const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
+const recommendationSubmitDelayMs = 350;
 
 type Page = "tools" | "recommend";
 
@@ -44,6 +47,8 @@ export default function App() {
   const [search, setSearch] = useState("");
   const [recommendation, setRecommendation] = useState<RecommendationResult | null>(null);
   const [recommendationRun, setRecommendationRun] = useState<{ count: number; query: string } | null>(null);
+  const [isRecommendationSubmitting, setIsRecommendationSubmitting] = useState(false);
+  const [isRecommendationInputCollapsed, setIsRecommendationInputCollapsed] = useState(false);
 
   useEffect(() => {
     void loadUiArtifacts().then((loaded) => {
@@ -92,19 +97,27 @@ export default function App() {
     );
   }
 
-  function runRecommendation() {
-    if (!artifacts) return;
-    const nextRecommendation = recommendFromViewModels(
-      {
-        task: query,
-        risk_tolerance: riskTolerance,
-        top_k: 4
-      },
-      artifacts.tools
-    );
-    setRecommendation(nextRecommendation);
-    setSelectedRecommendationToolId(nextRecommendation.candidates[0]?.tool_id ?? selectedRecommendationTool.card.id);
-    setRecommendationRun((current) => ({ count: (current?.count ?? 0) + 1, query }));
+  async function runRecommendation() {
+    if (!artifacts || isRecommendationSubmitting || query.trim().length === 0) return;
+    const submittedQuery = query.trim();
+    setIsRecommendationSubmitting(true);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, recommendationSubmitDelayMs));
+      const nextRecommendation = recommendFromViewModels(
+        {
+          task: submittedQuery,
+          risk_tolerance: riskTolerance,
+          top_k: 4
+        },
+        artifacts.tools
+      );
+      setRecommendation(nextRecommendation);
+      setSelectedRecommendationToolId(nextRecommendation.candidates[0]?.tool_id ?? selectedRecommendationTool.card.id);
+      setRecommendationRun((current) => ({ count: (current?.count ?? 0) + 1, query: submittedQuery }));
+      setIsRecommendationInputCollapsed(true);
+    } finally {
+      setIsRecommendationSubmitting(false);
+    }
   }
 
   return (
@@ -154,11 +167,14 @@ export default function App() {
             recommendationRun={recommendationRun}
             recommendationItems={recommendationItems}
             selectedToolId={selectedRecommendationTool.card.id}
+            isSubmitting={isRecommendationSubmitting}
+            isInputCollapsed={isRecommendationInputCollapsed}
             onQueryChange={setQuery}
             onApiKeyChange={setApiKey}
             onModelNameChange={setModelName}
             onRiskToleranceChange={setRiskTolerance}
             onRunRecommendation={runRecommendation}
+            onToggleInputCollapsed={setIsRecommendationInputCollapsed}
             onSelectRecommendation={setSelectedRecommendationToolId}
           />
           <section className="detail-panel">
@@ -239,11 +255,14 @@ function RecommendControlPanel({
   recommendationRun,
   recommendationItems,
   selectedToolId,
+  isSubmitting,
+  isInputCollapsed,
   onQueryChange,
   onApiKeyChange,
   onModelNameChange,
   onRiskToleranceChange,
   onRunRecommendation,
+  onToggleInputCollapsed,
   onSelectRecommendation
 }: {
   query: string;
@@ -254,64 +273,84 @@ function RecommendControlPanel({
   recommendationRun: { count: number; query: string } | null;
   recommendationItems: RecommendationItem[];
   selectedToolId: string;
+  isSubmitting: boolean;
+  isInputCollapsed: boolean;
   onQueryChange: (value: string) => void;
   onApiKeyChange: (value: string) => void;
   onModelNameChange: (value: string) => void;
   onRiskToleranceChange: (value: "low" | "medium" | "high") => void;
-  onRunRecommendation: () => void;
+  onRunRecommendation: () => void | Promise<void>;
+  onToggleInputCollapsed: (value: boolean) => void;
   onSelectRecommendation: (toolId: string) => void;
 }) {
+  const collapsedSummary = buildCollapsedRecommendationSummary({ query, modelName, riskTolerance });
+
   return (
     <aside className="recommend-config-panel" id="recommend">
       <div className="panel-title">
         <Sparkles size={18} />
         <h1>Recommend</h1>
       </div>
-      <label className="field-stack">
-        <span>Requirement</span>
-        <textarea
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Describe a development task to get tool recommendations"
-        />
-      </label>
-      <label className="field-stack">
-        <span>API key</span>
-        <div className="input-with-icon">
-          <KeyRound size={16} />
-          <input
-            value={apiKey}
-            onChange={(event) => onApiKeyChange(event.target.value)}
-            type="password"
-            autoComplete="off"
-            placeholder="Paste provider key"
-          />
-        </div>
-      </label>
-      <label className="field-stack">
-        <span>Model</span>
-        <select value={modelName} onChange={(event) => onModelNameChange(event.target.value)}>
-          {modelOptions.map((model) => (
-            <option key={model} value={model}>
-              {model}
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="control-row">
-        <span>Risk</span>
-        <div className="segmented compact">
-          {(["low", "medium", "high"] as const).map((risk) => (
-            <button key={risk} className={riskTolerance === risk ? "active" : ""} onClick={() => onRiskToleranceChange(risk)}>
-              {risk}
-            </button>
-          ))}
-        </div>
-      </div>
-      <button className="primary-action" onClick={onRunRecommendation}>
-        <Sparkles size={16} />
-        Recommend tools
-      </button>
+      {isInputCollapsed ? (
+        <button className="collapsed-recommendation-input" type="button" onClick={() => onToggleInputCollapsed(false)}>
+          <span>Requirement</span>
+          <strong>{collapsedSummary.title}</strong>
+          <small>{collapsedSummary.meta}</small>
+        </button>
+      ) : (
+        <section className="recommendation-form" aria-label="Recommendation input">
+          <label className="field-stack">
+            <span>Requirement</span>
+            <textarea
+              value={query}
+              onChange={(event) => onQueryChange(event.target.value)}
+              placeholder="Describe a development task to get tool recommendations"
+            />
+          </label>
+          <label className="field-stack">
+            <span>API key</span>
+            <div className="input-with-icon">
+              <KeyRound size={16} />
+              <input
+                value={apiKey}
+                onChange={(event) => onApiKeyChange(event.target.value)}
+                type="password"
+                autoComplete="off"
+                placeholder="Paste provider key"
+              />
+            </div>
+          </label>
+          <label className="field-stack">
+            <span>Model</span>
+            <select value={modelName} onChange={(event) => onModelNameChange(event.target.value)}>
+              {modelOptions.map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="control-row">
+            <span>Risk</span>
+            <div className="segmented compact">
+              {(["low", "medium", "high"] as const).map((risk) => (
+                <button key={risk} className={riskTolerance === risk ? "active" : ""} onClick={() => onRiskToleranceChange(risk)}>
+                  {risk}
+                </button>
+              ))}
+            </div>
+          </div>
+          <button className="primary-action" onClick={() => void onRunRecommendation()} disabled={isSubmitting || query.trim().length === 0}>
+            {isSubmitting ? <LoaderCircle className="button-spinner" size={16} /> : <Sparkles size={16} />}
+            {getRecommendationSubmitLabel(isSubmitting)}
+          </button>
+        </section>
+      )}
+      {isInputCollapsed && (
+        <button className="secondary-action" type="button" onClick={() => onToggleInputCollapsed(false)}>
+          Edit input
+        </button>
+      )}
       {recommendation && recommendationRun && (
         <p className="run-summary" aria-live="polite">
           {buildRecommendationRunSummary({

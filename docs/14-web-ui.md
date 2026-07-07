@@ -99,6 +99,9 @@ Tools 页面不显示推荐输入，也不显示推荐结果。
 - 允许用户输入 API key。
 - 允许用户选择大模型。
 - 选择风险偏好。
+- 点击 `Submit` 后显示提交中状态。
+- 推荐成功后自动折叠输入区，优先展示候选列表。
+- 允许用户再次展开输入区重新编辑需求。
 - 展示推荐动作和候选工具列表。
 - 选择某个推荐候选后，在右侧展示与 Tools 页面一致的工具详情。
 - 对高风险场景显示 `ask_human` 或 `no_reliable_match`。
@@ -107,8 +110,15 @@ Tools 页面不显示推荐输入，也不显示推荐结果。
 
 布局：
 
-- 左侧：需求输入、API key、模型选择、风险偏好、推荐按钮和推荐列表。
+- 左侧：可折叠的需求输入区、API key、模型选择、风险偏好、提交按钮和推荐列表。
 - 右侧：当前选中推荐候选的 Tool Card 详情。
+
+交互：
+
+- 初始状态展开输入区，按钮文案为 `Submit`。
+- 提交中按钮显示 loading spinner，避免用户误以为点击无效。
+- 提交成功后输入区折叠成需求摘要和模型/风险信息。
+- 折叠摘要或 `Edit input` 可以重新展开输入区。
 
 后续接入 LLM 时，LLM 输出必须保留底层 Tool Card、Rating Result、风险和来源证据引用。UI 不能把 LLM 生成内容呈现成无证据的事实。
 
@@ -183,6 +193,7 @@ MVP Web UI 允许：
 - 查看 Tool Card 和评分解释。
 - 输入推荐任务并查看推荐结果。
 - 输入 API key 和选择模型作为 BYOK 推荐增强的本地界面状态。
+- 折叠和重新展开 Recommend 输入区。
 - 通过右上角状态弹层查看 eval 状态。
 - 比较少量候选。
 
@@ -221,7 +232,8 @@ npm run pipeline
 - 无 console error。
 - 桌面工作区布局可读。
 - 移动视口无横向溢出。
-- 推荐查询按钮能更新结果。
+- Recommend `Submit` 有 loading 状态，完成后折叠输入区并更新结果。
+- 折叠后的 Recommend 输入摘要可重新展开。
 - 右上角 golden queries hover/focus 后显示 eval 明细。
 - 高风险场景显示 `ask_human` 或 `no_reliable_match`。
 - eval 状态与 `eval_summary.json` 一致。

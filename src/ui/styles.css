@@ -509,6 +509,11 @@ ul {
   gap: 14px;
 }
 
+.recommendation-form {
+  display: grid;
+  gap: 14px;
+}
+
 .panel-title {
   gap: 8px;
   color: #183b36;
@@ -599,6 +604,62 @@ select:focus {
   color: #fff;
   font-size: 13px;
   font-weight: 650;
+}
+
+.primary-action:disabled {
+  cursor: not-allowed;
+  background: #9fb0ac;
+}
+
+.secondary-action {
+  height: 34px;
+  border: 1px solid #dce6e2;
+  border-radius: 7px;
+  background: #fff;
+  color: #183b36;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.secondary-action:hover {
+  border-color: #b8cbc6;
+  background: #f7fbfa;
+}
+
+.button-spinner {
+  animation: button-spinner 800ms linear infinite;
+}
+
+.collapsed-recommendation-input {
+  display: grid;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+  border: 1px solid #dce6e2;
+  border-radius: 8px;
+  padding: 11px;
+  background: #fbfcfc;
+  color: #17211f;
+}
+
+.collapsed-recommendation-input:hover {
+  border-color: #9ccbc3;
+  background: #f2faf7;
+}
+
+.collapsed-recommendation-input span,
+.collapsed-recommendation-input small {
+  color: #71817d;
+  font-size: 12px;
+}
+
+.collapsed-recommendation-input strong {
+  overflow: hidden;
+  color: #17211f;
+  font-size: 13px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .run-summary {
@@ -696,6 +757,12 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@keyframes button-spinner {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .compare-strip {
