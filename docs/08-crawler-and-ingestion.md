@@ -8,9 +8,9 @@
 
 ## 当前实现状态
 
-截至当前分支，采集与入库模块仍处于设计阶段，尚未实现真正的数据源抓取代码。
+截至当前分支，采集与入库模块已具备 v0.2 的最小草稿链路，但尚未接入可靠推荐发布数据。
 
-当前已实现的是手工 seed 数据到发布 artifacts 的最小流水线：
+当前发布流水线仍使用手工 seed 数据到发布 artifacts：
 
 ```text
 src/data/seed-tool-cards.ts
@@ -21,19 +21,30 @@ src/data/seed-tool-cards.ts
   -> public/data/d1_seed.sql
 ```
 
-也就是说，`npm run pipeline` 当前读取的是人工维护的 `seedToolCards`，不会读取 Source Registry，也不会执行 crawler、parser、normalizer、deduper 或 Raw Snapshot 保存。
+也就是说，`npm run pipeline` 当前读取的是人工维护的 `seedToolCards`，不会读取 Source Registry，也不会执行 normalizer、deduper 或把采集草稿发布为可靠 Tool Cards。
+
+新增的本地草稿链路是：
+
+```text
+npm run ingest
+  -> src/ingestion/source-registry.ts
+  -> crawl enabled source
+  -> data/raw/<source_id>/<YYYY-MM-DD>/<hash>.json
+  -> parse Source Records
+  -> data/source_records/<source_id>.jsonl
+```
+
+当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Raw Snapshot 和 Source Record 契约。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
 
 尚未实现的采集能力包括：
 
-- 可执行的 `source_registry.json`。
-- Source Registry validator。
+- 发布用 `source_registry.json` artifact。
+- 独立 Source Registry validator。
 - Crawl Plan 生成。
-- HTTP/API crawler。
-- Raw Snapshot 写入与内容 hash。
-- 来源专属 parser。
-- Source Record Store。
+- 通用外部 HTTP/API crawler 的限流、重试和审计日志。
+- 更多来源专属 parser。
 - deduper、normalizer 和人工 override。
-- 采集失败、限流、重试和审计日志。
+- 采集结果进入 Tool Card 草稿和人工审核队列。
 
 因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。
 

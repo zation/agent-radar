@@ -3,5 +3,7 @@ dist-pages/
 node_modules/
 public/data/
 public/reports/
+data/raw/
+data/source_records/
 .DS_Store
 *.log

@@ -1,0 +1,104 @@
+import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname, join } from "node:path";
+import { seedToolCards } from "../data/seed-tool-cards.js";
+import type { RawSourceSnapshot, SourceDefinition } from "../schema.js";
+
+export interface CrawlEnabledSourcesOptions {
+  sources: SourceDefinition[];
+  outputDir: string;
+  now?: string;
+  fetchImpl?: typeof fetch;
+}
+
+export async function crawlEnabledSources(options: CrawlEnabledSourcesOptions): Promise<RawSourceSnapshot[]> {
+  const now = options.now ?? new Date().toISOString();
+  const fetchImpl = options.fetchImpl ?? createDefaultFetch();
+  const snapshots: RawSourceSnapshot[] = [];
+
+  for (const source of options.sources) {
+    snapshots.push(await crawlSource(source, options.outputDir, now, fetchImpl));
+  }
+
+  return snapshots;
+}
+
+async function crawlSource(source: SourceDefinition, outputDir: string, now: string, fetchImpl: typeof fetch): Promise<RawSourceSnapshot> {
+  try {
+    const response = await fetchImpl(source.url, { headers: {} });
+    const content = await response.text();
+    const contentType = response.headers.get("content-type") ?? undefined;
+    const contentHash = `sha256:${createHash("sha256").update(content).digest("hex")}`;
+    const extension = contentType?.includes("json") ? "json" : "txt";
+    const contentPath = join("data", "raw", source.id, now.slice(0, 10), `${contentHash.replace("sha256:", "")}.${extension}`);
+    const requestMeta = readSafeRequestMeta(response.headers);
+    const snapshot: RawSourceSnapshot = {
+      id: `${source.id}-${now.slice(0, 10).replaceAll("-", "")}-${contentHash.slice(7, 15)}`,
+      schema_version: "raw_snapshot.v1",
+      source_id: source.id,
+      source_url: source.url,
+      fetched_at: now,
+      fetch_method: source.collection_method === "manual" ? "manual" : source.collection_method === "api" ? "api" : "http",
+      status: response.ok ? "success" : "failed",
+      http_status: response.status,
+      content_type: contentType,
+      content_hash: contentHash,
+      content_path: contentPath,
+      request_meta: requestMeta,
+      error: response.ok ? undefined : { code: "http_error", message: `HTTP ${response.status}` }
+    };
+
+    await writeSnapshotFiles(outputDir, contentPath, content, snapshot);
+    return snapshot;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown crawl error";
+    const content = JSON.stringify({ error: message });
+    const contentHash = `sha256:${createHash("sha256").update(content).digest("hex")}`;
+    const contentPath = join("data", "raw", source.id, now.slice(0, 10), `${contentHash.replace("sha256:", "")}.json`);
+    const snapshot: RawSourceSnapshot = {
+      id: `${source.id}-${now.slice(0, 10).replaceAll("-", "")}-${contentHash.slice(7, 15)}`,
+      schema_version: "raw_snapshot.v1",
+      source_id: source.id,
+      source_url: source.url,
+      fetched_at: now,
+      fetch_method: source.collection_method === "manual" ? "manual" : source.collection_method === "api" ? "api" : "http",
+      status: "failed",
+      content_type: "application/json",
+      content_hash: contentHash,
+      content_path: contentPath,
+      error: { code: "crawl_failed", message }
+    };
+
+    await writeSnapshotFiles(outputDir, contentPath, content, snapshot);
+    return snapshot;
+  }
+}
+
+function createDefaultFetch(): typeof fetch {
+  return async (url) => {
+    const requestUrl = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
+    if (requestUrl === "internal://manual-review/seed-tool-cards") {
+      return new Response(JSON.stringify({ tools: seedToolCards }), {
+        status: 200,
+        headers: { "content-type": "application/json" }
+      });
+    }
+    return fetch(url);
+  };
+}
+
+function readSafeRequestMeta(headers: Headers): Record<string, string> {
+  const meta: Record<string, string> = {};
+  const etag = headers.get("etag");
+  const lastModified = headers.get("last-modified");
+  if (etag) meta.etag = etag;
+  if (lastModified) meta.last_modified = lastModified;
+  return meta;
+}
+
+async function writeSnapshotFiles(outputDir: string, contentPath: string, content: string, snapshot: RawSourceSnapshot): Promise<void> {
+  const absoluteContentPath = join(outputDir, contentPath);
+  await mkdir(dirname(absoluteContentPath), { recursive: true });
+  await writeFile(absoluteContentPath, content, "utf8");
+  await writeFile(`${absoluteContentPath}.meta.json`, JSON.stringify(snapshot, null, 2), "utf8");
+}

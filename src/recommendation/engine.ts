@@ -81,7 +81,8 @@ export async function recommendTools(
     .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
 
   const queryUnderstanding = normalizeQueryUnderstanding(llmOutput.query_understanding, query, candidates);
-  const recommendedAction = chooseSafeAction(llmOutput.recommended_action, candidates);
+  const forcedNoMatchReason = getForcedNoMatchReason(query, queryUnderstanding);
+  const recommendedAction = forcedNoMatchReason ? "no_reliable_match" : chooseSafeAction(llmOutput.recommended_action, candidates);
 
   return {
     id: `rec-${Date.now().toString(36)}`,
@@ -93,7 +94,7 @@ export async function recommendTools(
     rejected_candidates: rejectedCandidates,
     no_match_reason:
       recommendedAction === "no_reliable_match"
-        ? llmOutput.no_match_reason ?? "The LLM response did not include any known tool candidate."
+        ? forcedNoMatchReason ?? llmOutput.no_match_reason ?? "The LLM response did not include any known tool candidate."
         : llmOutput.no_match_reason
   };
 }
@@ -316,6 +317,14 @@ function chooseSafeAction(action: RecommendedAction, candidates: RecommendationC
   const highestRisk = Math.max(...candidates.map((candidate) => riskRank[candidate.risk_level]));
   if (highestRisk >= riskRank.high) return "ask_human";
   return normalizedAction;
+}
+
+function getForcedNoMatchReason(query: RecommendationQuery, understanding: QueryUnderstanding): string | undefined {
+  const permissions = new Set(understanding.likely_permissions);
+  if (query.risk_tolerance === "low" && permissions.has("payment") && permissions.has("database")) {
+    return "No reliable match: low risk tolerance is incompatible with combined payment and database permissions.";
+  }
+  return undefined;
 }
 
 function buildRisks(card: ToolCard): string[] {

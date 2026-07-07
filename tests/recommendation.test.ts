@@ -258,3 +258,41 @@ test("infers high-risk permissions for no reliable match queries", async () => {
   assert.ok(result.query_understanding.likely_permissions.includes("database"));
   assert.ok(result.query_understanding.likely_permissions.includes("secrets"));
 });
+
+test("forces no reliable match for low-tolerance payment plus database operations", async () => {
+  const client: RecommendationLlmClient = {
+    recommend() {
+      return Promise.resolve({
+        recommended_action: "use",
+        query_understanding: {
+          intent: "production_refund_database_action",
+          task_domains: ["payments", "database"],
+          required_capabilities: ["refunds", "database_access"],
+          likely_permissions: [],
+          tool_type_hints: ["skill"],
+          risk_flags: [],
+          confidence: "medium"
+        },
+        candidates: [
+          {
+            tool_id: "skill-stripe-checkout-guidance",
+            why: ["Official Stripe guidance is payment-related."],
+            risks: [],
+            next_steps: ["Read the Stripe docs."]
+          }
+        ],
+        rejected_candidates: []
+      });
+    }
+  };
+
+  const result = await recommendTools({ task: "自动处理线上支付退款并读取生产数据库", risk_tolerance: "low" }, seedToolCards, ratings, {
+    apiKey: "sk-test-secret",
+    model: "gpt-4.1",
+    client
+  });
+
+  assert.equal(result.recommended_action, "no_reliable_match");
+  assert.equal(result.candidates.length, 0);
+  assert.match(result.no_match_reason ?? "", /risk tolerance/i);
+});

@@ -4,6 +4,8 @@ export type RiskLevel = "low" | "medium" | "high" | "critical" | "unknown";
 export type TrustLevel = "official" | "well_known_org" | "active_open_source" | "individual" | "commercial" | "unknown";
 export type RecommendationLevel = "recommended" | "consider" | "situational" | "avoid" | "insufficient_evidence";
 export type RecommendedAction = "use" | "compare" | "ask_human" | "avoid" | "no_reliable_match";
+export type SourceType = "official_registry" | "official_docs" | "github" | "package_registry" | "community_list" | "news" | "manual";
+export type CollectionMethod = "api" | "http" | "git_clone" | "manual" | "rss";
 
 export interface InstallMethod {
   method: "npm" | "pip" | "brew" | "docker" | "source" | "hosted" | "manual" | "unknown";
@@ -195,4 +197,59 @@ export interface EvalCase {
   severity: "critical" | "major" | "minor";
   owner: string;
   updated_at: string;
+}
+
+export interface SourceDefinition {
+  id: string;
+  name: string;
+  url: string;
+  source_type: SourceType;
+  covered_tool_types: ToolType[];
+  collection_method: CollectionMethod;
+  recommended_frequency: "daily" | "weekly" | "monthly" | "manual";
+  trust_level: TrustLevel;
+  field_coverage: string[];
+  rate_limits?: string;
+  terms_notes: string;
+  parser?: string;
+  failure_policy: string;
+  enabled: boolean;
+  owner?: string;
+  last_reviewed_at: string;
+}
+
+export interface RawSourceSnapshot {
+  id: string;
+  schema_version: "raw_snapshot.v1";
+  source_id: string;
+  source_url: string;
+  fetched_at: string;
+  fetch_method: "http" | "api" | "manual" | "file_import";
+  status: "success" | "partial" | "failed";
+  http_status?: number;
+  content_type?: string;
+  content_hash: string;
+  content_path: string;
+  request_meta?: Record<string, string>;
+  error?: {
+    code: string;
+    message: string;
+  };
+}
+
+export interface SourceRecord {
+  id: string;
+  schema_version: "source_record.v1";
+  snapshot_id: string;
+  source_id: string;
+  record_type: "repository" | "package" | "registry_entry" | "doc_page" | "list_item" | "manual";
+  name: string;
+  description?: string;
+  urls: string[];
+  raw_fields: Record<string, unknown>;
+  parsed_fields: Record<string, unknown>;
+  source_confidence: Confidence;
+  parsed_at: string;
+  parser_version: string;
+  warnings?: string[];
 }
