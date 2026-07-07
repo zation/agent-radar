@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -83,6 +83,7 @@ test("builds artifact manifest with checksums and eval summary", async () => {
 
 test("creates preview bundle review assets and artifact manifest", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-preview-"));
+  const artifactsDir = await mkdtemp(join(tmpdir(), "agent-radar-review-"));
 
   try {
     await mkdir(join(outputDir, "data"), { recursive: true });
@@ -92,18 +93,21 @@ test("creates preview bundle review assets and artifact manifest", async () => {
 
     await createPreviewBundle({
       distDir: outputDir,
+      reviewDir: artifactsDir,
       ingestion: ingestionResult,
       gitSha: "abc123",
       builtAt: "2026-07-07T00:00:00Z",
       providerModel: "deepseek-v4-flash"
     });
 
-    const reviewMarkdown = await readFile(join(outputDir, "review", "ingestion.md"), "utf8");
+    const reviewMarkdown = await readFile(join(artifactsDir, "ingestion.md"), "utf8");
     const artifactManifest = JSON.parse(await readFile(join(outputDir, "artifact-manifest.json"), "utf8")) as { git_sha: string };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
     assert.equal(artifactManifest.git_sha, "abc123");
+    await assert.rejects(() => stat(join(outputDir, "review", "ingestion.md")));
   } finally {
     await rm(outputDir, { recursive: true, force: true });
+    await rm(artifactsDir, { recursive: true, force: true });
   }
 });

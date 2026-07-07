@@ -48,7 +48,7 @@ npm run dev -- --port 4173
 
 `npm run ingest` 运行 v0.2 数据采集 MVP 的本地草稿链路：读取 enabled Source Registry、保存 Raw Snapshot 到 `data/raw/`，并输出 Source Records 到 `data/source_records/`。这些文件是可再生成的采集产物，不进入 git；当前不会自动进入可靠推荐发布数据。
 
-`npm run preview:build` 在 `release:build` 后把审核材料写入 `dist-pages/review/ingestion.md`，并生成 `dist-pages/artifact-manifest.json`。Cloudflare Pages preview 应部署这个 `dist-pages` 目录；生产发布应 promote 已审核的 preview deployment，而不是重新生成产物。
+`npm run preview:build` 在 `release:build` 后生成 `dist-pages/artifact-manifest.json`，并把审核材料写入 `artifacts/review/ingestion.md`。Cloudflare Pages preview 应部署 `dist-pages`；GitHub Actions 应把 `artifacts/review/ingestion.md` 追加到 step summary 供审核。生产发布应 promote 已审核的 preview deployment，而不是重新生成产物。
 
 ## 文档入口
 

@@ -6,6 +6,7 @@ import { createPreviewBundle } from "../preview/bundle.js";
 const execFileAsync = promisify(execFile);
 
 const distDir = process.env.AGENT_RADAR_PREVIEW_DIST_DIR ?? "dist-pages";
+const reviewDir = process.env.AGENT_RADAR_REVIEW_DIR ?? "artifacts/review";
 const gitSha = process.env.GITHUB_SHA ?? (await readGitSha());
 const builtAt = process.env.AGENT_RADAR_PREVIEW_BUILT_AT ?? new Date().toISOString();
 const providerModel = process.env.AGENT_RADAR_LLM_MODEL ?? "gpt-4.1";
@@ -13,6 +14,7 @@ const providerModel = process.env.AGENT_RADAR_LLM_MODEL ?? "gpt-4.1";
 const ingestion = await runIngestion({ outputDir: "." });
 await createPreviewBundle({
   distDir,
+  reviewDir,
   ingestion,
   gitSha,
   builtAt,
@@ -24,7 +26,7 @@ console.log(
     {
       distDir,
       gitSha,
-      review: `${distDir}/review/ingestion.md`,
+      review: `${reviewDir}/ingestion.md`,
       manifest: `${distDir}/artifact-manifest.json`
     },
     null,

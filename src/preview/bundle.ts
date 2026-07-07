@@ -6,6 +6,7 @@ import { buildArtifactManifest } from "./manifest.js";
 
 export interface CreatePreviewBundleOptions {
   distDir: string;
+  reviewDir: string;
   ingestion: RunIngestionResult;
   gitSha: string;
   builtAt: string;
@@ -13,9 +14,8 @@ export interface CreatePreviewBundleOptions {
 }
 
 export async function createPreviewBundle(options: CreatePreviewBundleOptions): Promise<void> {
-  const reviewDir = join(options.distDir, "review");
-  await mkdir(reviewDir, { recursive: true });
-  await writeFile(join(reviewDir, "ingestion.md"), renderIngestionReviewMarkdown(options.ingestion), "utf8");
+  await mkdir(options.reviewDir, { recursive: true });
+  await writeFile(join(options.reviewDir, "ingestion.md"), renderIngestionReviewMarkdown(options.ingestion), "utf8");
 
   const manifest = await buildArtifactManifest({
     distDir: options.distDir,

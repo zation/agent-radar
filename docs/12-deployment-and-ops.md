@@ -164,7 +164,7 @@ npm run dev -- --port 4173
 - `npm run pages:build`：构建 Cloudflare Pages 风格静态 UI，输出到本地 `dist-pages/`。
 - `npm run dev:with-data`：先运行 pipeline 生成本地发布产物，再启动 Vite dev server。
 - `npm run release:build`：运行测试、生成发布产物并构建 Pages 输出，适合 CI 或手动发布前使用。
-- `npm run preview:build`：在 release build 后运行 ingest，把审核报告和 artifact manifest 写入 `dist-pages/`，用于 Cloudflare Pages preview 审核。
+- `npm run preview:build`：在 release build 后运行 ingest，把 artifact manifest 写入 `dist-pages/`，把审核报告写入 `artifacts/review/`，用于 Cloudflare Pages preview 和 GitHub Actions summary 审核。
 - `npm run dev -- --port 4173`：本地预览 Pages UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler。
 
 LLM 推荐相关环境变量：
@@ -209,6 +209,7 @@ checkout
   -> install dependencies
   -> npm run preview:build
   -> deploy dist-pages to Cloudflare Pages preview
+  -> append artifacts/review/ingestion.md to GitHub Actions summary
 ```
 
 Preview deployment 应包含：
@@ -216,8 +217,13 @@ Preview deployment 应包含：
 - 产品网站本体。
 - `data/*`：Tool Cards、ratings、search index、eval summary、D1 seed。
 - `reports/*`：eval report。
-- `review/*`：ingestion review report，用于维护者审核采集候选。
 - `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、构建时间和关键文件 checksum。
+
+GitHub Actions summary 应包含：
+
+- `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选。
+- Cloudflare Pages preview URL。
+- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数和 checksum 数量。
 
 ### Production Promote 流程
 
