@@ -68,14 +68,7 @@ jobs:
             echo
             echo "### Artifact Manifest"
             echo
-            node - <<'NODE'
-            const manifest = require("./dist-pages/artifact-manifest.json");
-            console.log(`- Schema: \`${manifest.schema_version}\``);
-            console.log(`- Git SHA: \`${manifest.git_sha}\``);
-            console.log(`- Data version: \`${manifest.data_version}\``);
-            console.log(`- Eval: ${manifest.eval.passed}/${manifest.eval.total} using \`${manifest.eval.model}\``);
-            console.log(`- Checksums: ${Object.keys(manifest.checksums).length} files`);
-            NODE
+            node -e 'const manifest = require("./dist-pages/artifact-manifest.json"); console.log(`- Schema: \`${manifest.schema_version}\``); console.log(`- Git SHA: \`${manifest.git_sha}\``); console.log(`- Data version: \`${manifest.data_version}\``); console.log(`- Eval: ${manifest.eval.passed}/${manifest.eval.total} using \`${manifest.eval.model}\``); console.log(`- Checksums: ${Object.keys(manifest.checksums).length} files`);'
             echo
             cat artifacts/review/ingestion.md
           } >> "$GITHUB_STEP_SUMMARY"
