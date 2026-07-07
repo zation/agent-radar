@@ -16,7 +16,7 @@ Agent Radar 是 AI Agent、Skill、MCP、CLI、Framework 和 Prompt/Rules 的评
 
 ## 必读文档
 
-- 产品或范围变更：`docs/00-product-brief.md`、`docs/01-requirements.md`、`docs/14-roadmap.md`
+- 产品或范围变更：`docs/00-product-brief.md`、`docs/01-requirements.md`、`docs/15-roadmap.md`
 - 架构或模块变更：`docs/03-system-architecture.md`
 - 数据结构变更：`docs/04-data-model.md`、`docs/05-taxonomy.md`
 - 评分变更：`docs/06-rating-rules.md`、`docs/10-evaluation-plan.md`
