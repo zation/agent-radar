@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+      - "[0-9]*.[0-9]*.[0-9]*"
   workflow_dispatch:
     inputs:
       ref:
@@ -24,12 +25,12 @@ jobs:
       AGENT_RADAR_LLM_MODEL: ${{ vars.AGENT_RADAR_LLM_MODEL || 'deepseek-v4-flash' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
