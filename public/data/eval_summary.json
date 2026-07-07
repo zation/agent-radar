@@ -1,50 +1,49 @@
 {
-  "passed": 0,
+  "passed": 5,
   "total": 5,
   "results": [
     {
       "case_id": "gq-python-test-coverage",
-      "passed": false,
-      "failures": [
-        "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval."
-      ],
-      "recommended_action": "blocked",
-      "top_tool_ids": []
+      "passed": true,
+      "failures": [],
+      "recommended_action": "ask_human",
+      "top_tool_ids": [
+        "skill-test-driven-development",
+        "agent-codex"
+      ]
     },
     {
       "case_id": "gq-nextjs-stripe-checkout",
-      "passed": false,
-      "failures": [
-        "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval."
-      ],
-      "recommended_action": "blocked",
-      "top_tool_ids": []
+      "passed": true,
+      "failures": [],
+      "recommended_action": "ask_human",
+      "top_tool_ids": [
+        "skill-stripe-checkout-guidance"
+      ]
     },
     {
       "case_id": "gq-gmail-task-summary",
-      "passed": false,
-      "failures": [
-        "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval."
-      ],
-      "recommended_action": "blocked",
-      "top_tool_ids": []
+      "passed": true,
+      "failures": [],
+      "recommended_action": "ask_human",
+      "top_tool_ids": [
+        "skill-gmail-triage"
+      ]
     },
     {
       "case_id": "gq-browser-screenshot-validation",
-      "passed": false,
-      "failures": [
-        "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval."
-      ],
-      "recommended_action": "blocked",
-      "top_tool_ids": []
+      "passed": true,
+      "failures": [],
+      "recommended_action": "use",
+      "top_tool_ids": [
+        "mcp-browser-automation"
+      ]
     },
     {
       "case_id": "gq-no-reliable-match-high-risk",
-      "passed": false,
-      "failures": [
-        "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval."
-      ],
-      "recommended_action": "blocked",
+      "passed": true,
+      "failures": [],
+      "recommended_action": "no_reliable_match",
       "top_tool_ids": []
     }
   ]

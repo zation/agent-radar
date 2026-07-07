@@ -43,7 +43,8 @@ const modelOptions = [
   "OpenAI GPT-4.1",
   "OpenAI GPT-4.1 mini",
   "MiniMax M3",
-  "DeepSeek V4 Pro"
+  "DeepSeek V4 Pro",
+  "DeepSeek V4 Flash"
 ];
 
 const typeOptions = ["all", "skill", "mcp", "agent"];

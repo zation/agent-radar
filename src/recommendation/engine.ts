@@ -80,7 +80,7 @@ export async function recommendTools(
     .slice(0, query.top_k ?? 5)
     .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
 
-  const queryUnderstanding = normalizeQueryUnderstanding(llmOutput.query_understanding, query);
+  const queryUnderstanding = normalizeQueryUnderstanding(llmOutput.query_understanding, query, candidates);
   const recommendedAction = chooseSafeAction(llmOutput.recommended_action, candidates);
 
   return {
@@ -285,21 +285,27 @@ function normalizeCandidate(
     risk_level: rating.risk_level,
     tags: card.tags,
     why: nonEmptyStrings(candidate.why, [`LLM selected ${card.name} for ${card.primary_purpose}.`]),
-    risks: nonEmptyStrings(candidate.risks, buildRisks(card)),
+    risks: mergeStrings(nonEmptyStrings(candidate.risks, []), buildRisks(card)),
     not_for: card.not_for,
     next_steps: nonEmptyStrings(candidate.next_steps, buildNextSteps(card, rating.risk_level)),
     evidence_refs: [...card.evidence_refs, rating.id]
   };
 }
 
-function normalizeQueryUnderstanding(input: Partial<QueryUnderstanding> | undefined, query: RecommendationQuery): QueryUnderstanding {
+function normalizeQueryUnderstanding(
+  input: Partial<QueryUnderstanding> | undefined,
+  query: RecommendationQuery,
+  candidates: RecommendationCandidate[]
+): QueryUnderstanding {
+  const candidatePermissions = candidates.flatMap((candidate) => extractPermissionScopes(candidate.risks));
+  const inferredPermissions = inferQueryPermissions(query);
   return {
     intent: readString(input?.intent, "llm_tool_recommendation"),
     task_domains: readStringArray(input?.task_domains),
     required_capabilities: readStringArray(input?.required_capabilities),
-    likely_permissions: readStringArray(input?.likely_permissions),
+    likely_permissions: mergeStrings(readStringArray(input?.likely_permissions), candidatePermissions, inferredPermissions),
     tool_type_hints: readToolTypes(input?.tool_type_hints, query.preferred_tool_types ?? ["skill", "mcp", "agent"]),
-    risk_flags: readStringArray(input?.risk_flags),
+    risk_flags: mergeStrings(readStringArray(input?.risk_flags), inferredPermissions),
     confidence: allowedConfidences.includes(input?.confidence as Confidence) ? (input?.confidence as Confidence) : "low"
   };
 }
@@ -317,6 +323,33 @@ function buildRisks(card: ToolCard): string[] {
   return card.permissions.map((permission) => `${permission.scope}:${permission.access} - ${permission.notes}`);
 }
 
+function extractPermissionScopes(risks: string[]): string[] {
+  const scopes = ["filesystem", "network", "browser", "email", "database", "cloud", "payment", "shell", "code_execution", "secrets", "unknown"];
+  return scopes.filter((scope) => risks.some((risk) => risk.includes(scope)));
+}
+
+function inferQueryPermissions(query: RecommendationQuery): string[] {
+  const text = [
+    query.task,
+    ...(query.language_or_stack ?? []),
+    ...(query.environment ?? []),
+    ...(query.allowed_permissions ?? []),
+    ...(query.existing_tools ?? [])
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const permissions: string[] = [];
+  if (/(file|filesystem|文件|项目|代码|仓库|repo|repository)/i.test(text)) permissions.push("filesystem");
+  if (/(browser|screenshot|网页|浏览器|截图|本地网页)/i.test(text)) permissions.push("browser", "network");
+  if (/(gmail|mail|email|邮件|邮箱)/i.test(text)) permissions.push("email");
+  if (/(database|db|数据库|生产库)/i.test(text)) permissions.push("database", "secrets");
+  if (/(stripe|payment|refund|checkout|支付|退款|收款)/i.test(text)) permissions.push("payment", "network", "secrets");
+  if (/(api key|apikey|token|secret|密钥|凭证|生产|线上)/i.test(text)) permissions.push("secrets");
+  if (/(shell|command|命令|执行脚本|代码执行)/i.test(text)) permissions.push("shell", "code_execution");
+  return mergeStrings(permissions);
+}
+
 function buildNextSteps(card: ToolCard, risk: RiskLevel): string[] {
   if (risk === "critical" || risk === "high" || card.security.requires_human_approval) {
     return ["先确认权限范围和数据流。", "使用最小权限、测试模式或只读范围。"];
@@ -329,7 +362,8 @@ function normalizeModelName(model: string): string {
     "OpenAI GPT-4.1": "gpt-4.1",
     "OpenAI GPT-4.1 mini": "gpt-4.1-mini",
     "MiniMax M3": "MiniMax-M3",
-    "DeepSeek V4 Pro": "deepseek-v4-pro"
+    "DeepSeek V4 Pro": "deepseek-v4-pro",
+    "DeepSeek V4 Flash": "deepseek-v4-flash"
   };
   return knownLabels[model] ?? model;
 }
@@ -350,6 +384,10 @@ function readString(value: unknown, fallback: string): string {
 
 function readStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+function mergeStrings(...groups: string[][]): string[] {
+  return [...new Set(groups.flat().map((item) => item.trim()).filter(Boolean))];
 }
 
 function readToolTypes(value: unknown, fallback: ToolType[]): ToolType[] {

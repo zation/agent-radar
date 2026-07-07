@@ -31,6 +31,12 @@ test("routes DeepSeek model labels to the DeepSeek chat completions endpoint", (
     model: "deepseek-v4-pro",
     provider: "deepseek"
   });
+  assert.deepEqual(resolveModelRequest("DeepSeek V4 Flash"), {
+    endpoint: "https://api.deepseek.com/chat/completions",
+    instructionRole: "system",
+    model: "deepseek-v4-flash",
+    provider: "deepseek"
+  });
 });
 
 test("normalizes provider API keys before building authorization headers", () => {
@@ -179,4 +185,76 @@ test("keeps high-risk LLM recommendations behind human approval", async () => {
 
   assert.equal(result.recommended_action, "ask_human");
   assert.equal(result.candidates[0]?.risk_level, "high");
+});
+
+test("adds local permission risks when LLM candidate risks omit tool card scopes", async () => {
+  const client: RecommendationLlmClient = {
+    recommend() {
+      return Promise.resolve({
+        recommended_action: "use",
+        query_understanding: {
+          intent: "browser_validation",
+          task_domains: ["web"],
+          required_capabilities: ["screenshot_validation"],
+          likely_permissions: [],
+          tool_type_hints: ["mcp"],
+          risk_flags: [],
+          confidence: "medium"
+        },
+        candidates: [
+          {
+            tool_id: "mcp-browser-automation",
+            why: ["Can open local pages and capture screenshots."],
+            risks: ["Use an isolated browser profile."],
+            next_steps: ["Open the local preview and capture a screenshot."]
+          }
+        ],
+        rejected_candidates: []
+      });
+    }
+  };
+
+  const result = await recommendTools({ task: "让 agent 打开本地网页并做截图验证", risk_tolerance: "medium" }, seedToolCards, ratings, {
+    apiKey: "sk-test-secret",
+    model: "gpt-4.1",
+    client
+  });
+
+  assert.ok(result.candidates[0]?.risks.some((risk) => risk.includes("browser")));
+  assert.ok(result.candidates[0]?.risks.some((risk) => risk.includes("network")));
+  assert.ok(result.query_understanding.likely_permissions.includes("browser"));
+  assert.ok(result.query_understanding.likely_permissions.includes("network"));
+});
+
+test("infers high-risk permissions for no reliable match queries", async () => {
+  const client: RecommendationLlmClient = {
+    recommend() {
+      return Promise.resolve({
+        recommended_action: "no_reliable_match",
+        query_understanding: {
+          intent: "high_risk_production_action",
+          task_domains: ["operations"],
+          required_capabilities: [],
+          likely_permissions: [],
+          tool_type_hints: ["agent"],
+          risk_flags: [],
+          confidence: "medium"
+        },
+        candidates: [],
+        rejected_candidates: [],
+        no_match_reason: "No safe candidate."
+      });
+    }
+  };
+
+  const result = await recommendTools({ task: "自动处理线上支付退款并读取生产数据库", risk_tolerance: "low" }, seedToolCards, ratings, {
+    apiKey: "sk-test-secret",
+    model: "gpt-4.1",
+    client
+  });
+
+  assert.equal(result.recommended_action, "no_reliable_match");
+  assert.ok(result.query_understanding.likely_permissions.includes("payment"));
+  assert.ok(result.query_understanding.likely_permissions.includes("database"));
+  assert.ok(result.query_understanding.likely_permissions.includes("secrets"));
 });
