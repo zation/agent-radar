@@ -206,9 +206,11 @@ function ToolDetail({ tool }: { tool: ToolViewModel }) {
 }
 
 function RecommendationResultView({ result }: { result: RecommendationResult }) {
+  const actionClass = result.recommended_action.replaceAll("_", "-");
+
   return (
     <section className="recommendation-output">
-      <div className={`action-banner ${result.recommended_action}`}>
+      <div className={`action-banner ${actionClass}`}>
         <AlertTriangle size={17} />
         <strong>{result.recommended_action}</strong>
       </div>

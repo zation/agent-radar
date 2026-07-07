@@ -3,7 +3,7 @@
   background: #f7f9f8;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
-  text-rendering: optimizeLegibility;
+  text-rendering: optimizelegibility;
 }
 
 * {
@@ -47,7 +47,7 @@ button {
   gap: 18px;
   padding: 0 24px;
   border-bottom: 1px solid #dfe7e4;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgb(255 255 255 / 0.92);
   position: sticky;
   top: 0;
   z-index: 5;
@@ -131,7 +131,7 @@ button {
 .eval-panel {
   border: 1px solid #dfe7e4;
   border-radius: 8px;
-  background: #ffffff;
+  background: #fff;
 }
 
 .tool-rail,
@@ -231,9 +231,9 @@ small {
 }
 
 .segmented button.active {
-  background: #ffffff;
+  background: #fff;
   color: #183b36;
-  box-shadow: 0 1px 4px rgba(24, 59, 54, 0.12);
+  box-shadow: 0 1px 4px rgb(24 59 54 / 0.12);
 }
 
 .tool-list {
@@ -472,7 +472,7 @@ textarea {
 textarea:focus,
 .search-box:focus-within {
   border-color: #1b8d7d;
-  box-shadow: 0 0 0 3px rgba(27, 141, 125, 0.11);
+  box-shadow: 0 0 0 3px rgb(27 141 125 / 0.11);
 }
 
 .control-row {
@@ -491,7 +491,7 @@ textarea:focus,
   border: 0;
   border-radius: 7px;
   background: #183b36;
-  color: #ffffff;
+  color: #fff;
   font-size: 13px;
   font-weight: 650;
 }
@@ -512,8 +512,8 @@ textarea:focus,
   color: #176a5e;
 }
 
-.action-banner.ask_human,
-.action-banner.no_reliable_match {
+.action-banner.ask-human,
+.action-banner.no-reliable-match {
   background: #fff7e8;
   color: #935b09;
 }
@@ -592,7 +592,7 @@ textarea:focus,
   white-space: nowrap;
 }
 
-@media (max-width: 1120px) {
+@media (width <= 1120px) {
   .topbar {
     grid-template-columns: 1fr auto;
   }
@@ -612,7 +612,7 @@ textarea:focus,
   }
 }
 
-@media (max-width: 760px) {
+@media (width <= 760px) {
   .topbar {
     height: auto;
     grid-template-columns: 1fr;
