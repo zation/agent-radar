@@ -18,6 +18,7 @@ body {
 
 button,
 input,
+select,
 textarea {
   font: inherit;
 }
@@ -86,15 +87,17 @@ button {
   gap: 6px;
 }
 
-.tabs a {
+.tabs button {
+  border: 0;
   color: #5f6f6b;
-  text-decoration: none;
   font-size: 13px;
   padding: 8px 10px;
   border-radius: 7px;
+  background: transparent;
 }
 
-.tabs a:hover {
+.tabs button:hover,
+.tabs button.active {
   background: #edf4f2;
   color: #183b36;
 }
@@ -111,21 +114,32 @@ button {
 
 .workspace {
   display: grid;
-  grid-template-columns: 310px minmax(460px, 1fr) 370px;
   gap: 18px;
   padding: 18px;
   max-width: 1500px;
   margin: 0 auto;
 }
 
+.tools-page {
+  grid-template-columns: 310px minmax(520px, 1fr);
+}
+
+.recommend-page {
+  grid-template-columns: 390px minmax(520px, 1fr);
+}
+
+.eval-page {
+  grid-template-columns: minmax(360px, 780px);
+}
+
 .tool-rail,
 .detail-panel,
-.recommend-panel {
+.recommend-config-panel {
   min-width: 0;
 }
 
 .tool-rail,
-.recommend-panel,
+.recommend-config-panel,
 .tool-detail,
 .compare-strip,
 .eval-panel {
@@ -135,7 +149,7 @@ button {
 }
 
 .tool-rail,
-.recommend-panel {
+.recommend-config-panel {
   padding: 14px;
   height: calc(100vh - 94px);
   position: sticky;
@@ -440,7 +454,7 @@ ul {
   line-height: 1.55;
 }
 
-.recommend-panel {
+.recommend-config-panel {
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -453,6 +467,46 @@ ul {
 
 .panel-title h2 {
   font-size: 16px;
+}
+
+.field-stack {
+  display: grid;
+  gap: 7px;
+  color: #52605d;
+  font-size: 13px;
+}
+
+.input-with-icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  border: 1px solid #dce6e2;
+  border-radius: 7px;
+  padding: 0 10px;
+  color: #71817d;
+  background: #fbfcfc;
+}
+
+.input-with-icon input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #17211f;
+  font-size: 13px;
+}
+
+select {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #dce6e2;
+  border-radius: 7px;
+  padding: 0 10px;
+  outline: none;
+  background: #fbfcfc;
+  color: #17211f;
+  font-size: 13px;
 }
 
 textarea {
@@ -470,7 +524,9 @@ textarea {
 }
 
 textarea:focus,
-.search-box:focus-within {
+.search-box:focus-within,
+.input-with-icon:focus-within,
+select:focus {
   border-color: #1b8d7d;
   box-shadow: 0 0 0 3px rgb(27 141 125 / 0.11);
 }
@@ -528,19 +584,47 @@ textarea:focus,
   color: #935b09;
 }
 
-.candidate {
+.recommendation-list {
+  display: grid;
+  gap: 8px;
+}
+
+.candidate-row {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 4px 8px;
+  width: 100%;
+  text-align: left;
   border: 1px solid #e0e8e5;
   border-radius: 8px;
   padding: 11px;
   background: #fbfcfc;
+  color: #17211f;
 }
 
-.candidate strong,
-.candidate small {
+.candidate-row:hover,
+.candidate-row.selected {
+  border-color: #9ccbc3;
+  background: #f2faf7;
+}
+
+.candidate-row > span {
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #dce6e2;
+  border-radius: 6px;
+  color: #1d6a5e;
+  font-size: 12px;
+}
+
+.candidate-row strong,
+.candidate-row small {
   display: block;
 }
 
-.candidate p,
 .no-match {
   margin-top: 6px;
   font-size: 12px;
@@ -604,18 +688,15 @@ textarea:focus,
 
 @media (width <= 1120px) {
   .topbar {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 180px 1fr auto;
   }
 
-  .tabs {
-    display: none;
-  }
-
-  .workspace {
+  .tools-page,
+  .recommend-page {
     grid-template-columns: 280px 1fr;
   }
 
-  .recommend-panel {
+  .recommend-config-panel {
     grid-column: 1 / -1;
     height: auto;
     position: static;
@@ -640,7 +721,7 @@ textarea:focus,
   }
 
   .tool-rail,
-  .recommend-panel {
+  .recommend-config-panel {
     height: auto;
     position: static;
   }

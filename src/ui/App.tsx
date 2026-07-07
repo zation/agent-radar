@@ -7,6 +7,8 @@ import {
   Filter,
   Gauge,
   GitCompare,
+  KeyRound,
+  ListChecks,
   Search,
   ShieldAlert,
   Sparkles
@@ -15,14 +17,28 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { RecommendationResult } from "../schema.js";
 import { loadUiArtifacts, recommendFromViewModels, type ToolViewModel, type UiArtifacts } from "./data.js";
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
+import { createRecommendationItems, type RecommendationItem } from "./recommendation-view.js";
 import "./styles.css";
 
 const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
 
+type Page = "tools" | "recommend" | "eval";
+
+const modelOptions = [
+  "OpenAI GPT-4.1",
+  "OpenAI GPT-4.1 mini",
+  "Anthropic Claude Sonnet",
+  "Google Gemini Pro"
+];
+
 export default function App() {
   const [artifacts, setArtifacts] = useState<UiArtifacts | null>(null);
+  const [activePage, setActivePage] = useState<Page>("tools");
   const [selectedId, setSelectedId] = useState<string>("");
+  const [selectedRecommendationToolId, setSelectedRecommendationToolId] = useState<string>("");
   const [query, setQuery] = useState(fallbackQuery);
+  const [apiKey, setApiKey] = useState("");
+  const [modelName, setModelName] = useState(modelOptions[0]);
   const [riskTolerance, setRiskTolerance] = useState<"low" | "medium" | "high">("low");
   const [typeFilter, setTypeFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -31,12 +47,18 @@ export default function App() {
 
   useEffect(() => {
     void loadUiArtifacts().then((loaded) => {
+      const initialRecommendation = recommendFromViewModels({ task: fallbackQuery, risk_tolerance: "low", top_k: 3 }, loaded.tools);
       setArtifacts(loaded);
       setSelectedId(loaded.tools[0]?.card.id ?? "");
-      setRecommendation(recommendFromViewModels({ task: fallbackQuery, risk_tolerance: "low", top_k: 3 }, loaded.tools));
+      setRecommendation(initialRecommendation);
+      setSelectedRecommendationToolId(initialRecommendation.candidates[0]?.tool_id ?? loaded.tools[0]?.card.id ?? "");
       setRecommendationRun({ count: 1, query: fallbackQuery });
     });
   }, []);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0 });
+  }, [activePage]);
 
   const filteredTools = useMemo(() => {
     if (!artifacts) return [];
@@ -50,9 +72,18 @@ export default function App() {
     });
   }, [artifacts, search, typeFilter]);
 
-  const selectedTool = filteredTools.find((tool) => tool.card.id === selectedId) ?? filteredTools[0] ?? artifacts?.tools[0];
+  const recommendationItems = useMemo(() => {
+    if (!recommendation || !artifacts) return [];
+    return createRecommendationItems(recommendation, artifacts.tools);
+  }, [artifacts, recommendation]);
 
-  if (!artifacts || !selectedTool) {
+  const selectedTool = filteredTools.find((tool) => tool.card.id === selectedId) ?? filteredTools[0] ?? artifacts?.tools[0];
+  const selectedRecommendationTool =
+    recommendationItems.find((item) => item.tool.card.id === selectedRecommendationToolId)?.tool ??
+    recommendationItems[0]?.tool ??
+    selectedTool;
+
+  if (!artifacts || !selectedTool || !selectedRecommendationTool) {
     return (
       <main className="loading-shell">
         <Bot size={28} />
@@ -72,6 +103,7 @@ export default function App() {
       artifacts.tools
     );
     setRecommendation(nextRecommendation);
+    setSelectedRecommendationToolId(nextRecommendation.candidates[0]?.tool_id ?? selectedRecommendationTool.card.id);
     setRecommendationRun((current) => ({ count: (current?.count ?? 0) + 1, query }));
   }
 
@@ -83,9 +115,11 @@ export default function App() {
           <strong>Agent Radar</strong>
         </div>
         <nav className="tabs" aria-label="Primary">
-          <a href="#tools">Tools</a>
-          <a href="#recommend">Recommend</a>
-          <a href="#eval">Eval</a>
+          {(["tools", "recommend", "eval"] as const).map((page) => (
+            <button key={page} className={activePage === page ? "active" : ""} onClick={() => setActivePage(page)}>
+              {page[0].toUpperCase() + page.slice(1)}
+            </button>
+          ))}
         </nav>
         <div className="release-state">
           <CheckCircle2 size={16} />
@@ -93,87 +127,217 @@ export default function App() {
         </div>
       </header>
 
-      <section className="workspace">
-        <aside className="tool-rail" id="tools">
-          <div className="rail-header">
-            <div>
-              <h1>Tool Cards</h1>
-              <p>{artifacts.tools.length} reviewed MVP records</p>
-            </div>
-            <Filter size={18} />
-          </div>
-          <label className="search-box">
-            <Search size={16} />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tools, tags, risks" />
-          </label>
-          <div className="segmented" aria-label="Tool type filter">
-            {["all", "skill", "mcp", "agent"].map((type) => (
-              <button key={type} className={typeFilter === type ? "active" : ""} onClick={() => setTypeFilter(type)}>
-                {type}
-              </button>
-            ))}
-          </div>
-          <div className="tool-list">
-            {filteredTools.map((tool) => (
-              <button
-                key={tool.card.id}
-                className={`tool-row ${selectedTool.card.id === tool.card.id ? "selected" : ""}`}
-                onClick={() => setSelectedId(tool.card.id)}
-              >
-                <span className={`type-dot ${tool.card.type}`} />
-                <span>
-                  <strong>{tool.card.name}</strong>
-                  <small>{tool.card.type} · {tool.rating.recommendation_level}</small>
-                </span>
-                <b>{tool.rating.overall_score}</b>
-              </button>
-            ))}
-          </div>
-        </aside>
-
-        <section className="detail-panel">
-          <ToolDetail tool={selectedTool} />
-          <CompareStrip tools={artifacts.tools.slice(0, 4)} />
-        </section>
-
-        <aside className="recommend-panel" id="recommend">
-          <div className="panel-title">
-            <Sparkles size={18} />
-            <h2>Recommend</h2>
-          </div>
-          <textarea
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Describe a development task to get tool recommendations"
+      {activePage === "tools" && (
+        <section className="workspace tools-page">
+          <ToolRail
+            tools={filteredTools}
+            allToolCount={artifacts.tools.length}
+            selectedId={selectedTool.card.id}
+            search={search}
+            typeFilter={typeFilter}
+            onSearchChange={setSearch}
+            onTypeFilterChange={setTypeFilter}
+            onSelectTool={setSelectedId}
           />
-          <div className="control-row">
-            <span>Risk</span>
-            <div className="segmented compact">
-              {(["low", "medium", "high"] as const).map((risk) => (
-                <button key={risk} className={riskTolerance === risk ? "active" : ""} onClick={() => setRiskTolerance(risk)}>
-                  {risk}
-                </button>
-              ))}
-            </div>
-          </div>
-          <button className="primary-action" onClick={runRecommendation}>
-            <Sparkles size={16} />
-            Recommend tools
-          </button>
-          {recommendation && recommendationRun && (
-            <p className="run-summary" aria-live="polite">
-              {buildRecommendationRunSummary({
-                runCount: recommendationRun.count,
-                action: recommendation.recommended_action,
-                query: recommendationRun.query
-              })}
-            </p>
-          )}
-          {recommendation && <RecommendationResultView result={recommendation} />}
+          <section className="detail-panel">
+            <ToolDetail tool={selectedTool} />
+            <CompareStrip tools={artifacts.tools.slice(0, 4)} />
+          </section>
+        </section>
+      )}
+
+      {activePage === "recommend" && (
+        <section className="workspace recommend-page">
+          <RecommendControlPanel
+            query={query}
+            apiKey={apiKey}
+            modelName={modelName}
+            riskTolerance={riskTolerance}
+            recommendation={recommendation}
+            recommendationRun={recommendationRun}
+            recommendationItems={recommendationItems}
+            selectedToolId={selectedRecommendationTool.card.id}
+            onQueryChange={setQuery}
+            onApiKeyChange={setApiKey}
+            onModelNameChange={setModelName}
+            onRiskToleranceChange={setRiskTolerance}
+            onRunRecommendation={runRecommendation}
+            onSelectRecommendation={setSelectedRecommendationToolId}
+          />
+          <section className="detail-panel">
+            <ToolDetail tool={selectedRecommendationTool} />
+          </section>
+        </section>
+      )}
+
+      {activePage === "eval" && (
+        <section className="workspace eval-page">
           <EvalPanel summary={artifacts.evalSummary} />
-        </aside>
-      </section>
+        </section>
+      )}
     </main>
+  );
+}
+
+function ToolRail({
+  tools,
+  allToolCount,
+  selectedId,
+  search,
+  typeFilter,
+  onSearchChange,
+  onTypeFilterChange,
+  onSelectTool
+}: {
+  tools: ToolViewModel[];
+  allToolCount: number;
+  selectedId: string;
+  search: string;
+  typeFilter: string;
+  onSearchChange: (value: string) => void;
+  onTypeFilterChange: (value: string) => void;
+  onSelectTool: (toolId: string) => void;
+}) {
+  return (
+    <aside className="tool-rail" id="tools">
+      <div className="rail-header">
+        <div>
+          <h1>Tool Cards</h1>
+          <p>{allToolCount} reviewed MVP records</p>
+        </div>
+        <Filter size={18} />
+      </div>
+      <label className="search-box">
+        <Search size={16} />
+        <input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search tools, tags, risks" />
+      </label>
+      <div className="segmented" aria-label="Tool type filter">
+        {["all", "skill", "mcp", "agent"].map((type) => (
+          <button key={type} className={typeFilter === type ? "active" : ""} onClick={() => onTypeFilterChange(type)}>
+            {type}
+          </button>
+        ))}
+      </div>
+      <div className="tool-list">
+        {tools.map((tool) => (
+          <button
+            key={tool.card.id}
+            className={`tool-row ${selectedId === tool.card.id ? "selected" : ""}`}
+            onClick={() => onSelectTool(tool.card.id)}
+          >
+            <span className={`type-dot ${tool.card.type}`} />
+            <span>
+              <strong>{tool.card.name}</strong>
+              <small>{tool.card.type} · {tool.rating.recommendation_level}</small>
+            </span>
+            <b>{tool.rating.overall_score}</b>
+          </button>
+        ))}
+      </div>
+    </aside>
+  );
+}
+
+function RecommendControlPanel({
+  query,
+  apiKey,
+  modelName,
+  riskTolerance,
+  recommendation,
+  recommendationRun,
+  recommendationItems,
+  selectedToolId,
+  onQueryChange,
+  onApiKeyChange,
+  onModelNameChange,
+  onRiskToleranceChange,
+  onRunRecommendation,
+  onSelectRecommendation
+}: {
+  query: string;
+  apiKey: string;
+  modelName: string;
+  riskTolerance: "low" | "medium" | "high";
+  recommendation: RecommendationResult | null;
+  recommendationRun: { count: number; query: string } | null;
+  recommendationItems: RecommendationItem[];
+  selectedToolId: string;
+  onQueryChange: (value: string) => void;
+  onApiKeyChange: (value: string) => void;
+  onModelNameChange: (value: string) => void;
+  onRiskToleranceChange: (value: "low" | "medium" | "high") => void;
+  onRunRecommendation: () => void;
+  onSelectRecommendation: (toolId: string) => void;
+}) {
+  return (
+    <aside className="recommend-config-panel" id="recommend">
+      <div className="panel-title">
+        <Sparkles size={18} />
+        <h1>Recommend</h1>
+      </div>
+      <label className="field-stack">
+        <span>Requirement</span>
+        <textarea
+          value={query}
+          onChange={(event) => onQueryChange(event.target.value)}
+          placeholder="Describe a development task to get tool recommendations"
+        />
+      </label>
+      <label className="field-stack">
+        <span>API key</span>
+        <div className="input-with-icon">
+          <KeyRound size={16} />
+          <input
+            value={apiKey}
+            onChange={(event) => onApiKeyChange(event.target.value)}
+            type="password"
+            autoComplete="off"
+            placeholder="Paste provider key"
+          />
+        </div>
+      </label>
+      <label className="field-stack">
+        <span>Model</span>
+        <select value={modelName} onChange={(event) => onModelNameChange(event.target.value)}>
+          {modelOptions.map((model) => (
+            <option key={model} value={model}>
+              {model}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="control-row">
+        <span>Risk</span>
+        <div className="segmented compact">
+          {(["low", "medium", "high"] as const).map((risk) => (
+            <button key={risk} className={riskTolerance === risk ? "active" : ""} onClick={() => onRiskToleranceChange(risk)}>
+              {risk}
+            </button>
+          ))}
+        </div>
+      </div>
+      <button className="primary-action" onClick={onRunRecommendation}>
+        <Sparkles size={16} />
+        Recommend tools
+      </button>
+      {recommendation && recommendationRun && (
+        <p className="run-summary" aria-live="polite">
+          {buildRecommendationRunSummary({
+            runCount: recommendationRun.count,
+            action: recommendation.recommended_action,
+            query: recommendationRun.query
+          })}
+        </p>
+      )}
+      {recommendation && (
+        <RecommendationList
+          result={recommendation}
+          items={recommendationItems}
+          selectedToolId={selectedToolId}
+          onSelectRecommendation={onSelectRecommendation}
+        />
+      )}
+    </aside>
   );
 }
 
@@ -220,7 +384,17 @@ function ToolDetail({ tool }: { tool: ToolViewModel }) {
   );
 }
 
-function RecommendationResultView({ result }: { result: RecommendationResult }) {
+function RecommendationList({
+  result,
+  items,
+  selectedToolId,
+  onSelectRecommendation
+}: {
+  result: RecommendationResult;
+  items: RecommendationItem[];
+  selectedToolId: string;
+  onSelectRecommendation: (toolId: string) => void;
+}) {
   const actionClass = result.recommended_action.replaceAll("_", "-");
 
   return (
@@ -230,15 +404,19 @@ function RecommendationResultView({ result }: { result: RecommendationResult }) 
         <strong>{result.recommended_action}</strong>
       </div>
       {result.no_match_reason && <p className="no-match">{result.no_match_reason}</p>}
-      {result.candidates.map((candidate) => (
-        <article className="candidate" key={candidate.tool_id}>
-          <div>
-            <strong>{candidate.rank}. {candidate.name}</strong>
-            <small>{candidate.recommendation_level} · {candidate.risk_level} · {candidate.fit_score}</small>
-          </div>
-          <p>{candidate.why[0]}</p>
-        </article>
-      ))}
+      <div className="recommendation-list">
+        {items.map((item) => (
+          <button
+            className={`candidate-row ${selectedToolId === item.tool.card.id ? "selected" : ""}`}
+            key={item.candidate.tool_id}
+            onClick={() => onSelectRecommendation(item.tool.card.id)}
+          >
+            <span>{item.candidate.rank}</span>
+            <strong>{item.candidate.name}</strong>
+            <small>{item.candidate.recommendation_level} · {item.candidate.risk_level} · {item.candidate.fit_score}</small>
+          </button>
+        ))}
+      </div>
     </section>
   );
 }
@@ -247,8 +425,8 @@ function EvalPanel({ summary }: { summary: UiArtifacts["evalSummary"] }) {
   return (
     <section className="eval-panel" id="eval">
       <div className="panel-title">
-        <CheckCircle2 size={18} />
-        <h2>Eval</h2>
+        <ListChecks size={18} />
+        <h1>Quality Checks</h1>
       </div>
       {summary.results.map((result) => (
         <div className="eval-row" key={result.case_id}>
