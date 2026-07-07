@@ -223,9 +223,9 @@ MVP 查询性能应满足交互式使用。
 
 ### NFR-06 安全与隐私
 
-系统只采集公开来源，不处理用户私密代码、token、邮件或浏览器数据。
+系统只采集公开来源，不处理用户私密代码、邮件或浏览器数据。Recommend 的 BYOK API key 只用于当前 LLM provider 请求，不进入 artifacts、eval report 或持久化存储。
 
-验收标准：采集和推荐流程不要求用户提交 secret；高风险工具推荐必须提示权限边界和人工确认。
+验收标准：采集流程不要求用户提交 secret；推荐流程如使用 BYOK secret，必须只在当前请求内使用并脱敏日志；高风险工具推荐必须提示权限边界和人工确认。
 
 ### NFR-07 可回放与可回滚
 
@@ -252,6 +252,8 @@ MVP 必须实现：
 
 MVP 使用人工补全和手动触发更新，不做自动定时采集。
 
+当前代码实现仍是人工 seed 路径：`npm run pipeline` 从 `src/data/seed-tool-cards.ts` 读取 Tool Cards 并生成 artifacts。真正的 Source Registry 读取、crawler、Raw Snapshot、parser、Source Record 和人工 override 尚未实现。
+
 ## 延期范围
 
 以下能力不进入 MVP：
@@ -277,21 +279,30 @@ MVP 使用人工补全和手动触发更新，不做自动定时采集。
 
 ## 需求验收总表
 
-| 编号 | 能力 | 主要输入 | 主要输出 | 验收方式 |
-| --- | --- | --- | --- | --- |
-| FR-01 | 来源注册 | 来源 URL 与元数据 | Source Registry | 字段检查、人工审核 |
-| FR-02 | 原始快照 | 来源响应 | Raw Snapshot | 哈希、时间戳、可回放 |
-| FR-03 | Tool Card | Source Record | 标准化卡片 | schema 校验、抽样审核 |
-| FR-04 | 分类 | Tool Card 字段 | 多维标签 | 分类规则测试 |
-| FR-05 | 评分 | Tool Card、规则版本 | Rating Result | 单元测试、eval diff |
-| FR-06 | 搜索 | 查询词、过滤器 | 搜索结果 | golden search cases |
-| FR-07 | 推荐 | 任务上下文 | Recommendation Result | golden queries |
-| FR-08 | AI 输出 | 推荐结果 | JSON/Markdown | schema 校验 |
-| FR-09 | MCP 查询 | MCP tool call | 查询响应 | 接口测试 |
-| FR-10 | Web UI | 数据索引 | 浏览与比较页面 | 手工验收 |
-| FR-11 | 评测 | 数据与规则 | Eval Report | CI 运行 |
-| FR-12 | 报告 | 结构化数据 | Markdown 报告 | 来源引用检查 |
-| FR-13 | 人工修正 | 修正请求 | Override Record | 审计记录检查 |
+| 编号 | 能力 | 当前状态 | 主要输入 | 主要输出 | 验收方式 |
+| --- | --- | --- | --- | --- | --- |
+| FR-01 | 来源注册 | 设计完成，代码未完全落地 | 来源 URL 与元数据 | Source Registry | 字段检查、人工审核 |
+| FR-02 | 原始快照 | 未实现 | 来源响应 | Raw Snapshot | 哈希、时间戳、可回放 |
+| FR-03 | Tool Card | MVP 小样本已实现 | Source Record/人工种子数据 | 标准化卡片 | schema 校验、抽样审核 |
+| FR-04 | 分类 | MVP 标签体系已用于 Tool Cards | Tool Card 字段 | 多维标签 | 分类规则测试 |
+| FR-05 | 评分 | `rating_rules.v0.1-draft` 已实现 | Tool Card、规则版本 | Rating Result | 单元测试、eval diff |
+| FR-06 | 搜索 | 已实现基础搜索/API/UI | 查询词、过滤器 | 搜索结果 | golden search cases |
+| FR-07 | 推荐 | 已改为 BYOK LLM-backed 推荐，真实质量待 eval | 任务上下文、API key、model | Recommendation Result | golden queries |
+| FR-08 | AI 输出 | JSON schema 已实现，Markdown 摘要未系统化 | 推荐结果 | JSON/Markdown | schema 校验 |
+| FR-09 | MCP 查询 | HTTP JSON API 已实现，完整 MCP 包装未完成 | MCP/API tool call | 查询响应 | 接口测试 |
+| FR-10 | Web UI | Tools/Recommend 主路径已实现 | 数据索引、用户任务 | 浏览、比较、推荐页面 | 手工验收 + Pages build |
+| FR-11 | 评测 | Node test + blocked/real LLM eval 框架已实现 | 数据、评分、LLM provider | Eval Report | CI/本地运行 |
+| FR-12 | 报告 | Eval report 已实现，生态报告未实现 | 结构化数据 | Markdown 报告 | 来源引用检查 |
+| FR-13 | 人工修正 | 未实现 | 修正请求 | Override Record | 审计记录检查 |
+
+## 当前实现备注
+
+- 推荐能力不再维护本地关键词召回/排序引擎。`recommend_tools` 使用 BYOK LLM provider 生成推荐，本地代码负责 provider routing、prompt 上下文、schema 归一化、已知工具 ID 校验和高风险动作保护。
+- 当前支持 OpenAI、MiniMax 和 DeepSeek 的 OpenAI-compatible Chat Completions 路由。
+- 本地开发时 Vite dev server 已挂载 `/api/*`，与 Workers API 使用同一套 handler。
+- 数据采集代码尚未落地；当前发布数据来自人工维护的 `seedToolCards`，采集相关文档描述的是目标契约。
+- 没有 `AGENT_RADAR_LLM_API_KEY` 时，推荐 eval 输出 blocked summary；这不是推荐质量通过，只表示缺少真实 provider 运行条件。
+- MVP 当前最主要验收风险是推荐质量尚未用真实 key 完成 golden query 验证。
 
 ## 维护规则
 

@@ -13,6 +13,7 @@
 - 高风险误推荐比漏推荐更严重。
 - 数据质量评测和推荐质量评测同等重要。
 - 评测样例应覆盖正常任务、无可靠候选、高风险权限和边界场景。
+- LLM-backed 推荐必须区分“没有 provider key 的 blocked eval”和“真实 provider 下的推荐质量 eval”。
 
 ## 评测类型
 
@@ -25,6 +26,43 @@
 | Safety Eval | 检查高风险工具是否被保守处理 | 安全规则或权限字段变化 |
 | Regression Eval | 比较版本变化 | 每次发布前 |
 | Human Review | 抽样审查争议案例 | 定期或评测失败 |
+
+## LLM-backed 推荐评测
+
+当前推荐结果由 BYOK LLM provider 生成，本地代码负责上下文组装、provider routing、schema 归一化、已知 `tool_id` 校验和安全动作保护。因此推荐评测分两层：
+
+### Contract Eval
+
+不依赖真实 provider，使用 fake LLM client 验证：
+
+- LLM 返回未知 `tool_id` 时不会进入候选。
+- 高风险候选不会被归一化为 `recommended_action: use`。
+- OpenAI、MiniMax、DeepSeek model label 路由到正确 endpoint 和 model ID。
+- API key 只进入 Authorization header，并能处理用户粘贴 `Bearer ...` 的情况。
+- `/api/recommend_tools` 缺少 `api_key` 或 `model` 时返回可恢复错误。
+
+这部分由 `npm test` 覆盖。
+
+### Provider Eval
+
+依赖真实 provider key，验证端到端推荐质量：
+
+```bash
+AGENT_RADAR_LLM_API_KEY=... AGENT_RADAR_LLM_MODEL=gpt-4.1 npm run eval
+```
+
+Provider eval 的失败类型应分开记录：
+
+| 类型 | 含义 | 处理 |
+| --- | --- | --- |
+| `blocked_no_key` | 没有 `AGENT_RADAR_LLM_API_KEY` | 不声明推荐质量通过 |
+| `provider_auth_error` | 401/403，key 或权限问题 | 修配置，不改 expected |
+| `provider_rate_limit` | 429 或配额问题 | 重试或换 provider |
+| `provider_model_error` | 模型不可用或 endpoint 不匹配 | 修 provider registry |
+| `schema_error` | LLM JSON 不符合 `RecommendationResult` 预期 | 调整 prompt/解析/校验 |
+| `quality_failure` | 输出合法但未满足 golden query | 修 Tool Card、prompt 或安全归一化 |
+
+发布前的推荐质量声明必须基于 Provider Eval，而不是 Contract Eval。
 
 ## Eval Case Schema
 

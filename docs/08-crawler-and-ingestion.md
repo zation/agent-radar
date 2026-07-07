@@ -6,6 +6,37 @@
 
 采集与入库的目标是可回放、可解释、可审计，而不是最大化抓取量。
 
+## 当前实现状态
+
+截至当前分支，采集与入库模块仍处于设计阶段，尚未实现真正的数据源抓取代码。
+
+当前已实现的是手工 seed 数据到发布 artifacts 的最小流水线：
+
+```text
+src/data/seed-tool-cards.ts
+  -> Rating Engine
+  -> Search Index Builder
+  -> Eval Runner
+  -> public/data/*.json|jsonl
+  -> public/data/d1_seed.sql
+```
+
+也就是说，`npm run pipeline` 当前读取的是人工维护的 `seedToolCards`，不会读取 Source Registry，也不会执行 crawler、parser、normalizer、deduper 或 Raw Snapshot 保存。
+
+尚未实现的采集能力包括：
+
+- 可执行的 `source_registry.json`。
+- Source Registry validator。
+- Crawl Plan 生成。
+- HTTP/API crawler。
+- Raw Snapshot 写入与内容 hash。
+- 来源专属 parser。
+- Source Record Store。
+- deduper、normalizer 和人工 override。
+- 采集失败、限流、重试和审计日志。
+
+因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。
+
 ## 流程总览
 
 ```text

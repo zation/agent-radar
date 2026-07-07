@@ -23,6 +23,32 @@
 | v0.3 | 强化安全和自迭代 | 风险评分、反馈闭环、eval diff、自迭代任务 |
 | v1.0 | 稳定公开数据和接口 | 稳定 API/MCP、可复现评测、插件化扩展 |
 
+## 当前进度快照
+
+截至当前分支，Agent Radar 已完成一个可演示的 MVP 主路径：
+
+- 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
+- 首批 6 张人工审核 Tool Cards 已进入 JSON artifacts、评分、搜索索引和 D1 seed。
+- React/Vite Web UI 已包含 `Tools` 和 `Recommend` 两个主页面，支持工具浏览、详情、评分解释、风险展示、推荐结果列表和 eval 状态弹层。
+- Workers 风格只读 API 已实现 `search_tools`、`get_tool_card`、`recommend_tools`、`explain_rating`。
+- 本地 Vite dev server 已挂载 `/api/*`，避免本地开发时前端请求 API 404。
+- 推荐路径已从本地关键词/规则排序改为 BYOK LLM-backed 推荐；本地代码负责组装 Tool Card/Rating 上下文、调用 provider、校验已知 `tool_id`、保留风险边界并归一化输出。
+- 当前支持的 LLM provider/model 选项：
+  - OpenAI：`OpenAI GPT-4.1`、`OpenAI GPT-4.1 mini`
+  - MiniMax：`MiniMax M3`
+  - DeepSeek：`DeepSeek V4 Pro`
+- LLM provider 请求会记录 provider、endpoint、model、状态码和脱敏错误体，不记录 API key。
+- 无 `AGENT_RADAR_LLM_API_KEY` 时，pipeline/eval 会生成 blocked eval summary，而不是运行旧本地推荐引擎。
+
+当前主要缺口：
+
+- 推荐质量尚未用真实 provider key 跑完 golden queries；目前自动测试主要覆盖 schema、安全归一化和 provider 路由。
+- Tool Card 覆盖仍是 MVP 小样本，尚未达到 v0.2 的 20-50 张。
+- 数据源抓取代码尚未实现；当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成 artifacts。
+- Source Registry、crawler、parser、Raw Snapshot、Source Record、deduper、normalizer 和人工 override 仍主要停留在文档/设计层。
+- Workers API 当前是 HTTP/JSON 风格实现，尚未包装成完整 MCP server/tool manifest。
+- BYOK 模式已经可用，但还缺 provider 配置 UI、错误提示分层和 direct-to-provider/proxy 模式决策。
+
 ## MVP
 
 ### 目标
@@ -94,6 +120,16 @@
 - 优先维护高价值工具。
 - 用 golden queries 驱动字段和评分迭代。
 
+### 当前完成度
+
+MVP 已经具备端到端演示能力，但还没有完全达到“推荐质量可验证”的完成标准。建议把 MVP 收口标准定义为：
+
+- 使用至少一个真实 LLM provider key 跑通 5 个 golden queries，并记录通过/失败原因。
+- 修正 LLM prompt 或 Tool Card 数据，使 critical cases 不出现高风险误推荐。
+- 明确采集 MVP 仍未落地；如要把数据覆盖从 6 张 seed card 扩展到 20-50 张，需要先实现最小 Source Registry + Raw Snapshot + parser 链路，或继续采用人工审核 seed 扩充。
+- 明确 BYOK proxy 模式的安全说明，决定是否在 v0.2 支持浏览器直连 provider。
+- 保持当前 6 张 Tool Cards 的字段完整、评分解释和 UI 展示一致。
+
 ## v0.2
 
 ### 目标
@@ -148,6 +184,15 @@
 - 控制来源数量。
 - 社区来源如启用，只作为发现信号。
 - UI 只服务浏览、比较和审核。
+
+### 建议拆分
+
+v0.2 建议拆成 4 条并行但有优先级的工作线：
+
+1. 推荐质量线：真实 LLM golden eval、prompt 版本化、provider 错误分类、`no_reliable_match` 和 `ask_human` 质量抽查。
+2. 数据覆盖线：把首批 6 张扩到 20-50 张，优先覆盖 OpenAI/Codex、Claude Code、Cursor、OpenCode、Gemini CLI、常见 MCP server、测试/浏览器/支付/邮件/数据库类工具。
+3. API/MCP 线：把 HTTP JSON API 包装为 agent 可调用的 MCP 工具定义，补充 contract tests 和示例请求。
+4. 本地/部署线：完善 BYOK dev/prod 配置、Cloudflare Worker 部署说明、provider key 不落盘检查和日志脱敏。
 
 ## v0.3
 
@@ -256,7 +301,7 @@
 ### 推荐质量
 
 - MVP：5 个核心 golden queries。
-- v0.2：关键任务 Top 3 可用。
+- v0.2：真实 LLM provider 下关键任务 Top 3 可用，critical safety cases 不出现高风险误推荐。
 - v0.3：安全和无结果场景稳定。
 - v1.0：可复现 ranking eval 和 explain eval。
 
@@ -270,9 +315,38 @@
 ### Agent 可用性
 
 - MVP：JSON 输出设计。
-- v0.2：Workers MCP API 只读查询。
+- v0.2：Workers HTTP API + MCP tool manifest 只读查询。
 - v0.3：自迭代任务生成。
 - v1.0：稳定 agent 决策上下文。
+
+## 下一步计划
+
+### P0：MVP 收口
+
+- 用 OpenAI、MiniMax 或 DeepSeek 至少一个真实 key 跑 `npm run eval`。
+- 根据真实失败案例调整 LLM prompt、Tool Card 字段或安全归一化。
+- 把 provider 401/429/模型不可用/JSON 解析失败映射成前端可读错误。
+- 在 UI 中标明当前请求会走 Agent Radar proxy，并说明 key 不持久化。
+
+### P1：v0.2 基础
+
+- 增加 14-44 张高价值 Tool Cards，达到 20-50 张覆盖。
+- 实现最小采集 MVP：
+  - 可执行 Source Registry 配置。
+  - 1-2 个官方来源的 crawler/parser。
+  - Raw Snapshot 保存和内容 hash。
+  - parser 输出 Source Record。
+  - Source Record 到 Tool Card 的人工审核/标准化入口。
+- 建立 provider registry，避免 provider endpoint/model label 分散在代码常量里。
+- 补齐 MCP tool 定义和 agent-facing 示例。
+- 让 eval report 区分 `blocked_no_key`、`provider_error`、`schema_error`、`quality_failure`。
+
+### P2：可信度增强
+
+- 为 LLM prompt 和 provider routing 增加版本号。
+- 增加 eval diff，比较同一 golden query 在不同 prompt/provider 下的动作、候选和风险提示变化。
+- 设计人工 override record 的最小格式。
+- 评估是否支持 browser direct provider mode；若支持，必须把前端 schema 校验和安全归一化同步搬到浏览器端。
 
 ## 明确不做清单
 

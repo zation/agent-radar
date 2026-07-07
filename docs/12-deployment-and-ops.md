@@ -65,6 +65,24 @@
 
 ## MVP 架构
 
+### 当前实现
+
+当前本地 MVP 发布流水线尚未接入真实采集模块。`npm run pipeline` 使用人工维护的 `src/data/seed-tool-cards.ts` 作为输入，生成评分、搜索索引、D1 seed SQL、golden query 数据和 eval report。
+
+```text
+manual seed Tool Cards
+  -> validate TypeScript/schema shape
+  -> rate
+  -> build static index + D1 seed SQL
+  -> run eval or blocked eval summary
+  -> publish artifacts
+  -> Vite Web UI / Workers-style API reads artifacts
+```
+
+当前没有实现 Source Registry 读取、crawler、parser、Raw Snapshot 保存或 Source Record 入库。`public/data/source_registry.json` 仍是目标发布产物，尚未由代码生成。
+
+### 目标形态
+
 ```text
 GitHub Actions
   -> crawl/parse/normalize
@@ -136,9 +154,31 @@ npm run dev -- --port 4173
 
 - `npm test`：运行 TypeScript 编译和 Node test suite，覆盖评分、推荐、pipeline、API 和 UI 数据装配。
 - `npm run pipeline`：生成 `public/data` artifacts、D1 seed SQL 和 `public/reports` eval report。
-- `npm run eval`：运行 5 个 MVP golden queries；critical query 失败时命令退出非 0。
+- `npm run eval`：运行 5 个 MVP golden queries；需要 `AGENT_RADAR_LLM_API_KEY` 才会调用真实 LLM provider。缺少 key 时输出 blocked summary 并退出非 0。
 - `npm run pages:build`：构建 Cloudflare Pages 风格静态 UI，输出到本地 `dist-pages/`。
-- `npm run dev -- --port 4173`：本地预览 Pages UI。
+- `npm run dev -- --port 4173`：本地预览 Pages UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler。
+
+LLM 推荐相关环境变量：
+
+| 变量 | 必填 | 默认值 | 说明 |
+| --- | --- | --- | --- |
+| `AGENT_RADAR_LLM_API_KEY` | eval 必填 | 无 | BYOK provider key，仅用于当前 eval/provider 请求 |
+| `AGENT_RADAR_LLM_MODEL` | 否 | `gpt-4.1` | eval 使用的模型 ID 或已支持的 provider model label |
+
+当前 Web UI 支持用户在 Recommend 表单中输入一次性 API key 和模型。请求路径为：
+
+```text
+Browser UI
+  -> /api/recommend_tools
+  -> Recommendation Engine proxy
+  -> OpenAI / MiniMax / DeepSeek provider
+```
+
+安全约束：
+
+- API key 不写入 artifacts、eval report 或响应体。
+- server 日志只记录 provider、endpoint、model、状态码和脱敏错误体。
+- 本地 dev API 和 Workers API 都必须保持只读，不安装、不授权、不执行推荐工具。
 
 当前 D1 相关文件：
 
@@ -179,6 +219,12 @@ checkout
 - index build。
 - manifest consistency check。
 
+LLM-backed 推荐发布说明：
+
+- 没有 provider key 时，golden queries 只能证明 pipeline 可运行，不能证明推荐质量。
+- 发布推荐质量声明前，必须至少使用一个真实 provider key 跑完 critical golden queries。
+- 如果 provider 返回 401、429、模型不可用或 JSON 输出异常，应记录为 provider/config failure，不应修改 expected result 掩盖问题。
+
 允许带警告：
 
 - 单个低优先级社区来源失败。
@@ -202,7 +248,7 @@ MCP API 部署在 Cloudflare Workers，读取 Cloudflare D1 SQLite 和静态 JSO
 
 - 只读。
 - 不安装第三方工具。
-- 不访问用户 secret。
+- 不持久化用户 secret；Recommend BYOK key 只用于当前 provider 请求。
 - 不执行推荐候选。
 - 使用 Cloudflare 免费额度。
 
