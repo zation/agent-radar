@@ -496,6 +496,16 @@ textarea:focus,
   font-weight: 650;
 }
 
+.run-summary {
+  border: 1px solid #dce6e2;
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: #fbfcfc;
+  color: #52605d;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
 .recommendation-output {
   display: grid;
   gap: 9px;

@@ -11,10 +11,10 @@ import {
   ShieldAlert,
   Sparkles
 } from "lucide-react";
-import { createRoot } from "react-dom/client";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { RecommendationResult } from "../schema.js";
 import { loadUiArtifacts, recommendFromViewModels, type ToolViewModel, type UiArtifacts } from "./data.js";
+import { buildRecommendationRunSummary } from "./recommendation-status.js";
 import "./styles.css";
 
 const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
@@ -27,12 +27,14 @@ export default function App() {
   const [typeFilter, setTypeFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [recommendation, setRecommendation] = useState<RecommendationResult | null>(null);
+  const [recommendationRun, setRecommendationRun] = useState<{ count: number; query: string } | null>(null);
 
   useEffect(() => {
     void loadUiArtifacts().then((loaded) => {
       setArtifacts(loaded);
       setSelectedId(loaded.tools[0]?.card.id ?? "");
       setRecommendation(recommendFromViewModels({ task: fallbackQuery, risk_tolerance: "low", top_k: 3 }, loaded.tools));
+      setRecommendationRun({ count: 1, query: fallbackQuery });
     });
   }, []);
 
@@ -61,16 +63,16 @@ export default function App() {
 
   function runRecommendation() {
     if (!artifacts) return;
-    setRecommendation(
-      recommendFromViewModels(
-        {
-          task: query,
-          risk_tolerance: riskTolerance,
-          top_k: 4
-        },
-        artifacts.tools
-      )
+    const nextRecommendation = recommendFromViewModels(
+      {
+        task: query,
+        risk_tolerance: riskTolerance,
+        top_k: 4
+      },
+      artifacts.tools
     );
+    setRecommendation(nextRecommendation);
+    setRecommendationRun((current) => ({ count: (current?.count ?? 0) + 1, query }));
   }
 
   return (
@@ -139,7 +141,11 @@ export default function App() {
             <Sparkles size={18} />
             <h2>Recommend</h2>
           </div>
-          <textarea value={query} onChange={(event) => setQuery(event.target.value)} />
+          <textarea
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Describe a development task to get tool recommendations"
+          />
           <div className="control-row">
             <span>Risk</span>
             <div className="segmented compact">
@@ -152,8 +158,17 @@ export default function App() {
           </div>
           <button className="primary-action" onClick={runRecommendation}>
             <Sparkles size={16} />
-            Run recommendation
+            Recommend tools
           </button>
+          {recommendation && recommendationRun && (
+            <p className="run-summary" aria-live="polite">
+              {buildRecommendationRunSummary({
+                runCount: recommendationRun.count,
+                action: recommendation.recommended_action,
+                query: recommendationRun.query
+              })}
+            </p>
+          )}
           {recommendation && <RecommendationResultView result={recommendation} />}
           <EvalPanel summary={artifacts.evalSummary} />
         </aside>
@@ -285,9 +300,4 @@ function ScoreBadge({ score, risk }: { score: number; risk: string }) {
       <span>{risk}</span>
     </div>
   );
-}
-
-const rootElement = document.getElementById("root");
-if (rootElement) {
-  createRoot(rootElement).render(<App />);
 }
