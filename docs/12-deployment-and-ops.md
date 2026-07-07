@@ -242,7 +242,7 @@ GitHub 配置要求：
 | `AGENT_RADAR_LLM_MODEL` | repository variable | eval model；默认使用 `deepseek-v4-flash`。 |
 | `CLOUDFLARE_API_TOKEN` | secret | Wrangler Direct Upload 认证。 |
 | `CLOUDFLARE_ACCOUNT_ID` | secret | Cloudflare account id。 |
-| `CLOUDFLARE_PAGES_PROJECT_NAME` | secret | Cloudflare Pages project name。 |
+| `CLOUDFLARE_PAGES_PROJECT_NAME` | repository variable | Cloudflare Pages project name；不要放 secret，否则 GitHub 会把 preview URL 中的项目名 mask 成 `***`。 |
 
 Preview workflow 上传的 artifact 包含：
 
