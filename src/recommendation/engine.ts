@@ -39,6 +39,34 @@ export interface RecommendationLlmClient {
   recommend(input: RecommendationLlmInput): Promise<RecommendationLlmOutput>;
 }
 
+export type RecommendationProviderErrorCode =
+  | "provider_auth_failed"
+  | "provider_rate_limited"
+  | "provider_model_unavailable"
+  | "provider_schema_error"
+  | "provider_request_failed";
+
+export interface RecommendationProviderErrorInput {
+  code: RecommendationProviderErrorCode;
+  message: string;
+  provider: RecommendationProvider;
+  status?: number;
+}
+
+export class RecommendationProviderError extends Error {
+  code: RecommendationProviderErrorCode;
+  provider: RecommendationProvider;
+  status?: number;
+
+  constructor(input: RecommendationProviderErrorInput) {
+    super(input.message);
+    this.name = "RecommendationProviderError";
+    this.code = input.code;
+    this.provider = input.provider;
+    this.status = input.status;
+  }
+}
+
 export interface RecommendToolsRuntime {
   apiKey: string;
   model: string;
@@ -136,23 +164,43 @@ export function createOpenAiRecommendationClient(fetchImpl: typeof fetch = fetch
 
       if (!response.ok) {
         const errorBody = await response.text();
+        const sanitizedErrorBody = sanitizeProviderErrorBody(errorBody);
         console.error("recommendation_llm_request_failed", {
           provider: modelRequest.provider,
           endpoint: modelRequest.endpoint,
           model: modelRequest.model,
           status: response.status,
           statusText: response.statusText,
-          body: sanitizeProviderErrorBody(errorBody)
+          body: sanitizedErrorBody
         });
-        throw new Error(`llm_request_failed:${response.status}`);
+        throw new RecommendationProviderError({
+          code: classifyProviderStatus(response.status, sanitizedErrorBody),
+          message: buildProviderErrorMessage(response.status, response.statusText),
+          provider: modelRequest.provider,
+          status: response.status
+        });
       }
 
       const body = (await response.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
       };
       const content = body.choices?.[0]?.message?.content;
-      if (!content) throw new Error("llm_response_missing_content");
-      return JSON.parse(content) as RecommendationLlmOutput;
+      if (!content) {
+        throw new RecommendationProviderError({
+          code: "provider_schema_error",
+          message: "Provider response did not include recommendation JSON content.",
+          provider: modelRequest.provider
+        });
+      }
+      try {
+        return JSON.parse(content) as RecommendationLlmOutput;
+      } catch {
+        throw new RecommendationProviderError({
+          code: "provider_schema_error",
+          message: "Provider response content was not valid recommendation JSON.",
+          provider: modelRequest.provider
+        });
+      }
     }
   };
 }
@@ -242,6 +290,20 @@ function sanitizeProviderErrorBody(body: string): string {
     .replace(/sk-[A-Za-z0-9_-]+/g, "sk-***")
     .replace(/Bearer\\s+[A-Za-z0-9._-]+/gi, "Bearer ***")
     .slice(0, 1000);
+}
+
+function classifyProviderStatus(status: number, body: string): RecommendationProviderErrorCode {
+  if (status === 401 || status === 403) return "provider_auth_failed";
+  if (status === 429) return "provider_rate_limited";
+  if (status === 404 || /model/i.test(body)) return "provider_model_unavailable";
+  return "provider_request_failed";
+}
+
+function buildProviderErrorMessage(status: number, statusText: string): string {
+  if (status === 401 || status === 403) return "Provider rejected the API key or authorization scope.";
+  if (status === 429) return "Provider rate limit was reached. Try again later or use another model.";
+  if (status === 404) return "Provider model or endpoint was not available.";
+  return `Provider request failed with status ${status}${statusText ? ` ${statusText}` : ""}.`;
 }
 
 export function normalizeApiKey(apiKey: string): string {

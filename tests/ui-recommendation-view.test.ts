@@ -4,7 +4,7 @@ import type { RecommendationResult } from "../src/schema.js";
 import { seedToolCards } from "../src/data/seed-tool-cards.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { createToolViewModels } from "../src/ui/data.js";
-import { createRecommendationItems } from "../src/ui/recommendation-view.js";
+import { createRecommendationItems, formatRecommendationApiError } from "../src/ui/recommendation-view.js";
 
 test("creates selectable recommendation items with tool details", () => {
   const tools = createToolViewModels(seedToolCards, rateAllToolCards(seedToolCards));
@@ -46,4 +46,16 @@ test("creates selectable recommendation items with tool details", () => {
   assert.equal(items.length, 1);
   assert.equal(items[0].candidate.tool_id, "mcp-browser-automation");
   assert.equal(items[0].tool.card.name, "Browser Automation MCP");
+});
+
+test("formats provider API errors with actionable context", () => {
+  assert.equal(
+    formatRecommendationApiError({
+      error: "provider_rate_limited",
+      message: "Provider rate limit was reached.",
+      provider: "deepseek",
+      provider_status: 429
+    }),
+    "Provider rate limit was reached. [provider_rate_limited · deepseek · HTTP 429]"
+  );
 });

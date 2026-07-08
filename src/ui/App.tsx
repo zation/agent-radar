@@ -31,7 +31,7 @@ import { loadUiArtifacts, type ToolViewModel, type UiArtifacts } from "./data.js
 import { createEvalPopoverRows } from "./eval-popover.js";
 import { buildCollapsedRecommendationSummary, getRecommendationSubmitLabel } from "./recommendation-form.js";
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
-import { createRecommendationItems, type RecommendationItem } from "./recommendation-view.js";
+import { createRecommendationItems, formatRecommendationApiError, type RecommendationApiErrorBody, type RecommendationItem } from "./recommendation-view.js";
 import "./styles.css";
 
 const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
@@ -135,9 +135,9 @@ export default function App() {
           model: modelName
         })
       });
-      const body = (await response.json()) as RecommendationResult | { error?: string; message?: string };
+      const body = (await response.json()) as RecommendationResult | RecommendationApiErrorBody;
       if (!response.ok) {
-        throw new Error("message" in body && body.message ? body.message : "Recommendation request failed.");
+        throw new Error(formatRecommendationApiError(body as RecommendationApiErrorBody));
       }
       const nextRecommendation = body as RecommendationResult;
       setRecommendation(nextRecommendation);

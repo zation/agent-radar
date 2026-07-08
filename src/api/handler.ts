@@ -1,4 +1,4 @@
-import { recommendTools, type RecommendationLlmClient } from "../recommendation/engine.js";
+import { RecommendationProviderError, recommendTools, type RecommendationLlmClient } from "../recommendation/engine.js";
 import type { RecommendationQuery, SearchDocument } from "../schema.js";
 import { buildMcpToolManifest } from "./mcp-manifest.js";
 import type { ToolRepository } from "./repository.js";
@@ -30,6 +30,17 @@ export function createApiHandler(repository: ToolRepository, options: ApiHandler
 
       return json({ error: "not_found", message: "Unknown route." }, 404);
     } catch (error) {
+      if (error instanceof RecommendationProviderError) {
+        return json(
+          {
+            error: error.code,
+            message: error.message,
+            provider: error.provider,
+            provider_status: error.status
+          },
+          502
+        );
+      }
       const message = error instanceof Error ? error.message : "Unknown error";
       return json({ error: "bad_request", message }, 400);
     }

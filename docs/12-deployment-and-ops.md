@@ -187,6 +187,7 @@ Browser UI
 
 - API key 不写入 artifacts、eval report 或响应体。
 - server 日志只记录 provider、endpoint、model、状态码和脱敏错误体。
+- provider 401/403、429、模型不可用和 JSON 输出异常会映射为稳定 API error code，并由 Recommend UI 展示 provider/status 上下文。
 - 本地 dev API 和 Workers API 都必须保持只读，不安装、不授权、不执行推荐工具。
 
 当前 D1 相关文件：

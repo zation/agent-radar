@@ -4,6 +4,7 @@ import { createApiHandler } from "../src/api/handler.js";
 import { createStaticRepository } from "../src/api/repository.js";
 import { seedToolCards } from "../src/data/seed-tool-cards.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
+import { RecommendationProviderError } from "../src/recommendation/engine.js";
 import { buildSearchIndex } from "../src/search/index-builder.js";
 
 const ratings = rateAllToolCards(seedToolCards);
@@ -88,6 +89,35 @@ test("recommend_tools requires BYOK credentials", async () => {
   const body = (await response.json()) as { error: string; message: string };
   assert.equal(body.error, "bad_request");
   assert.match(body.message, /api_key/);
+});
+
+test("recommend_tools maps provider failures to stable API errors", async () => {
+  const erroringHandler = createApiHandler(repository, {
+    recommendationClient: {
+      recommend() {
+        throw new RecommendationProviderError({
+          code: "provider_auth_failed",
+          message: "Provider rejected the API key.",
+          provider: "openai",
+          status: 401
+        });
+      }
+    }
+  });
+
+  const response = await erroringHandler(
+    new Request("https://agent-radar.test/api/recommend_tools", {
+      method: "POST",
+      body: JSON.stringify({ task: "pick a safe tool", api_key: "sk-test-secret", model: "gpt-4.1" })
+    })
+  );
+
+  assert.equal(response.status, 502);
+  const body = (await response.json()) as { error: string; message: string; provider?: string; provider_status?: number };
+  assert.equal(body.error, "provider_auth_failed");
+  assert.equal(body.message, "Provider rejected the API key.");
+  assert.equal(body.provider, "openai");
+  assert.equal(body.provider_status, 401);
 });
 
 test("explain_rating returns dimension explanations", async () => {
