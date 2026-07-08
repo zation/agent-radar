@@ -54,7 +54,7 @@ npm run ingest
 - 通用外部 HTTP/API crawler 的限流、重试和审计日志。
 - 更多来源专属 parser。
 - 完整跨来源 deduper、跨来源 normalizer 和人工 override 审核 UI。
-- 完整 Source Registry validator，包括来源变更 diff、robots/terms 审核记录和 parser 覆盖检查。
+- 完整 Source Registry validator，包括来源变更 diff 和 robots/terms 审核记录。
 - 完整的人工审核 UI 和 Tool Card drafts 发布准入流程。
 - 更完整的 Tool Card validator，包括 URL 可达性、字段级 evidence coverage 和 override 审计。
 

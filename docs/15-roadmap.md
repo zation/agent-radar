@@ -53,6 +53,7 @@
 - 采集草稿链路已输出最小 dedup report，按 draft id 和 canonical URL 标注可能重复项，供人工审核参考。
 - review queue 已包含最小重复信号，可标注 draft 可能对应的已发布 `tool_id`，但不会自动合并。
 - 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
+- Source Registry validator 已检查 enabled source 是否声明已实现 parser，避免 registry 启用未接入解析器的来源。
 - 发布流水线已输出 `tool_card_validation.json` artifact，并在 Tool Card validator 失败时阻断可靠 artifacts 生成。
 - 发布流水线已输出 `mcp_tools.json`，Workers API 也提供 `/api/mcp_manifest` 返回只读工具定义。
 - Golden queries 已扩展到 v0.2 下限 10 条，覆盖 coding agent、agent framework、数据库 MCP、GitHub 和监控调试场景。
@@ -343,7 +344,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
 - 把 `npm run ingest` 输出的 review queue 接入人工批准记录和标准化入口。
-- 扩展 Source Registry validator，覆盖来源变更 diff、parser 覆盖检查和审核记录。
+- 扩展 Source Registry validator，覆盖来源变更 diff 和审核记录。
 - 扩展 Tool Card validator，覆盖字段级 evidence、URL 可达性和人工 override 审计。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。
 - 使用真实 provider key 重跑 10 条 golden queries，并审查新增 case 的推荐质量。

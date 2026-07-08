@@ -6,6 +6,14 @@ interface ManualSeedPayload {
   tools?: Array<Partial<ToolCard> & { id?: string; name?: string }>;
 }
 
+export const supportedSourceParsers = ["manual_seed_parser"] as const;
+
+export type SupportedSourceParser = (typeof supportedSourceParsers)[number];
+
+export function isSupportedSourceParser(parser: string): parser is SupportedSourceParser {
+  return supportedSourceParsers.includes(parser as SupportedSourceParser);
+}
+
 export async function parseSnapshot(snapshot: RawSourceSnapshot, source: SourceDefinition, outputDir: string, now: string): Promise<SourceRecord[]> {
   if (snapshot.status !== "success") return [];
   if (source.parser === "manual_seed_parser") return parseManualSeedSnapshot(snapshot, source, outputDir, now);

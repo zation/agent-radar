@@ -31,6 +31,18 @@ test("source registry validator rejects unsafe enabled sources", () => {
   assert.match(errors.join("\n"), /github-topic-mcp: last_reviewed_at must be ISO 8601 UTC/);
 });
 
+test("source registry validator rejects enabled sources without parser coverage", () => {
+  const errors = validateSourceRegistry([
+    {
+      ...sourceRegistry[1],
+      enabled: true,
+      parser: "github_topic_parser"
+    }
+  ]);
+
+  assert.match(errors.join("\n"), /github-topic-mcp: parser github_topic_parser is not implemented/);
+});
+
 test("crawler saves immutable raw snapshots without request secrets", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
 
