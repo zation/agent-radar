@@ -78,7 +78,7 @@ changed:
         confirmation_required: true
 ```
 
-当前会生成 review requirement 的字段包括：`enabled`、`url`、`source_type`、`collection_method`、`recommended_frequency`、`trust_level`、`field_coverage`、`rate_limits`、`terms_notes`、`access_review` 和 `parser`。该 artifact 只提供审核提示，不自动信任新来源，也不替代人工确认。
+当前会生成 review requirement 的字段包括：`enabled`、`url`、`source_type`、`collection_method`、`recommended_frequency`、`trust_level`、`field_coverage`、`rate_limits`、`terms_notes`、`access_review` 和 `parser`。Cloudflare Pages preview 的 ingestion review markdown 会展示这些字段级审核提示，便于 reviewer 在 Actions Summary 中确认高影响来源变更。该 artifact 只提供审核提示，不自动信任新来源，也不替代人工确认。
 
 ## 来源类型
 

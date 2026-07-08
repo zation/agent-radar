@@ -224,7 +224,23 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     await writeFile(join(outputDir, "data", "eval_summary.json"), JSON.stringify({ passed: 5, total: 5, results: [] }), "utf8");
     await writeFile(
       join(outputDir, "data", "source_registry_diff.json"),
-      JSON.stringify({ schema_version: "source_registry_diff.v1", summary: { added: 2, removed: 0, changed: 0 } }),
+      JSON.stringify({
+        schema_version: "source_registry_diff.v1",
+        summary: { added: 2, removed: 0, changed: 1 },
+        changed: [
+          {
+            id: "github-topic-mcp",
+            changed_fields: ["enabled", "last_reviewed_at"],
+            review_requirements: [
+              {
+                field: "enabled",
+                reason: "Source enablement changes crawl scope and require maintainer confirmation.",
+                confirmation_required: true
+              }
+            ]
+          }
+        ]
+      }),
       "utf8"
     );
     await writeFile(
@@ -254,9 +270,11 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
+    assert.match(reviewMarkdown, /## Source Registry Review Requirements/);
+    assert.match(reviewMarkdown, /github-topic-mcp: enabled - Source enablement changes crawl scope and require maintainer confirmation\./);
     assert.equal(artifactManifest.git_sha, "abc123");
     assert.deepEqual(artifactManifest.crawl_audit, { total: 1, success: 1, partial: 0, failed: 0 });
-    assert.deepEqual(artifactManifest.source_registry_diff, { added: 2, removed: 0, changed: 0 });
+    assert.deepEqual(artifactManifest.source_registry_diff, { added: 2, removed: 0, changed: 1 });
     assert.deepEqual(artifactManifest.tool_card_url_validation, { checked: 0, reachable: 0, failed: 0, skipped: 12 });
     assert.deepEqual(artifactManifest.ingestion_review.approvals, { approved: 1, rejected: 0, needs_changes: 0 });
     assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 0 });

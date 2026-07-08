@@ -1,6 +1,13 @@
 import type { RunIngestionResult } from "../ingestion/run.js";
 
-export function renderIngestionReviewMarkdown(result: RunIngestionResult): string {
+export interface SourceRegistryReviewRequirementSummary {
+  source_id: string;
+  field: string;
+  reason: string;
+  confirmation_required: boolean;
+}
+
+export function renderIngestionReviewMarkdown(result: RunIngestionResult, sourceRegistryReviewRequirements: SourceRegistryReviewRequirementSummary[] = []): string {
   const lines = [
     "# Ingestion Review",
     "",
@@ -24,8 +31,22 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult): strin
       const warnings = record.warnings?.length ? ` warnings=${record.warnings.join(",")}` : "";
       const urls = record.urls.length ? ` urls=${record.urls.join(", ")}` : "";
       return `- ${record.name} (${record.record_type}, confidence=${record.source_confidence}) source=${record.source_id}${warnings}${urls}`;
-    })
+    }),
+    ...renderSourceRegistryReviewRequirements(sourceRegistryReviewRequirements)
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderSourceRegistryReviewRequirements(requirements: SourceRegistryReviewRequirementSummary[]): string[] {
+  if (requirements.length === 0) return [];
+
+  return [
+    "",
+    "## Source Registry Review Requirements",
+    ...requirements.map((requirement) => {
+      const confirmation = requirement.confirmation_required ? " confirmation_required=true" : "";
+      return `- ${requirement.source_id}: ${requirement.field} - ${requirement.reason}${confirmation}`;
+    })
+  ];
 }
