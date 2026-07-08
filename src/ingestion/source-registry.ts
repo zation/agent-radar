@@ -85,7 +85,14 @@ export interface SourceRegistryDiff {
     before: SourceDefinition;
     after: SourceDefinition;
     changed_fields: string[];
+    review_requirements: SourceRegistryReviewRequirement[];
   }>;
+}
+
+export interface SourceRegistryReviewRequirement {
+  field: string;
+  reason: string;
+  confirmation_required: boolean;
 }
 
 export function buildSourceRegistryArtifact(sources: SourceDefinition[], generatedAt: string): SourceRegistryArtifact {
@@ -113,7 +120,9 @@ export function buildSourceRegistryDiff(previousSources: SourceDefinition[], cur
       const before = previousById.get(after.id);
       if (!before) return [];
       const changedFields = diffSourceFields(before, after);
-      return changedFields.length > 0 ? [{ id: after.id, before, after, changed_fields: changedFields }] : [];
+      return changedFields.length > 0
+        ? [{ id: after.id, before, after, changed_fields: changedFields, review_requirements: buildSourceReviewRequirements(changedFields) }]
+        : [];
     })
     .sort((a, b) => a.id.localeCompare(b.id));
 
@@ -169,6 +178,27 @@ function diffSourceFields(before: SourceDefinition, after: SourceDefinition): st
   const fields = new Set([...Object.keys(before), ...Object.keys(after)]);
   return [...fields].filter((field) => JSON.stringify(before[field as keyof SourceDefinition]) !== JSON.stringify(after[field as keyof SourceDefinition])).sort();
 }
+
+function buildSourceReviewRequirements(changedFields: string[]): SourceRegistryReviewRequirement[] {
+  return changedFields.flatMap((field) => {
+    const reason = sourceReviewReasonByField[field];
+    return reason ? [{ field, reason, confirmation_required: true }] : [];
+  });
+}
+
+const sourceReviewReasonByField: Record<string, string> = {
+  access_review: "Access review changes affect robots, terms, and source safety assumptions.",
+  collection_method: "Collection method changes can alter network access, rate limits, and parser assumptions.",
+  enabled: "Source enablement changes crawl scope and require maintainer confirmation.",
+  field_coverage: "Field coverage changes affect draft completeness and provenance expectations.",
+  parser: "Parser changes affect how raw snapshots become Source Records and Tool Card drafts.",
+  rate_limits: "Rate limit changes affect crawler safety and source terms compliance.",
+  recommended_frequency: "Frequency changes affect crawler load and source terms compliance.",
+  source_type: "Source type changes affect trust and parser expectations.",
+  terms_notes: "Terms notes changes affect allowed collection boundaries.",
+  trust_level: "Trust level changes can affect confidence and downstream recommendation context.",
+  url: "Source URL changes alter the collection surface and require access review."
+};
 
 function validateAccessReview(source: SourceDefinition): string[] {
   const errors: string[] = [];

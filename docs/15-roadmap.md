@@ -56,7 +56,7 @@
 - 采集草稿链路已输出 release admission artifact，只有 ready、approved 且无重复信号的 draft 会标为 `eligible_for_publish`，但不会自动发布。
 - 采集草稿链路已输出 promotion candidates artifact，把 eligible drafts 和 approval evidence 汇总为待人工提升候选，但仍不会自动发布到可靠 Tool Cards。
 - 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
-- 发布流水线已输出 `source_registry_diff.json` artifact，记录 Source Registry 来源配置 added、removed 和 changed 摘要，并同步到 preview artifact manifest。
+- 发布流水线已输出 `source_registry_diff.json` artifact，记录 Source Registry 来源配置 added、removed 和 changed 摘要，并为高影响 changed fields 输出 review requirements；摘要已同步到 preview artifact manifest。
 - Source Registry validator 已检查 enabled source 是否声明已实现 parser，避免 registry 启用未接入解析器的来源。
 - Source Registry validator 已检查 enabled source 是否包含审核 owner 和合法 `last_reviewed_at`。
 - Source Registry validator 已检查 enabled source 是否包含 robots/terms 审核记录。
@@ -75,7 +75,7 @@
 - Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和更细字段级证据质量。
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 promotion candidates 尚未进入可靠发布数据。
-- 更完整 Source Registry validator、更细 Tool Card 字段级 provenance、跨来源 normalizer、跨来源 deduper 和人工 override 审核 UI 尚未完成。
+- 更细 Tool Card 字段级 provenance、跨来源 normalizer、跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry 仍需从 review requirements 继续扩展到完整人工确认工作流。
 - Workers API 当前是 HTTP/JSON 风格实现，并已提供只读 MCP tool manifest；尚未实现完整 MCP server 协议包装。
 - BYOK 模式已经可用，但还缺 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
 
@@ -355,7 +355,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
 - 把 `npm run ingest` 输出的 promotion candidates 接入人工审核 UI 或可靠发布提升流程。
-- 扩展 Source Registry validator 的变更审计细节，例如字段级 review reason 和人工确认状态。
+- 将 Source Registry 字段级 review requirements 接入人工确认状态和 preview 审核 UI。
 - 扩展 Tool Card validator，覆盖更细字段级 provenance，并决定是否在 CI 默认启用 URL 可达性检查。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。
 - 使用真实 provider key 重跑 10 条 golden queries，并审查新增 case 的推荐质量。

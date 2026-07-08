@@ -95,6 +95,13 @@ test("source registry diff records added removed and changed source ids", () => 
   assert.deepEqual(diff.added.map((source) => source.id), ["new-official-source"]);
   assert.deepEqual(diff.removed.map((source) => source.id), ["github-topic-mcp"]);
   assert.deepEqual(diff.changed[0]?.changed_fields, ["enabled", "last_reviewed_at"]);
+  assert.deepEqual(diff.changed[0]?.review_requirements, [
+    {
+      field: "enabled",
+      reason: "Source enablement changes crawl scope and require maintainer confirmation.",
+      confirmation_required: true
+    }
+  ]);
 });
 
 test("crawler saves immutable raw snapshots without request secrets", async () => {

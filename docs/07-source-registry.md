@@ -64,6 +64,22 @@ last_reviewed_at:
 | `owner` | string | 否 | 维护人或模块 |
 | `last_reviewed_at` | datetime | 是 | 来源审核时间 |
 
+## Source Registry Diff
+
+`source_registry_diff.json` 用于 preview/release 审核来源配置变更。每个 changed source 必须列出 `changed_fields`；对会影响采集范围、访问边界、parser 行为或下游可信度的字段，还会输出 `review_requirements`：
+
+```yaml
+changed:
+  - id:
+    changed_fields:
+    review_requirements:
+      - field:
+        reason:
+        confirmation_required: true
+```
+
+当前会生成 review requirement 的字段包括：`enabled`、`url`、`source_type`、`collection_method`、`recommended_frequency`、`trust_level`、`field_coverage`、`rate_limits`、`terms_notes`、`access_review` 和 `parser`。该 artifact 只提供审核提示，不自动信任新来源，也不替代人工确认。
+
 ## 来源类型
 
 ### 官方 Registry
