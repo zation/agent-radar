@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildMcpExamplesArtifact } from "../api/mcp-examples.js";
+import { buildMcpSmokeChecklistArtifact } from "../api/mcp-smoke-checklist.js";
 import { buildMcpToolManifest } from "../api/mcp-manifest.js";
 import { seedToolCards } from "../data/seed-tool-cards.js";
 import { goldenQueries } from "../eval/golden-queries.js";
@@ -55,6 +56,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
     : buildSkippedToolCardUrlValidation(toolCards, "2026-07-06T00:00:00Z", "url_reachability_check_not_enabled");
   const mcpToolManifest = buildMcpToolManifest();
   const mcpExamples = buildMcpExamplesArtifact();
+  const mcpSmokeChecklist = buildMcpSmokeChecklistArtifact();
 
   await writeFile(join(publicDataDir, "tool_cards.jsonl"), toJsonl(toolCards), "utf8");
   await writeFile(join(publicDataDir, "ratings.jsonl"), toJsonl(ratings), "utf8");
@@ -66,6 +68,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await writeFile(join(publicDataDir, "tool_card_url_validation.json"), JSON.stringify(toolCardUrlValidation, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_tools.json"), JSON.stringify(mcpToolManifest, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_examples.json"), JSON.stringify(mcpExamples, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "mcp_smoke_checklist.json"), JSON.stringify(mcpSmokeChecklist, null, 2), "utf8");
   await writeFile(join(publicDataDir, "d1_seed.sql"), renderD1SeedSql(toolCards, ratings, index.documents), "utf8");
   await writeFile(join(publicDataDir, "golden_queries.json"), JSON.stringify(goldenQueries, null, 2), "utf8");
   await writeFile(join(publicDataDir, "eval_summary.json"), JSON.stringify(evalSummary, null, 2), "utf8");
@@ -93,6 +96,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         tool_card_url_validation: "data/tool_card_url_validation.json",
         mcp_tools: "data/mcp_tools.json",
         mcp_examples: "data/mcp_examples.json",
+        mcp_smoke_checklist: "data/mcp_smoke_checklist.json",
         d1_seed: "data/d1_seed.sql",
         eval_report: `reports/eval-${dataVersion}.md`,
         published_at: "2026-07-06T00:00:00Z"

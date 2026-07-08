@@ -22,6 +22,7 @@ interface ManifestFile {
   tool_card_url_validation: string;
   mcp_tools: string;
   mcp_examples: string;
+  mcp_smoke_checklist: string;
 }
 
 test("builds MVP data artifacts and an eval report", async () => {
@@ -50,6 +51,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.tool_card_url_validation, "data/tool_card_url_validation.json");
     assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
     assert.equal(manifest.mcp_examples, "data/mcp_examples.json");
+    assert.equal(manifest.mcp_smoke_checklist, "data/mcp_smoke_checklist.json");
 
     const sourceRegistry = JSON.parse(await readFile(join(outputDir, "data", "source_registry.json"), "utf8"));
     assert.equal(sourceRegistry.schema_version, "source_registry.v1");
@@ -91,6 +93,20 @@ test("builds MVP data artifacts and an eval report", async () => {
       ["initialize", "tools/list", "tools/call:get_tool_card", "tools/call:search_tools"]
     );
     assert.equal(mcpExamples.examples.find((example) => example.name === "tools/call:get_tool_card")?.request.params?.name, "get_tool_card");
+
+    const mcpSmokeChecklist = JSON.parse(await readFile(join(outputDir, "data", "mcp_smoke_checklist.json"), "utf8")) as {
+      schema_version: string;
+      endpoint: string;
+      summary: { total: number; required: number };
+      checks: Array<{ id: string; required: boolean }>;
+    };
+    assert.equal(mcpSmokeChecklist.schema_version, "mcp_smoke_checklist.v1");
+    assert.equal(mcpSmokeChecklist.endpoint, "/api/mcp");
+    assert.deepEqual(
+      mcpSmokeChecklist.checks.map((check) => check.id),
+      ["mcp-initialize", "mcp-tools-list", "mcp-tools-call-get-tool-card", "mcp-read-only-boundary"]
+    );
+    assert.deepEqual(mcpSmokeChecklist.summary, { total: 4, required: 4 });
 
     const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
     assert.ok(searchIndex.documents.length >= 20);
