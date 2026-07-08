@@ -57,3 +57,38 @@ test("tool card validator accepts ISO UTC timestamps with milliseconds", () => {
 
   assert.equal(validation.passed, true);
 });
+
+test("tool card validator audits override evidence references", () => {
+  const overrideEvidenceCard: ToolCard = {
+    ...seedToolCards[0],
+    id: "override-evidence-card",
+    evidence_refs: ["override-openai-docs-summary-20260708"]
+  };
+
+  const missingOverrideValidation = validateToolCards([overrideEvidenceCard]);
+
+  assert.equal(missingOverrideValidation.passed, false);
+  assert.match(
+    missingOverrideValidation.errors.join("\n"),
+    /override-evidence-card: evidence ref override-openai-docs-summary-20260708 requires matching override record/
+  );
+
+  const auditedOverrideValidation = validateToolCards([overrideEvidenceCard], {
+    overrideRecords: [
+      {
+        id: "override-openai-docs-summary-20260708",
+        schema_version: "override_record.v1",
+        target_type: "tool_card",
+        target_id: "override-evidence-card",
+        field: "summary",
+        new_value: "Reviewed override summary.",
+        reason: "Manual correction with public evidence.",
+        evidence_urls: ["https://platform.openai.com/docs"],
+        created_by: "maintainer",
+        created_at: "2026-07-08T12:00:00Z"
+      }
+    ]
+  });
+
+  assert.equal(auditedOverrideValidation.passed, true);
+});

@@ -56,6 +56,7 @@
 - Source Registry validator 已检查 enabled source 是否声明已实现 parser，避免 registry 启用未接入解析器的来源。
 - Source Registry validator 已检查 enabled source 是否包含审核 owner 和合法 `last_reviewed_at`。
 - 发布流水线已输出 `tool_card_validation.json` artifact，并在 Tool Card validator 失败时阻断可靠 artifacts 生成。
+- Tool Card validator 已支持 override evidence ref 审计：引用 `override-*` 时必须提供对应 Override Record 上下文。
 - 发布流水线已输出 `mcp_tools.json`，Workers API 也提供 `/api/mcp_manifest` 返回只读工具定义。
 - Golden queries 已扩展到 v0.2 下限 10 条，覆盖 coding agent、agent framework、数据库 MCP、GitHub 和监控调试场景。
 - Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
@@ -346,7 +347,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
 - 把 `npm run ingest` 输出的 review queue 接入 Tool Card drafts 发布准入。
 - 扩展 Source Registry validator，覆盖来源变更 diff 和 robots/terms 审核记录。
-- 扩展 Tool Card validator，覆盖字段级 evidence、URL 可达性和人工 override 审计。
+- 扩展 Tool Card validator，覆盖字段级 evidence 和 URL 可达性。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。
 - 使用真实 provider key 重跑 10 条 golden queries，并审查新增 case 的推荐质量。
 

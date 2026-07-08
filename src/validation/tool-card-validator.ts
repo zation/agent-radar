@@ -1,4 +1,5 @@
 import type { ToolCard } from "../schema.js";
+import type { OverrideRecord } from "../ingestion/normalizer.js";
 
 export interface ToolCardValidationResult {
   schema_version: "tool_card_validation.v1";
@@ -8,10 +9,15 @@ export interface ToolCardValidationResult {
   warnings: string[];
 }
 
-export function validateToolCards(cards: ToolCard[]): ToolCardValidationResult {
+export interface ToolCardValidationOptions {
+  overrideRecords?: OverrideRecord[];
+}
+
+export function validateToolCards(cards: ToolCard[], options: ToolCardValidationOptions = {}): ToolCardValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
   const seenIds = new Set<string>();
+  const overrideIds = new Set((options.overrideRecords ?? []).map((record) => record.id));
 
   for (const card of cards) {
     if (seenIds.has(card.id)) errors.push(`${card.id}: duplicate tool id`);
@@ -19,6 +25,7 @@ export function validateToolCards(cards: ToolCard[]): ToolCardValidationResult {
 
     validateRequiredStrings(card, errors);
     validateReleaseQuality(card, errors, warnings);
+    validateOverrideEvidenceRefs(card, overrideIds, errors);
   }
 
   return {
@@ -28,6 +35,14 @@ export function validateToolCards(cards: ToolCard[]): ToolCardValidationResult {
     errors,
     warnings
   };
+}
+
+function validateOverrideEvidenceRefs(card: ToolCard, overrideIds: Set<string>, errors: string[]): void {
+  for (const ref of card.evidence_refs) {
+    if (ref.startsWith("override-") && !overrideIds.has(ref)) {
+      errors.push(`${card.id}: evidence ref ${ref} requires matching override record`);
+    }
+  }
 }
 
 function validateRequiredStrings(card: ToolCard, errors: string[]): void {
