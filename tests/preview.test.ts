@@ -43,6 +43,7 @@ const ingestionResult: RunIngestionResult = {
     }
   ],
   toolCardDrafts: [],
+  overrideRecords: [],
   reviewQueue: {
     schema_version: "tool_card_review_queue.v1",
     generated_at: "2026-07-07T00:00:00Z",

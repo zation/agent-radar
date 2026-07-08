@@ -178,3 +178,79 @@ test("ingestion writes tool card drafts from complete manual source records", as
     await rm(outputDir, { recursive: true, force: true });
   }
 });
+
+test("ingestion applies override records to draft normalization artifacts", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
+
+  try {
+    const result = await runIngestion({
+      outputDir,
+      now: "2026-07-08T00:00:00Z",
+      overrideRecords: [
+        {
+          id: "override-agent-codex-summary-20260708",
+          schema_version: "override_record.v1",
+          target_type: "tool_card",
+          target_id: "agent-codex",
+          field: "summary",
+          new_value: "Override summary for review queue.",
+          reason: "Manual correction before review.",
+          evidence_urls: ["https://developers.openai.com/codex"],
+          created_by: "maintainer",
+          created_at: "2026-07-08T12:00:00Z"
+        }
+      ],
+      fetchImpl: () =>
+        Promise.resolve(new Response(
+          JSON.stringify({
+            tools: [
+              {
+                id: "agent-codex",
+                schema_version: "tool_card.v1",
+                name: "Codex",
+                type: "agent",
+                summary: "Original summary.",
+                source_urls: ["https://developers.openai.com/codex"],
+                docs_url: "https://developers.openai.com/codex",
+                primary_purpose: "coding_agent",
+                use_cases: ["modify code", "run test suites"],
+                not_for: ["unapproved destructive commands"],
+                tags: ["coding", "agent"],
+                install_methods: [{ method: "hosted", command: "", docs_url: "https://developers.openai.com/codex", confidence: "high" }],
+                auth_required: "account",
+                permissions: [{ scope: "filesystem", access: "read_write", required: true, notes: "Works in the user's workspace." }],
+                maintenance: {
+                  status: "active",
+                  issue_activity: "active",
+                  maintainer_type: "official",
+                  signals: ["official_product"]
+                },
+                security: {
+                  risk_level: "high",
+                  trust_level: "official",
+                  known_risks: ["filesystem_write"],
+                  requires_human_approval: true,
+                  security_notes: "Review diffs before accepting changes."
+                },
+                maturity: "stable",
+                evidence_refs: ["manual-review-codex"],
+                last_checked_at: "2026-07-08T00:00:00Z",
+                confidence: "high",
+                created_at: "2026-07-08T00:00:00Z",
+                updated_at: "2026-07-08T00:00:00Z"
+              }
+            ]
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        ))
+    });
+
+    assert.equal(result.toolCardDrafts[0]?.summary, "Override summary for review queue.");
+    assert.equal(result.overrideRecords.length, 1);
+
+    const overrides = JSON.parse(await readFile(join(outputDir, "data", "overrides", "override_records.json"), "utf8")) as { records: Array<{ id: string }> };
+    assert.equal(overrides.records[0]?.id, "override-agent-codex-summary-20260708");
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});

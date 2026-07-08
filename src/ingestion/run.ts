@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { crawlEnabledSources } from "./crawler.js";
+import { normalizeToolCardDrafts, type OverrideRecord } from "./normalizer.js";
 import { parseSnapshot } from "./parser.js";
 import { buildToolCardReviewQueue, type ToolCardReviewQueue } from "./review-queue.js";
 import { getEnabledSources, sourceRegistry } from "./source-registry.js";
@@ -12,12 +13,14 @@ export interface RunIngestionOptions {
   now?: string;
   fetchImpl?: typeof fetch;
   existingToolCards?: ToolCard[];
+  overrideRecords?: OverrideRecord[];
 }
 
 export interface RunIngestionResult {
   snapshots: RawSourceSnapshot[];
   sourceRecords: SourceRecord[];
   toolCardDrafts: ToolCard[];
+  overrideRecords: OverrideRecord[];
   reviewQueue: ToolCardReviewQueue;
 }
 
@@ -40,7 +43,9 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   }
 
   await writeSourceRecords(options.outputDir, recordsBySource);
-  const draftsBySource = buildToolCardDrafts(recordsBySource);
+  const overrideRecords = options.overrideRecords ?? [];
+  await writeOverrideRecords(options.outputDir, overrideRecords);
+  const draftsBySource = buildToolCardDrafts(recordsBySource, overrideRecords);
   await writeToolCardDrafts(options.outputDir, draftsBySource);
   const sourceRecords = [...recordsBySource.values()].flat();
   const toolCardDrafts = [...draftsBySource.values()].flat();
@@ -51,6 +56,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     snapshots,
     sourceRecords,
     toolCardDrafts,
+    overrideRecords,
     reviewQueue
   };
 }
@@ -65,52 +71,15 @@ async function writeSourceRecords(outputDir: string, recordsBySource: Map<string
   }
 }
 
-function buildToolCardDrafts(recordsBySource: Map<string, SourceRecord[]>): Map<string, ToolCard[]> {
+function buildToolCardDrafts(recordsBySource: Map<string, SourceRecord[]>, overrideRecords: OverrideRecord[]): Map<string, ToolCard[]> {
   const draftsBySource = new Map<string, ToolCard[]>();
 
   for (const [sourceId, records] of recordsBySource) {
-    const drafts = records
-      .filter((record) => record.record_type === "manual" && !record.warnings?.length)
-      .map((record) => buildManualToolCardDraft(record))
-      .filter((draft): draft is ToolCard => Boolean(draft));
+    const drafts = normalizeToolCardDrafts(records, overrideRecords);
     draftsBySource.set(sourceId, drafts);
   }
 
   return draftsBySource;
-}
-
-function buildManualToolCardDraft(record: SourceRecord): ToolCard | undefined {
-  const rawToolCard = record.raw_fields;
-  if (!isToolCard(rawToolCard)) return undefined;
-
-  return {
-    ...rawToolCard,
-    evidence_refs: [record.id],
-    updated_at: record.parsed_at
-  };
-}
-
-function isToolCard(value: unknown): value is ToolCard {
-  if (!isRecord(value)) return false;
-
-  return (
-    value.schema_version === "tool_card.v1" &&
-    typeof value.id === "string" &&
-    typeof value.name === "string" &&
-    typeof value.type === "string" &&
-    typeof value.summary === "string" &&
-    Array.isArray(value.source_urls) &&
-    Array.isArray(value.use_cases) &&
-    Array.isArray(value.not_for) &&
-    Array.isArray(value.permissions) &&
-    typeof value.security === "object" &&
-    value.security !== null &&
-    typeof value.confidence === "string"
-  );
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
 }
 
 async function writeToolCardDrafts(outputDir: string, draftsBySource: Map<string, ToolCard[]>): Promise<void> {
@@ -121,6 +90,23 @@ async function writeToolCardDrafts(outputDir: string, draftsBySource: Map<string
     const jsonl = drafts.length > 0 ? `${drafts.map((draft) => JSON.stringify(draft)).join("\n")}\n` : "";
     await writeFile(join(draftsDir, `${sourceId}.jsonl`), jsonl, "utf8");
   }
+}
+
+async function writeOverrideRecords(outputDir: string, overrideRecords: OverrideRecord[]): Promise<void> {
+  const overridesDir = join(outputDir, "data", "overrides");
+  await mkdir(overridesDir, { recursive: true });
+  await writeFile(
+    join(overridesDir, "override_records.json"),
+    JSON.stringify(
+      {
+        schema_version: "override_records.v1",
+        records: overrideRecords
+      },
+      null,
+      2
+    ),
+    "utf8"
+  );
 }
 
 async function writeReviewQueue(outputDir: string, reviewQueue: ToolCardReviewQueue): Promise<void> {
