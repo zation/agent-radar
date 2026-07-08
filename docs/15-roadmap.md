@@ -54,7 +54,7 @@
 - `npm run ingest` 已提供 v0.2 最小采集草稿链路：读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records，并为完整且无 parser warnings 的 manual 记录经 normalizer 生成待审核 Tool Card drafts 和 review queue。
 - 采集草稿链路已支持最小 Override Record artifact，可对待审核 draft 应用有证据的人工修正，同时保留 override 审计记录。
 - 采集草稿链路已支持最小 Approval Record artifact，可记录 draft 的 `approved`、`rejected` 和 `needs_changes` 审核决定，但不会自动发布。
-- 采集草稿链路已支持 Approval Request artifact，为缺少 approval 的 draft 输出 approval record template、decision options、duplicate review 背景和 validation 背景，但模板本身不会解除发布阻断。
+- 采集草稿链路已支持 Approval Request artifact，为缺少 approval 的 draft 输出 approval record template、decision options、duplicate review 背景和 validation 背景，并额外生成逐行可处理的 `approval_record_templates.jsonl`；模板本身不会解除发布阻断。
 - 采集草稿链路已输出最小 dedup report，按 draft id 和 canonical URL 标注对已发布 Tool Cards 以及同批 incoming drafts 的可能重复项，供人工审核参考。
 - review queue 已包含最小重复信号和 approval decision，可标注 draft 可能对应的已发布 `tool_id`、同批重复 draft id 及人工审核决定，但不会自动合并或发布。
 - 采集草稿链路已输出 release admission artifact，只有 ready、approved 且无已发布/同批 draft 重复信号的 draft 会标为 `eligible_for_publish`，但不会自动发布。
@@ -363,7 +363,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 ### P0：v0.2 数据接入
 
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
-- 把 `npm run ingest` 输出的 approval requests 和 promotion candidates 接入人工审核 UI 或可靠发布提升流程；当前 preview review markdown 已展示 approval record 模板、release admission blocked reasons，以及候选 tool id、Source Record id、reviewer、review time 和 approval reason，可靠发布提升仍待做。
+- 把 `npm run ingest` 输出的 approval requests 和 promotion candidates 接入人工审核 UI 或可靠发布提升流程；当前 preview review markdown 已展示 approval record 模板、release admission blocked reasons，以及候选 tool id、Source Record id、reviewer、review time 和 approval reason，approval requests 也已输出逐行 JSONL 模板，可靠发布提升仍待做。
 - 将 Source Registry review confirmation requests 接入真正的可操作审核 UI；当前 preview markdown 已展示 requirements 和 confirmation record 模板，artifact manifest 已汇总确认状态与 pending request summary。
 - 将 Tool Card 字段 provenance 继续细化到 Source Record 字段和值，并决定是否在 CI 默认启用 URL 可达性检查；schema-level `tool_card_field_provenance.json` 和 ingest-time `tool_card_field_value_provenance.v1` artifact 已实现，且 ingest-time artifact 已覆盖已应用 Override Record 的字段值 provenance。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。

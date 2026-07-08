@@ -179,6 +179,23 @@ async function writeApprovalRequests(outputDir: string, approvalRequests: ToolCa
   const approvalRequestsDir = join(outputDir, "data", "approval_requests");
   await mkdir(approvalRequestsDir, { recursive: true });
   await writeFile(join(approvalRequestsDir, "tool_card_drafts.json"), JSON.stringify(approvalRequests, null, 2), "utf8");
+  await writeFile(join(approvalRequestsDir, "approval_record_templates.jsonl"), serializeApprovalRecordTemplates(approvalRequests), "utf8");
+}
+
+function serializeApprovalRecordTemplates(approvalRequests: ToolCardApprovalRequests): string {
+  const lines = approvalRequests.items
+    .map((item) =>
+      JSON.stringify({
+        ...item.approval_record_template,
+        decision_options: item.decision_options,
+        duplicate_of_tool_ids: item.duplicate_of_tool_ids,
+        duplicate_of_draft_tool_ids: item.duplicate_of_draft_tool_ids,
+        validation_errors: item.validation_errors,
+        validation_warnings: item.validation_warnings
+      })
+    )
+    .join("\n");
+  return lines ? `${lines}\n` : "";
 }
 
 async function writeFieldProvenance(outputDir: string, fieldProvenance: ToolCardFieldValueProvenance): Promise<void> {

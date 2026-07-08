@@ -485,6 +485,32 @@ test("ingestion writes tool card drafts from complete manual source records", as
     assert.equal(approvalRequests.summary.pending_approval, 1);
     assert.equal(approvalRequests.items[0]?.approval_record_template.target_id, "agent-codex");
 
+    const approvalTemplateText = await readFile(join(outputDir, "data", "approval_requests", "approval_record_templates.jsonl"), "utf8");
+    assert.equal(approvalTemplateText.endsWith("\n"), true);
+    const approvalTemplateLines = approvalTemplateText
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line) as { target_id: string; decision_options: string[]; duplicate_of_tool_ids: string[] });
+    assert.deepEqual(approvalTemplateLines, [
+      {
+        id: "approval-agent-codex-manual-agent-radar-seed-agent-codex-20260708",
+        schema_version: "approval_record.v1",
+        target_type: "tool_card_draft",
+        target_id: "agent-codex",
+        source_record_id: "manual-agent-radar-seed-agent-codex-20260708",
+        required_fields: ["decision", "reason", "reviewer", "reviewed_at"],
+        decision_options: ["approved", "rejected", "needs_changes"],
+        duplicate_of_tool_ids: ["agent-codex"],
+        duplicate_of_draft_tool_ids: [],
+        validation_errors: [],
+        validation_warnings: [
+          "agent-codex: permissions lacks field-level evidence ref",
+          "agent-codex: security lacks field-level evidence ref",
+          "agent-codex: maintenance lacks field-level evidence ref"
+        ]
+      }
+    ]);
+
     const fieldProvenance = JSON.parse(await readFile(join(outputDir, "data", "field_provenance", "tool_card_fields.json"), "utf8")) as {
       schema_version: string;
       summary: { tool_cards: number; field_values: number };
