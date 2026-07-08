@@ -78,6 +78,7 @@ test("normalizer applies auditable override records to matching draft fields", (
   const drafts = normalizeToolCardDrafts([sourceRecord], [override]);
 
   assert.equal(drafts[0]?.summary, "Override summary with source-backed correction.");
+  assert.deepEqual(drafts[0]?.evidence_refs, ["manual-agent-radar-seed-agent-example-20260708", "override-agent-example-summary-20260708"]);
 });
 
 test("normalizer rejects override records without evidence", () => {

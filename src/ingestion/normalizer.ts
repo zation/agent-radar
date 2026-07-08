@@ -35,6 +35,7 @@ function normalizeManualToolCardDraft(record: SourceRecord, overrideRecords: Ove
 
   for (const override of overrideRecords ?? []) {
     draft[override.field] = override.new_value as never;
+    draft.evidence_refs = [...new Set([...draft.evidence_refs, override.id])];
   }
 
   return draft;

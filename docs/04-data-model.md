@@ -422,6 +422,7 @@ Override Record 记录人工修正。
 - 不得无来源覆盖关键字段。
 - Override 应可回滚。
 - 影响评分或推荐时必须运行相关评测。
+- 被应用到 Tool Card draft 时，Override Record id 必须进入 draft `evidence_refs`，以便 validator 校验 `override-*` evidence ref 是否有匹配 Override Record。
 
 ## Schema 版本与迁移
 

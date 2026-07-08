@@ -579,6 +579,7 @@ test("ingestion applies override records to draft normalization artifacts", asyn
     });
 
     assert.equal(result.toolCardDrafts[0]?.summary, "Override summary for review queue.");
+    assert.deepEqual(result.toolCardDrafts[0]?.evidence_refs, ["manual-agent-radar-seed-agent-codex-20260708", "override-agent-codex-summary-20260708"]);
     assert.equal(result.overrideRecords.length, 1);
     assert.equal(result.approvalArtifact.summary.approved, 1);
     assert.deepEqual(result.reviewQueue.items[0]?.approval, {
@@ -590,6 +591,9 @@ test("ingestion applies override records to draft normalization artifacts", asyn
 
     const overrides = JSON.parse(await readFile(join(outputDir, "data", "overrides", "override_records.json"), "utf8")) as { records: Array<{ id: string }> };
     assert.equal(overrides.records[0]?.id, "override-agent-codex-summary-20260708");
+    const draftLines = (await readFile(join(outputDir, "data", "tool_card_drafts", "manual-agent-radar-seed.jsonl"), "utf8")).trim().split("\n");
+    const draft = JSON.parse(draftLines[0] ?? "{}") as { evidence_refs?: string[] };
+    assert.deepEqual(draft.evidence_refs, ["manual-agent-radar-seed-agent-codex-20260708", "override-agent-codex-summary-20260708"]);
     const approvals = JSON.parse(await readFile(join(outputDir, "data", "approvals", "approval_records.json"), "utf8")) as { summary: { approved: number } };
     assert.equal(approvals.summary.approved, 1);
     const reviewQueue = JSON.parse(await readFile(join(outputDir, "data", "review_queue", "tool_card_drafts.json"), "utf8")) as {
