@@ -52,7 +52,7 @@ npm run ingest
 
 尚未实现的采集能力包括：
 
-- 更完整的 Crawl Plan 生成；当前已输出 enabled sources 的最小 crawl plan artifact。
+- 更完整的 Crawl Plan 生成；当前已输出 Source Registry sources 的最小 crawl plan artifact，并标注 ready、disabled 或 blocked。
 - 通用外部 HTTP/API crawler 的限流、重试和审计日志。
 - 更多来源专属 parser。
 - 完整跨来源 deduper、跨来源 normalizer 和人工 override 审核 UI。

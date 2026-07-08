@@ -102,17 +102,21 @@ test("ingestion writes a crawl plan for enabled sources", async () => {
     });
 
     assert.equal(result.crawlPlan.schema_version, "source_crawl_plan.v1");
-    assert.equal(result.crawlPlan.summary.total, 1);
+    assert.equal(result.crawlPlan.summary.total, 2);
+    assert.equal(result.crawlPlan.summary.disabled, 1);
     assert.equal(result.crawlPlan.items[0]?.source_id, "manual-agent-radar-seed");
     assert.equal(result.crawlPlan.items[0]?.status, "ready");
     assert.equal(result.crawlPlan.items[0]?.parser, "manual_seed_parser");
+    assert.equal(result.crawlPlan.items[1]?.source_id, "github-topic-mcp");
+    assert.equal(result.crawlPlan.items[1]?.status, "disabled");
 
     const crawlPlan = JSON.parse(await readFile(join(outputDir, "data", "crawl_plan", "source_crawl_plan.json"), "utf8")) as {
       schema_version: string;
-      items: Array<{ source_id: string }>;
+      items: Array<{ source_id: string; status: string }>;
     };
     assert.equal(crawlPlan.schema_version, "source_crawl_plan.v1");
     assert.equal(crawlPlan.items[0]?.source_id, "manual-agent-radar-seed");
+    assert.equal(crawlPlan.items[1]?.status, "disabled");
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

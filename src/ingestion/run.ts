@@ -36,7 +36,7 @@ export interface RunIngestionResult {
 export async function runIngestion(options: RunIngestionOptions): Promise<RunIngestionResult> {
   const now = options.now ?? new Date().toISOString();
   const enabledSources = getEnabledSources(sourceRegistry);
-  const crawlPlan = buildSourceCrawlPlan(enabledSources, now);
+  const crawlPlan = buildSourceCrawlPlan(sourceRegistry, now);
   await writeCrawlPlan(options.outputDir, crawlPlan);
   const snapshots = await crawlEnabledSources({
     sources: enabledSources,

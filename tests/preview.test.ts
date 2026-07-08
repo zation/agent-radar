@@ -15,6 +15,7 @@ const ingestionResult: RunIngestionResult = {
     summary: {
       total: 1,
       ready: 1,
+      disabled: 0,
       blocked: 0
     },
     items: [

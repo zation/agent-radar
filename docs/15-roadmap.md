@@ -62,7 +62,7 @@
 - 发布流水线已输出 `mcp_tools.json`，Workers API 也提供 `/api/mcp_manifest` 返回只读工具定义。
 - Golden queries 已扩展到 v0.2 下限 10 条，覆盖 coding agent、agent framework、数据库 MCP、GitHub 和监控调试场景。
 - Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
-- `npm run ingest` 已输出最小 crawl plan artifact，记录 enabled source 的抓取方法、频率、parser 和 ready/blocked 状态。
+- `npm run ingest` 已输出最小 crawl plan artifact，记录 Source Registry sources 的抓取方法、频率、parser 和 ready/disabled/blocked 状态。
 
 当前主要缺口：
 
