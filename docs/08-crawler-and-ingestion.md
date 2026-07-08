@@ -39,6 +39,8 @@ npm run ingest
 
 发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 preview/release 审核源配置。
 
+发布流水线也会输出 `data/tool_card_validation.json`，并在 Tool Card validation 失败时阻断 artifacts 生成，避免低置信、缺证据或风险未知的 Tool Card 进入可靠发布数据。
+
 尚未实现的采集能力包括：
 
 - Crawl Plan 生成。
@@ -47,6 +49,7 @@ npm run ingest
 - deduper、normalizer 和人工 override。
 - 完整 Source Registry validator，包括来源变更 diff、robots/terms 审核记录和 parser 覆盖检查。
 - 完整的人工审核队列和 Tool Card drafts 发布准入流程。
+- 更完整的 Tool Card validator，包括 URL 可达性、字段级 evidence coverage 和 override 审计。
 
 因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。
 

@@ -6,9 +6,11 @@ import { createBlockedEvalSummary, runGoldenQueries, type EvalSummary } from "..
 import { buildSourceRegistryArtifact, sourceRegistry } from "../ingestion/source-registry.js";
 import { rateAllToolCards } from "../rating/engine.js";
 import { buildSearchIndex } from "../search/index-builder.js";
+import { validateToolCards } from "../validation/tool-card-validator.js";
 
 export interface BuildArtifactsOptions {
   outputDir: string;
+  toolCards?: typeof seedToolCards;
 }
 
 export interface BuildArtifactsSummary {
@@ -24,21 +26,28 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await mkdir(publicDataDir, { recursive: true });
   await mkdir(reportsDir, { recursive: true });
 
-  const ratings = rateAllToolCards(seedToolCards);
-  const index = buildSearchIndex(seedToolCards, ratings);
+  const toolCards = options.toolCards ?? seedToolCards;
+  const toolCardValidation = validateToolCards(toolCards);
+  if (!toolCardValidation.passed) {
+    throw new Error(`Tool Card validation failed: ${toolCardValidation.errors.join("; ")}`);
+  }
+
+  const ratings = rateAllToolCards(toolCards);
+  const index = buildSearchIndex(toolCards, ratings);
   const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";
   const model = process.env.AGENT_RADAR_LLM_MODEL ?? "gpt-4.1";
   const evalSummary = apiKey
-    ? await runGoldenQueries(goldenQueries, seedToolCards, ratings, { apiKey, model })
+    ? await runGoldenQueries(goldenQueries, toolCards, ratings, { apiKey, model })
     : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.");
   const dataVersion = "data-2026-07-06";
   const sourceRegistryArtifact = buildSourceRegistryArtifact(sourceRegistry, "2026-07-06T00:00:00Z");
 
-  await writeFile(join(publicDataDir, "tool_cards.jsonl"), toJsonl(seedToolCards), "utf8");
+  await writeFile(join(publicDataDir, "tool_cards.jsonl"), toJsonl(toolCards), "utf8");
   await writeFile(join(publicDataDir, "ratings.jsonl"), toJsonl(ratings), "utf8");
   await writeFile(join(publicDataDir, "search_index.json"), JSON.stringify(index, null, 2), "utf8");
   await writeFile(join(publicDataDir, "source_registry.json"), JSON.stringify(sourceRegistryArtifact, null, 2), "utf8");
-  await writeFile(join(publicDataDir, "d1_seed.sql"), renderD1SeedSql(seedToolCards, ratings, index.documents), "utf8");
+  await writeFile(join(publicDataDir, "tool_card_validation.json"), JSON.stringify(toolCardValidation, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "d1_seed.sql"), renderD1SeedSql(toolCards, ratings, index.documents), "utf8");
   await writeFile(join(publicDataDir, "golden_queries.json"), JSON.stringify(goldenQueries, null, 2), "utf8");
   await writeFile(join(publicDataDir, "eval_summary.json"), JSON.stringify(evalSummary, null, 2), "utf8");
   await writeFile(join(reportsDir, `eval-${dataVersion}.md`), renderEvalReport(dataVersion, evalSummary), "utf8");
@@ -59,6 +68,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         },
         index_version: "index-2026-07-06",
         source_registry: "data/source_registry.json",
+        tool_card_validation: "data/tool_card_validation.json",
         d1_seed: "data/d1_seed.sql",
         eval_report: `reports/eval-${dataVersion}.md`,
         published_at: "2026-07-06T00:00:00Z"
@@ -70,7 +80,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   );
 
   return {
-    toolCount: seedToolCards.length,
+    toolCount: toolCards.length,
     ratingCount: ratings.length,
     goldenQueriesPassed: evalSummary.passed,
     goldenQueriesTotal: evalSummary.total

@@ -42,13 +42,14 @@
 - 已用真实 provider key 跑通 5 个 MVP golden queries，并通过 release gate。
 - `npm run ingest` 已提供 v0.2 最小采集草稿链路：读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records，并为完整且无 parser warnings 的 manual 记录生成待审核 Tool Card drafts。
 - 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
+- 发布流水线已输出 `tool_card_validation.json` artifact，并在 Tool Card validator 失败时阻断可靠 artifacts 生成。
 - Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
 
 当前主要缺口：
 
 - Tool Card 覆盖仍是 MVP 小样本，尚未达到 v0.2 的 20-50 张。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 Tool Card drafts 尚未进入人工审核队列、normalizer、deduper 和发布数据。
-- 完整 Source Registry validator、deduper、normalizer 和人工 override 尚未完成。
+- 完整 Source Registry validator、完整 Tool Card validator、deduper、normalizer 和人工 override 尚未完成。
 - Workers API 当前是 HTTP/JSON 风格实现，尚未包装成完整 MCP server/tool manifest。
 - BYOK 模式已经可用，但还缺 provider 配置 UI、错误提示分层和 direct-to-provider/proxy 模式决策。
 
@@ -329,6 +330,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 - 增加 14-44 张高价值 Tool Cards，达到 20-50 张覆盖。
 - 把 `npm run ingest` 输出的 Tool Card drafts 接入人工审核/标准化入口。
 - 扩展 Source Registry validator，覆盖来源变更 diff、parser 覆盖检查和审核记录。
+- 扩展 Tool Card validator，覆盖字段级 evidence、URL 可达性和人工 override 审计。
 - 补齐 deduper、normalizer 和最小人工 override record。
 - 把 provider 401/429/模型不可用/JSON 解析失败映射成前端可读错误。
 
