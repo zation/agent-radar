@@ -90,6 +90,9 @@ export function validateSourceRegistry(sources: SourceDefinition[]): string[] {
     if (source.enabled && !source.parser?.trim()) {
       errors.push(`${source.id}: enabled source requires parser`);
     }
+    if (source.enabled && !source.owner?.trim()) {
+      errors.push(`${source.id}: enabled source requires owner`);
+    }
     if (source.enabled && source.parser?.trim() && !isSupportedSourceParser(source.parser)) {
       errors.push(`${source.id}: parser ${source.parser} is not implemented`);
     }

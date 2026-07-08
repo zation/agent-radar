@@ -43,6 +43,17 @@ test("source registry validator rejects enabled sources without parser coverage"
   assert.match(errors.join("\n"), /github-topic-mcp: parser github_topic_parser is not implemented/);
 });
 
+test("source registry validator rejects enabled sources without review owner", () => {
+  const errors = validateSourceRegistry([
+    {
+      ...sourceRegistry[0],
+      owner: ""
+    }
+  ]);
+
+  assert.match(errors.join("\n"), /manual-agent-radar-seed: enabled source requires owner/);
+});
+
 test("crawler saves immutable raw snapshots without request secrets", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
 
