@@ -79,3 +79,17 @@ test("loads source registry review requests for the review page", async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test("reports missing UI artifacts with the local data generation command", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (input) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+    return Promise.resolve(new Response(`missing ${url}`, { status: 404, statusText: "Not Found" }));
+  };
+
+  try {
+    await assert.rejects(loadUiArtifacts(), /Missing UI artifact \/data\/tool_cards\.jsonl.*npm run dev:with-data/s);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

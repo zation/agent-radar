@@ -9,6 +9,7 @@ export default tseslint.config(
       "dist/",
       "dist-pages/",
       "node_modules/",
+      "data/",
       "public/data/",
       "public/reports/"
     ]

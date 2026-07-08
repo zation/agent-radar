@@ -37,10 +37,10 @@ export function createToolViewModels(cards: ToolCard[], ratings: RatingResult[])
 
 export async function loadUiArtifacts(): Promise<UiArtifacts> {
   const [cardsText, ratingsText, evalSummary, sourceReviewRequests] = await Promise.all([
-    fetch("/data/tool_cards.jsonl").then((response) => response.text()),
-    fetch("/data/ratings.jsonl").then((response) => response.text()),
-    fetch("/data/eval_summary.json").then((response) => response.json() as Promise<UiArtifacts["evalSummary"]>),
-    fetch("/data/source_registry_review_requests.json").then((response) => response.json() as Promise<SourceRegistryReviewRequests>)
+    fetchArtifactText("/data/tool_cards.jsonl"),
+    fetchArtifactText("/data/ratings.jsonl"),
+    fetchArtifactJson<UiArtifacts["evalSummary"]>("/data/eval_summary.json"),
+    fetchArtifactJson<SourceRegistryReviewRequests>("/data/source_registry_review_requests.json")
   ]);
 
   return {
@@ -48,4 +48,22 @@ export async function loadUiArtifacts(): Promise<UiArtifacts> {
     evalSummary,
     sourceReviewRequests
   };
+}
+
+async function fetchArtifactText(path: string): Promise<string> {
+  const response = await fetch(path);
+  ensureArtifactResponse(path, response);
+  return response.text();
+}
+
+async function fetchArtifactJson<T>(path: string): Promise<T> {
+  const response = await fetch(path);
+  ensureArtifactResponse(path, response);
+  return response.json() as Promise<T>;
+}
+
+function ensureArtifactResponse(path: string, response: Response): void {
+  if (response.ok) return;
+  const status = response.status === 0 ? "network error" : `HTTP ${response.status}`;
+  throw new Error(`Missing UI artifact ${path} (${status}). Run npm run dev:with-data or npm run pipeline before starting the dev server.`);
 }

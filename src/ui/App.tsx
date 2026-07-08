@@ -64,16 +64,21 @@ export default function App() {
   const [recommendation, setRecommendation] = useState<RecommendationResult | null>(null);
   const [recommendationRun, setRecommendationRun] = useState<{ count: number; query: string } | null>(null);
   const [recommendationError, setRecommendationError] = useState("");
+  const [artifactLoadError, setArtifactLoadError] = useState("");
   const [isRecommendationSubmitting, setIsRecommendationSubmitting] = useState(false);
   const [isRecommendationInputCollapsed, setIsRecommendationInputCollapsed] = useState(false);
 
   useEffect(() => {
-    void loadUiArtifacts().then((loaded) => {
-      setArtifacts(loaded);
-      setSelectedId(loaded.tools[0]?.card.id ?? "");
-      setSelectedRecommendationToolId(loaded.tools[0]?.card.id ?? "");
-      setCompareIds(loaded.tools.slice(0, 4).map((tool) => tool.card.id));
-    });
+    void loadUiArtifacts()
+      .then((loaded) => {
+        setArtifacts(loaded);
+        setSelectedId(loaded.tools[0]?.card.id ?? "");
+        setSelectedRecommendationToolId(loaded.tools[0]?.card.id ?? "");
+        setCompareIds(loaded.tools.slice(0, 4).map((tool) => tool.card.id));
+      })
+      .catch((error: unknown) => {
+        setArtifactLoadError(error instanceof Error ? error.message : "Failed to load Agent Radar data.");
+      });
   }, []);
 
   useEffect(() => {
@@ -115,10 +120,18 @@ export default function App() {
   if (!artifacts || !selectedTool || !selectedRecommendationTool) {
     return (
       <main className="grid min-h-screen place-items-center bg-background text-muted-foreground">
-        <div className="flex items-center gap-2 text-sm">
-          <Bot />
-          <span>Loading Agent Radar data</span>
-        </div>
+        {artifactLoadError ? (
+          <Alert className="max-w-xl">
+            <AlertTriangle />
+            <AlertTitle>Agent Radar data is not available</AlertTitle>
+            <AlertDescription>{artifactLoadError}</AlertDescription>
+          </Alert>
+        ) : (
+          <div className="flex items-center gap-2 text-sm">
+            <Bot />
+            <span>Loading Agent Radar data</span>
+          </div>
+        )}
       </main>
     );
   }
