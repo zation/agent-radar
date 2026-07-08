@@ -7,6 +7,7 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult): strin
     "## Summary",
     `- Snapshots: ${result.snapshots.length}`,
     `- Source records: ${result.sourceRecords.length}`,
+    `- Tool card drafts: ${result.toolCardDrafts.length}`,
     `- Failed snapshots: ${result.snapshots.filter((snapshot) => snapshot.status === "failed").length}`,
     "",
     "## Sources",

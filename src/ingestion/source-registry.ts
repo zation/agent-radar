@@ -42,3 +42,58 @@ export const sourceRegistry: SourceDefinition[] = [
 export function getEnabledSources(sources: SourceDefinition[]): SourceDefinition[] {
   return sources.filter((source) => source.enabled);
 }
+
+export interface SourceRegistryValidation {
+  passed: boolean;
+  errors: string[];
+}
+
+export interface SourceRegistryArtifact {
+  schema_version: "source_registry.v1";
+  generated_at: string;
+  validation: SourceRegistryValidation;
+  sources: SourceDefinition[];
+}
+
+export function buildSourceRegistryArtifact(sources: SourceDefinition[], generatedAt: string): SourceRegistryArtifact {
+  const errors = validateSourceRegistry(sources);
+
+  return {
+    schema_version: "source_registry.v1",
+    generated_at: generatedAt,
+    validation: {
+      passed: errors.length === 0,
+      errors
+    },
+    sources
+  };
+}
+
+export function validateSourceRegistry(sources: SourceDefinition[]): string[] {
+  const errors: string[] = [];
+  const seenIds = new Set<string>();
+
+  for (const source of sources) {
+    if (seenIds.has(source.id)) errors.push(`${source.id}: duplicate source id`);
+    seenIds.add(source.id);
+
+    if (!source.id.trim()) errors.push("source id is required");
+    if (!source.name.trim()) errors.push(`${source.id}: name is required`);
+    if (!source.url.trim()) errors.push(`${source.id}: url is required`);
+    if (source.covered_tool_types.length === 0) errors.push(`${source.id}: covered_tool_types is required`);
+    if (source.field_coverage.length === 0) errors.push(`${source.id}: field_coverage is required`);
+    if (!source.terms_notes.trim()) errors.push(`${source.id}: terms_notes is required`);
+    if (!source.failure_policy.trim()) errors.push(`${source.id}: failure_policy is required`);
+    if (!isIsoUtc(source.last_reviewed_at)) errors.push(`${source.id}: last_reviewed_at must be ISO 8601 UTC`);
+
+    if (source.enabled && !source.parser?.trim()) {
+      errors.push(`${source.id}: enabled source requires parser`);
+    }
+  }
+
+  return errors;
+}
+
+function isIsoUtc(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value);
+}

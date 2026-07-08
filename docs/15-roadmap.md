@@ -40,14 +40,15 @@
 - LLM provider 请求会记录 provider、endpoint、model、状态码和脱敏错误体，不记录 API key。
 - 无 `AGENT_RADAR_LLM_API_KEY` 时，pipeline/eval 会生成 blocked eval summary，而不是运行旧本地推荐引擎。
 - 已用真实 provider key 跑通 5 个 MVP golden queries，并通过 release gate。
-- `npm run ingest` 已提供 v0.2 最小采集草稿链路：读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records。
+- `npm run ingest` 已提供 v0.2 最小采集草稿链路：读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records，并为完整且无 parser warnings 的 manual 记录生成待审核 Tool Card drafts。
+- 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
 - Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
 
 当前主要缺口：
 
 - Tool Card 覆盖仍是 MVP 小样本，尚未达到 v0.2 的 20-50 张。
-- 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 的 Source Records 尚未进入 Tool Card 草稿、人工审核和发布数据。
-- 发布用 `source_registry.json` artifact、独立 validator、deduper、normalizer 和人工 override 尚未完成。
+- 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 Tool Card drafts 尚未进入人工审核队列、normalizer、deduper 和发布数据。
+- 完整 Source Registry validator、deduper、normalizer 和人工 override 尚未完成。
 - Workers API 当前是 HTTP/JSON 风格实现，尚未包装成完整 MCP server/tool manifest。
 - BYOK 模式已经可用，但还缺 provider 配置 UI、错误提示分层和 direct-to-provider/proxy 模式决策。
 
@@ -326,8 +327,8 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 ### P0：v0.2 数据接入
 
 - 增加 14-44 张高价值 Tool Cards，达到 20-50 张覆盖。
-- 把 `npm run ingest` 输出的 Source Records 接入 Tool Card 草稿和人工审核/标准化入口。
-- 实现发布用 `source_registry.json` artifact 和独立 Source Registry validator。
+- 把 `npm run ingest` 输出的 Tool Card drafts 接入人工审核/标准化入口。
+- 扩展 Source Registry validator，覆盖来源变更 diff、parser 覆盖检查和审核记录。
 - 补齐 deduper、normalizer 和最小人工 override record。
 - 把 provider 401/429/模型不可用/JSON 解析失败映射成前端可读错误。
 

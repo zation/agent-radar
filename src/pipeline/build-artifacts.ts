@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { seedToolCards } from "../data/seed-tool-cards.js";
 import { goldenQueries } from "../eval/golden-queries.js";
 import { createBlockedEvalSummary, runGoldenQueries, type EvalSummary } from "../eval/runner.js";
+import { buildSourceRegistryArtifact, sourceRegistry } from "../ingestion/source-registry.js";
 import { rateAllToolCards } from "../rating/engine.js";
 import { buildSearchIndex } from "../search/index-builder.js";
 
@@ -31,10 +32,12 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
     ? await runGoldenQueries(goldenQueries, seedToolCards, ratings, { apiKey, model })
     : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.");
   const dataVersion = "data-2026-07-06";
+  const sourceRegistryArtifact = buildSourceRegistryArtifact(sourceRegistry, "2026-07-06T00:00:00Z");
 
   await writeFile(join(publicDataDir, "tool_cards.jsonl"), toJsonl(seedToolCards), "utf8");
   await writeFile(join(publicDataDir, "ratings.jsonl"), toJsonl(ratings), "utf8");
   await writeFile(join(publicDataDir, "search_index.json"), JSON.stringify(index, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "source_registry.json"), JSON.stringify(sourceRegistryArtifact, null, 2), "utf8");
   await writeFile(join(publicDataDir, "d1_seed.sql"), renderD1SeedSql(seedToolCards, ratings, index.documents), "utf8");
   await writeFile(join(publicDataDir, "golden_queries.json"), JSON.stringify(goldenQueries, null, 2), "utf8");
   await writeFile(join(publicDataDir, "eval_summary.json"), JSON.stringify(evalSummary, null, 2), "utf8");
@@ -47,13 +50,15 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         schema_versions: {
           tool_card: "tool_card.v1",
           rating_result: "rating_result.v1",
-          search_index: "search_index.v1"
+          search_index: "search_index.v1",
+          source_registry: "source_registry.v1"
         },
         rules_versions: {
           rating: "rating_rules.v0.1-draft",
           recommendation: "recommendation_rules.v1"
         },
         index_version: "index-2026-07-06",
+        source_registry: "data/source_registry.json",
         d1_seed: "data/d1_seed.sql",
         eval_report: `reports/eval-${dataVersion}.md`,
         published_at: "2026-07-06T00:00:00Z"

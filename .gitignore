@@ -5,6 +5,7 @@ public/data/
 public/reports/
 data/raw/
 data/source_records/
+data/tool_card_drafts/
 artifacts/
 .DS_Store
 *.log

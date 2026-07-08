@@ -41,7 +41,8 @@ const ingestionResult: RunIngestionResult = {
       parser_version: "manual_seed_parser.v1",
       warnings: []
     }
-  ]
+  ],
+  toolCardDrafts: []
 };
 
 test("renders ingestion review markdown for preview reviewers", () => {

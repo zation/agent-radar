@@ -28,7 +28,7 @@ async function parseManualSeedSnapshot(snapshot: RawSourceSnapshot, source: Sour
       name: tool.name ?? tool.id ?? "unknown",
       description: tool.summary,
       urls: Array.isArray(tool.source_urls) ? tool.source_urls : [],
-      raw_fields: tool as Record<string, unknown>,
+      raw_fields: tool,
       parsed_fields: {
         tool_id: tool.id,
         type: tool.type,

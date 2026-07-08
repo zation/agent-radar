@@ -27,6 +27,14 @@ test("builds MVP data artifacts and an eval report", async () => {
     const manifest = JSON.parse(await readFile(join(outputDir, "data", "manifest.json"), "utf8"));
     assert.equal(manifest.rules_versions.rating, "rating_rules.v0.1-draft");
     assert.equal(manifest.schema_versions.tool_card, "tool_card.v1");
+    assert.equal(manifest.schema_versions.source_registry, "source_registry.v1");
+    assert.equal(manifest.source_registry, "data/source_registry.json");
+
+    const sourceRegistry = JSON.parse(await readFile(join(outputDir, "data", "source_registry.json"), "utf8"));
+    assert.equal(sourceRegistry.schema_version, "source_registry.v1");
+    assert.equal(sourceRegistry.sources.length >= 2, true);
+    assert.equal(sourceRegistry.validation.passed, true);
+    assert.deepEqual(sourceRegistry.validation.errors, []);
 
     const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
     assert.ok(searchIndex.documents.length >= 5);
