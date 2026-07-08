@@ -155,7 +155,53 @@ const ingestionResult: RunIngestionResult = {
     summary: {
       candidates: 1
     },
-    items: []
+    items: [
+      {
+        tool_id: "agent-codex",
+        source_record_id: "manual-agent-radar-seed-agent-codex-20260707",
+        draft: {
+          id: "agent-codex",
+          schema_version: "tool_card.v1",
+          name: "Codex",
+          type: "agent",
+          summary: "Cloud coding agent for software development tasks.",
+          source_urls: ["https://developers.openai.com/codex"],
+          docs_url: "https://developers.openai.com/codex",
+          primary_purpose: "coding_agent",
+          use_cases: ["modify code", "run tests"],
+          not_for: ["unreviewed destructive commands"],
+          tags: ["coding", "agent"],
+          install_methods: [{ method: "hosted", command: "", docs_url: "https://developers.openai.com/codex", confidence: "high" }],
+          auth_required: "account",
+          permissions: [{ scope: "filesystem", access: "read_write", required: true, notes: "Works in the user's workspace." }],
+          maintenance: {
+            status: "active",
+            issue_activity: "active",
+            maintainer_type: "official",
+            signals: ["official_product"]
+          },
+          security: {
+            risk_level: "high",
+            trust_level: "official",
+            known_risks: ["filesystem_write"],
+            requires_human_approval: true,
+            security_notes: "Review diffs before accepting changes."
+          },
+          maturity: "stable",
+          evidence_refs: ["manual-review-codex"],
+          last_checked_at: "2026-07-07T00:00:00Z",
+          confidence: "high",
+          created_at: "2026-07-07T00:00:00Z",
+          updated_at: "2026-07-07T00:00:00Z"
+        },
+        approval: {
+          reviewed_by: "maintainer",
+          reviewed_at: "2026-07-07T12:00:00Z",
+          reason: "Reviewed for preview."
+        },
+        promotion_status: "candidate"
+      }
+    ]
   }
 };
 
@@ -171,6 +217,9 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /Approvals: 1 approved, 0 rejected, 0 needs changes/);
   assert.match(markdown, /Release admission: 1 eligible, 0 blocked/);
   assert.match(markdown, /Promotion candidates: 1/);
+  assert.match(markdown, /## Promotion Candidates/);
+  assert.match(markdown, /agent-codex \(Codex\) source_record=manual-agent-radar-seed-agent-codex-20260707 reviewer=maintainer reviewed_at=2026-07-07T12:00:00Z/);
+  assert.match(markdown, /approval_reason=Reviewed for preview\./);
 });
 
 test("builds artifact manifest with checksums and eval summary", async () => {

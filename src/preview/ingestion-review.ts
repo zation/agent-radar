@@ -32,10 +32,23 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult, source
       const urls = record.urls.length ? ` urls=${record.urls.join(", ")}` : "";
       return `- ${record.name} (${record.record_type}, confidence=${record.source_confidence}) source=${record.source_id}${warnings}${urls}`;
     }),
+    ...renderPromotionCandidates(result),
     ...renderSourceRegistryReviewRequirements(sourceRegistryReviewRequirements)
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderPromotionCandidates(result: RunIngestionResult): string[] {
+  if (result.promotionCandidates.items.length === 0) return [];
+
+  return [
+    "",
+    "## Promotion Candidates",
+    ...result.promotionCandidates.items.map((item) => {
+      return `- ${item.tool_id} (${item.draft.name}) source_record=${item.source_record_id} reviewer=${item.approval.reviewed_by} reviewed_at=${item.approval.reviewed_at} approval_reason=${item.approval.reason}`;
+    })
+  ];
 }
 
 function renderSourceRegistryReviewRequirements(requirements: SourceRegistryReviewRequirementSummary[]): string[] {
