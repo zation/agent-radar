@@ -1,6 +1,12 @@
 export interface IngestionCliSummaryInput {
   snapshots: Array<{ source_id: string }>;
   sourceRecords: unknown[];
+  discoveryCandidates: {
+    summary: {
+      candidates: number;
+      pending_manual_review: number;
+    };
+  };
   approvalRequests: {
     summary: {
       pending_approval: number;
@@ -46,6 +52,10 @@ export interface IngestionCliSummary {
   snapshots: number;
   source_records: number;
   source_ids: string[];
+  discovery_candidates: {
+    candidates: number;
+    pending_manual_review: number;
+  };
   approval_requests: {
     pending_approval: number;
     duplicate_review_required: number;
@@ -78,6 +88,10 @@ export function formatIngestionCliSummary(result: IngestionCliSummaryInput): Ing
     snapshots: result.snapshots.length,
     source_records: result.sourceRecords.length,
     source_ids: [...new Set(result.snapshots.map((snapshot) => snapshot.source_id))],
+    discovery_candidates: {
+      candidates: result.discoveryCandidates.summary.candidates,
+      pending_manual_review: result.discoveryCandidates.summary.pending_manual_review
+    },
     approval_requests: {
       pending_approval: result.approvalRequests.summary.pending_approval,
       duplicate_review_required: result.approvalRequests.summary.duplicate_review_required,

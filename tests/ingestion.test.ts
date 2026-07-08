@@ -6,6 +6,7 @@ import test from "node:test";
 import { formatIngestionCliSummary } from "../src/cli/ingest-summary.js";
 import { seedToolCards } from "../src/data/seed-tool-cards.js";
 import { crawlEnabledSources } from "../src/ingestion/crawler.js";
+import { buildToolDiscoveryCandidates } from "../src/ingestion/discovery-candidates.js";
 import { parseSnapshot } from "../src/ingestion/parser.js";
 import { runIngestion } from "../src/ingestion/run.js";
 import { buildSourceRegistryReviewArtifact, buildSourceRegistryReviewRequests } from "../src/ingestion/source-review.js";
@@ -23,6 +24,7 @@ test("ingestion CLI summary includes approval and release gates", () => {
   const summary = formatIngestionCliSummary({
     snapshots: [{ source_id: "manual-agent-radar-seed" }],
     sourceRecords: [{}, {}],
+    discoveryCandidates: { summary: { candidates: 1, pending_manual_review: 1 } },
     approvalRequests: { summary: { pending_approval: 2, duplicate_review_required: 1, blocked_validation: 0 } },
     fieldProvenance: { summary: { tool_cards: 2, field_values: 24 } },
     releaseAdmission: { summary: { eligible_for_publish: 1, blocked: 1 } },
@@ -35,6 +37,10 @@ test("ingestion CLI summary includes approval and release gates", () => {
     snapshots: 1,
     source_records: 2,
     source_ids: ["manual-agent-radar-seed"],
+    discovery_candidates: {
+      candidates: 1,
+      pending_manual_review: 1
+    },
     approval_requests: {
       pending_approval: 2,
       duplicate_review_required: 1,
@@ -154,6 +160,53 @@ test("github topic parser creates repository source records from API payloads", 
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
+});
+
+test("discovery candidates summarize repository source records for manual review", () => {
+  const candidates = buildToolDiscoveryCandidates(
+    [
+      {
+        id: "github-topic-mcp-modelcontextprotocol-servers-20260708",
+        schema_version: "source_record.v1",
+        snapshot_id: "github-topic-mcp-20260708-topic",
+        source_id: "github-topic-mcp",
+        record_type: "repository",
+        name: "modelcontextprotocol/servers",
+        description: "Model Context Protocol servers",
+        urls: ["https://github.com/modelcontextprotocol/servers"],
+        raw_fields: {},
+        parsed_fields: {
+          repo_url: "https://github.com/modelcontextprotocol/servers",
+          stars: 51000,
+          license: "MIT",
+          last_commit_at: "2026-07-07T12:00:00Z",
+          topics: ["mcp", "model-context-protocol"]
+        },
+        source_confidence: "medium",
+        parsed_at: "2026-07-08T00:00:00Z",
+        parser_version: "github_topic_parser.v1",
+        warnings: []
+      }
+    ],
+    "2026-07-08T00:00:00Z"
+  );
+
+  assert.equal(candidates.schema_version, "tool_discovery_candidates.v1");
+  assert.deepEqual(candidates.summary, { candidates: 1, pending_manual_review: 1, by_source: { "github-topic-mcp": 1 } });
+  assert.deepEqual(candidates.items[0], {
+    source_record_id: "github-topic-mcp-modelcontextprotocol-servers-20260708",
+    source_id: "github-topic-mcp",
+    name: "modelcontextprotocol/servers",
+    description: "Model Context Protocol servers",
+    repo_url: "https://github.com/modelcontextprotocol/servers",
+    stars: 51000,
+    license: "MIT",
+    last_commit_at: "2026-07-07T12:00:00Z",
+    topics: ["mcp", "model-context-protocol"],
+    source_confidence: "medium",
+    review_status: "pending_manual_review",
+    recommended_action: "review_before_tool_card_draft"
+  });
 });
 
 test("source registry validator rejects enabled sources without review owner", () => {

@@ -88,6 +88,16 @@ const ingestionResult: RunIngestionResult = {
       warnings: []
     }
   ],
+  discoveryCandidates: {
+    schema_version: "tool_discovery_candidates.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    summary: {
+      candidates: 0,
+      pending_manual_review: 0,
+      by_source: {}
+    },
+    items: []
+  },
   toolCardDrafts: [],
   overrideRecords: [],
   approvalArtifact: {

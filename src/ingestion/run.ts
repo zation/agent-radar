@@ -6,6 +6,7 @@ import { buildCrawlAudit, type CrawlAudit } from "./crawl-audit.js";
 import { buildSourceCrawlPlan, type SourceCrawlPlan } from "./crawl-plan.js";
 import { crawlEnabledSources } from "./crawler.js";
 import { buildToolCardDuplicateReport, type ToolCardDuplicateReport } from "./deduper.js";
+import { buildToolDiscoveryCandidates, type ToolDiscoveryCandidates } from "./discovery-candidates.js";
 import { buildToolCardFieldValueProvenance, type ToolCardFieldValueProvenance } from "./field-provenance.js";
 import { normalizeToolCardDrafts, type OverrideRecord } from "./normalizer.js";
 import { parseSnapshot } from "./parser.js";
@@ -32,6 +33,7 @@ export interface RunIngestionResult {
   crawlAudit: CrawlAudit;
   snapshots: RawSourceSnapshot[];
   sourceRecords: SourceRecord[];
+  discoveryCandidates: ToolDiscoveryCandidates;
   toolCardDrafts: ToolCard[];
   overrideRecords: OverrideRecord[];
   approvalArtifact: ApprovalArtifact;
@@ -73,9 +75,11 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   const approvalRecords = options.approvalRecords ?? [];
   const approvalArtifact = buildApprovalArtifact(approvalRecords, now);
   await writeApprovalArtifact(options.outputDir, approvalArtifact);
+  const sourceRecords = [...recordsBySource.values()].flat();
+  const discoveryCandidates = buildToolDiscoveryCandidates(sourceRecords, now);
+  await writeDiscoveryCandidates(options.outputDir, discoveryCandidates);
   const draftsBySource = buildToolCardDrafts(recordsBySource, overrideRecords);
   await writeToolCardDrafts(options.outputDir, draftsBySource);
-  const sourceRecords = [...recordsBySource.values()].flat();
   const toolCardDrafts = [...draftsBySource.values()].flat();
   const fieldProvenance = buildToolCardFieldValueProvenance(toolCardDrafts, sourceRecords, now, overrideRecords);
   await writeFieldProvenance(options.outputDir, fieldProvenance);
@@ -100,6 +104,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     crawlAudit,
     snapshots,
     sourceRecords,
+    discoveryCandidates,
     toolCardDrafts,
     overrideRecords,
     approvalArtifact,
@@ -112,6 +117,12 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     promotionPlan,
     promotionCheck
   };
+}
+
+async function writeDiscoveryCandidates(outputDir: string, discoveryCandidates: ToolDiscoveryCandidates): Promise<void> {
+  const discoveryDir = join(outputDir, "data", "discovery_candidates");
+  await mkdir(discoveryDir, { recursive: true });
+  await writeFile(join(discoveryDir, "tool_repositories.json"), JSON.stringify(discoveryCandidates, null, 2), "utf8");
 }
 
 async function writeCrawlAudit(outputDir: string, crawlAudit: CrawlAudit): Promise<void> {
