@@ -80,6 +80,30 @@ changed:
 
 当前会生成 review requirement 的字段包括：`enabled`、`url`、`source_type`、`collection_method`、`recommended_frequency`、`trust_level`、`field_coverage`、`rate_limits`、`terms_notes`、`access_review` 和 `parser`。Cloudflare Pages preview 的 ingestion review markdown 会展示这些字段级审核提示，便于 reviewer 在 Actions Summary 中确认高影响来源变更。该 artifact 只提供审核提示，不自动信任新来源，也不替代人工确认。
 
+`source_registry_review.json` 记录这些 requirements 的人工确认状态：
+
+```yaml
+schema_version: source_registry_review.v1
+summary:
+  total_requirements:
+  confirmed:
+  rejected:
+  needs_changes:
+  pending:
+items:
+  - source_id:
+    field:
+    reason:
+    status: pending | confirmed | rejected | needs_changes
+    confirmation:
+      record_id:
+      reviewer:
+      reviewed_at:
+      reason:
+```
+
+没有匹配 confirmation record 的 requirement 默认为 `pending`。该 artifact 只表达审核状态，不会自动启用来源或提升来源可信度。
+
 ## 来源类型
 
 ### 官方 Registry

@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { crawlEnabledSources } from "../src/ingestion/crawler.js";
 import { runIngestion } from "../src/ingestion/run.js";
+import { buildSourceRegistryReviewArtifact } from "../src/ingestion/source-review.js";
 import { buildSourceRegistryDiff, getEnabledSources, sourceRegistry, validateSourceRegistry } from "../src/ingestion/source-registry.js";
 
 test("source registry exposes only enabled MVP sources", () => {
@@ -102,6 +103,50 @@ test("source registry diff records added removed and changed source ids", () => 
       confirmation_required: true
     }
   ]);
+});
+
+test("source registry review artifact tracks pending and confirmed requirements", () => {
+  const diff = buildSourceRegistryDiff(
+    [sourceRegistry[1]],
+    [
+      {
+        ...sourceRegistry[1],
+        enabled: true,
+        parser: "github_topic_parser",
+        trust_level: "official",
+        last_reviewed_at: "2026-07-08T00:00:00Z"
+      }
+    ],
+    "2026-07-08T00:00:00Z"
+  );
+
+  const pendingReview = buildSourceRegistryReviewArtifact(diff, [], "2026-07-08T01:00:00Z");
+
+  assert.equal(pendingReview.schema_version, "source_registry_review.v1");
+  assert.deepEqual(pendingReview.summary, { total_requirements: 2, confirmed: 0, rejected: 0, needs_changes: 0, pending: 2 });
+  assert.equal(pendingReview.items[0]?.source_id, "github-topic-mcp");
+  assert.equal(pendingReview.items[0]?.status, "pending");
+
+  const confirmedReview = buildSourceRegistryReviewArtifact(
+    diff,
+    [
+      {
+        id: "source-review-github-topic-mcp-enabled-20260708",
+        schema_version: "source_registry_review_record.v1",
+        source_id: "github-topic-mcp",
+        field: "enabled",
+        decision: "confirmed",
+        reason: "Reviewed crawl scope for preview only.",
+        reviewer: "maintainer",
+        reviewed_at: "2026-07-08T01:00:00Z"
+      }
+    ],
+    "2026-07-08T01:00:00Z"
+  );
+
+  assert.deepEqual(confirmedReview.summary, { total_requirements: 2, confirmed: 1, rejected: 0, needs_changes: 0, pending: 1 });
+  assert.equal(confirmedReview.items.find((item) => item.field === "enabled")?.status, "confirmed");
+  assert.equal(confirmedReview.items.find((item) => item.field === "enabled")?.confirmation?.reviewer, "maintainer");
 });
 
 test("crawler saves immutable raw snapshots without request secrets", async () => {
