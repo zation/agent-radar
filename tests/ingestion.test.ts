@@ -26,7 +26,8 @@ test("ingestion CLI summary includes approval and release gates", () => {
     fieldProvenance: { summary: { tool_cards: 2, field_values: 24 } },
     releaseAdmission: { summary: { eligible_for_publish: 1, blocked: 1 } },
     promotionCandidates: { summary: { candidates: 1 } },
-    promotionPlan: { summary: { candidates: 1, manual_merge_required: true } }
+    promotionPlan: { summary: { candidates: 1, manual_merge_required: true } },
+    promotionCheck: { passed: false, summary: { ready_for_manual_merge: 0, blocked: 1, validation_errors: 2, validation_warnings: 3 } }
   });
 
   assert.deepEqual(summary, {
@@ -50,6 +51,13 @@ test("ingestion CLI summary includes approval and release gates", () => {
     promotion_plan: {
       candidates: 1,
       manual_merge_required: true
+    },
+    promotion_check: {
+      passed: false,
+      ready_for_manual_merge: 0,
+      blocked: 1,
+      validation_errors: 2,
+      validation_warnings: 3
     }
   });
 });
@@ -724,6 +732,16 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.equal(result.promotionPlan.items[0]?.target_file, "src/data/seed-tool-cards.ts");
     assert.equal(result.promotionPlan.items[0]?.recommended_action, "manual_merge_to_seed_tool_cards");
     assert.equal(result.promotionPlan.items[0]?.seed_candidate_artifact_path, "data/promotion_candidates/seed_tool_card_candidates.ts");
+    assert.equal(result.promotionCheck.schema_version, "tool_card_promotion_check.v1");
+    assert.equal(result.promotionCheck.passed, true);
+    assert.deepEqual(result.promotionCheck.summary, {
+      candidates: 1,
+      ready_for_manual_merge: 1,
+      blocked: 0,
+      duplicate_tool_ids: 0,
+      validation_errors: 0,
+      validation_warnings: 3
+    });
 
     const admission = JSON.parse(await readFile(join(outputDir, "data", "release_admission", "tool_card_drafts.json"), "utf8")) as {
       schema_version: string;
@@ -757,6 +775,16 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.match(seedSnippet, /export const promotionSeedToolCardCandidates: ToolCard\[\] = \[/);
     assert.match(seedSnippet, /"id": "agent-new-tool"/);
     assert.match(seedSnippet, /"evidence_refs": \[\s*"manual-agent-radar-seed-agent-new-tool-20260708"\s*\]/);
+
+    const promotionCheck = JSON.parse(await readFile(join(outputDir, "data", "promotion_candidates", "promotion_check.json"), "utf8")) as {
+      schema_version: string;
+      passed: boolean;
+      summary: { ready_for_manual_merge: number; validation_warnings: number };
+    };
+    assert.equal(promotionCheck.schema_version, "tool_card_promotion_check.v1");
+    assert.equal(promotionCheck.passed, true);
+    assert.equal(promotionCheck.summary.ready_for_manual_merge, 1);
+    assert.equal(promotionCheck.summary.validation_warnings, 3);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

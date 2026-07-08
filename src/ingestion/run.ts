@@ -9,6 +9,7 @@ import { buildToolCardDuplicateReport, type ToolCardDuplicateReport } from "./de
 import { buildToolCardFieldValueProvenance, type ToolCardFieldValueProvenance } from "./field-provenance.js";
 import { normalizeToolCardDrafts, type OverrideRecord } from "./normalizer.js";
 import { parseSnapshot } from "./parser.js";
+import { buildToolCardPromotionCheck, type ToolCardPromotionCheck } from "./promotion-check.js";
 import { buildToolCardPromotionCandidates, type ToolCardPromotionCandidates } from "./promotion-candidates.js";
 import { buildToolCardPromotionPlan, type ToolCardPromotionPlan } from "./promotion-plan.js";
 import { buildToolCardReleaseAdmission, type ToolCardReleaseAdmission } from "./release-admission.js";
@@ -41,6 +42,7 @@ export interface RunIngestionResult {
   releaseAdmission: ToolCardReleaseAdmission;
   promotionCandidates: ToolCardPromotionCandidates;
   promotionPlan: ToolCardPromotionPlan;
+  promotionCheck: ToolCardPromotionCheck;
 }
 
 export async function runIngestion(options: RunIngestionOptions): Promise<RunIngestionResult> {
@@ -90,6 +92,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writePromotionCandidates(options.outputDir, promotionCandidates);
   const promotionPlan = buildToolCardPromotionPlan(promotionCandidates, now);
   await writePromotionPlan(options.outputDir, promotionPlan);
+  const promotionCheck = buildToolCardPromotionCheck(promotionCandidates, existingToolCards, now);
+  await writePromotionCheck(options.outputDir, promotionCheck);
 
   return {
     crawlPlan,
@@ -105,7 +109,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     reviewQueue,
     releaseAdmission,
     promotionCandidates,
-    promotionPlan
+    promotionPlan,
+    promotionCheck
   };
 }
 
@@ -229,6 +234,12 @@ async function writePromotionPlan(outputDir: string, promotionPlan: ToolCardProm
   const promotionCandidatesDir = join(outputDir, "data", "promotion_candidates");
   await mkdir(promotionCandidatesDir, { recursive: true });
   await writeFile(join(promotionCandidatesDir, "promotion_plan.json"), JSON.stringify(promotionPlan, null, 2), "utf8");
+}
+
+async function writePromotionCheck(outputDir: string, promotionCheck: ToolCardPromotionCheck): Promise<void> {
+  const promotionCandidatesDir = join(outputDir, "data", "promotion_candidates");
+  await mkdir(promotionCandidatesDir, { recursive: true });
+  await writeFile(join(promotionCandidatesDir, "promotion_check.json"), JSON.stringify(promotionCheck, null, 2), "utf8");
 }
 
 async function writeApprovalArtifact(outputDir: string, approvalArtifact: ApprovalArtifact): Promise<void> {

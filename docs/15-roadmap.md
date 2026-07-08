@@ -58,7 +58,7 @@
 - 采集草稿链路已输出最小 dedup report，按 draft id 和 canonical URL 标注对已发布 Tool Cards 以及同批 incoming drafts 的可能重复项，供人工审核参考。
 - review queue 已包含最小重复信号和 approval decision，可标注 draft 可能对应的已发布 `tool_id`、同批重复 draft id 及人工审核决定，但不会自动合并或发布。
 - 采集草稿链路已输出 release admission artifact，只有 ready、approved 且无已发布/同批 draft 重复信号的 draft 会标为 `eligible_for_publish`，但不会自动发布。
-- 采集草稿链路已输出 promotion candidates artifact，把 eligible drafts 和 approval evidence 汇总为待人工提升候选，并输出 TypeScript seed candidate snippet 与 promotion plan artifact，标注目标文件、候选 artifact 路径、seed candidate artifact 路径、推荐人工动作和发布前检查项；仍不会自动发布到可靠 Tool Cards。
+- 采集草稿链路已输出 promotion candidates artifact，把 eligible drafts 和 approval evidence 汇总为待人工提升候选，并输出 TypeScript seed candidate snippet、promotion plan artifact 和 promotion check dry-run，标注目标文件、候选 artifact 路径、seed candidate artifact 路径、推荐人工动作、发布前检查项和阻断原因；仍不会自动发布到可靠 Tool Cards。
 - 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
 - 发布流水线已输出 `source_registry_diff.json` artifact，记录 Source Registry 来源配置 added、removed 和 changed 摘要，并为高影响 changed fields 输出 review requirements；摘要已同步到 preview artifact manifest。
 - Preview ingestion review 已展示 Source Registry 字段级 review requirements，便于 reviewer 在 Actions Summary 中看到高影响来源变更的确认原因。
@@ -363,7 +363,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 ### P0：v0.2 数据接入
 
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
-- 把 `npm run ingest` 输出的 approval requests 和 promotion candidates 接入人工审核 UI 或可靠发布提升流程；当前 preview review markdown 已展示 approval record 模板、release admission blocked reasons，以及候选 tool id、Source Record id、reviewer、review time、approval reason 和 seed candidate snippet 路径，approval requests 也已输出逐行 JSONL 模板，可靠发布提升仍待做。
+- 把 `npm run ingest` 输出的 approval requests 和 promotion candidates 接入人工审核 UI 或可靠发布提升流程；当前 preview review markdown 已展示 approval record 模板、release admission blocked reasons，以及候选 tool id、Source Record id、reviewer、review time、approval reason、seed candidate snippet 路径和 promotion check 状态，approval requests 也已输出逐行 JSONL 模板，可靠发布提升仍待做。
 - 将 Source Registry review confirmation requests 接入真正的可操作审核 UI；当前 preview markdown 已展示 requirements 和 confirmation record 模板，artifact manifest 已汇总确认状态与 pending request summary。
 - 将 Tool Card 字段 provenance 继续细化到 Source Record 字段和值，并决定是否在 CI 默认启用 URL 可达性检查；schema-level `tool_card_field_provenance.json` 和 ingest-time `tool_card_field_value_provenance.v1` artifact 已实现，且 ingest-time artifact 已覆盖已应用 Override Record 的字段值 provenance。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。

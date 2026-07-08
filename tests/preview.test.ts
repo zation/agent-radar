@@ -282,6 +282,30 @@ const ingestionResult: RunIngestionResult = {
         checks: ["Run npm run pipeline after manual merge."]
       }
     ]
+  },
+  promotionCheck: {
+    schema_version: "tool_card_promotion_check.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    passed: true,
+    summary: {
+      candidates: 1,
+      ready_for_manual_merge: 1,
+      blocked: 0,
+      duplicate_tool_ids: 0,
+      validation_errors: 0,
+      validation_warnings: 0
+    },
+    items: [
+      {
+        tool_id: "agent-codex",
+        source_record_id: "manual-agent-radar-seed-agent-codex-20260707",
+        status: "ready_for_manual_merge",
+        blocking_reasons: [],
+        duplicate_of_tool_ids: [],
+        validation_errors: [],
+        validation_warnings: []
+      }
+    ]
   }
 };
 
@@ -421,6 +445,15 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
       candidates: 2,
       manual_merge_required: true
     },
+    promotion_check: {
+      candidates: 2,
+      ready_for_manual_merge: 1,
+      blocked: 1,
+      duplicate_tool_ids: 1,
+      validation_errors: 2,
+      validation_warnings: 3,
+      passed: false
+    },
     checksums: {
       "data/manifest.json": "sha256:manifest",
       "data/provider_registry.json": "sha256:provider"
@@ -441,6 +474,7 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
   assert.match(markdown, /- Release admission: 2 eligible, 18 blocked/);
   assert.match(markdown, /- Promotion candidates: 2/);
   assert.match(markdown, /- Promotion plan: 2 candidates, manual merge required/);
+  assert.match(markdown, /- Promotion check: 1 ready, 1 blocked, failed/);
   assert.match(markdown, /- Checksums: 2 files/);
 });
 
@@ -544,6 +578,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       release_admission: { eligible_for_publish: number; blocked: number };
       promotion_candidates: { candidates: number };
       promotion_plan: { candidates: number; manual_merge_required: boolean };
+      promotion_check: { candidates: number; ready_for_manual_merge: number; blocked: number; duplicate_tool_ids: number; validation_errors: number; validation_warnings: number; passed: boolean };
     };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
@@ -564,6 +599,15 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 1 });
     assert.deepEqual(artifactManifest.promotion_candidates, { candidates: 1 });
     assert.deepEqual(artifactManifest.promotion_plan, { candidates: 1, manual_merge_required: true });
+    assert.deepEqual(artifactManifest.promotion_check, {
+      candidates: 1,
+      ready_for_manual_merge: 1,
+      blocked: 0,
+      duplicate_tool_ids: 0,
+      validation_errors: 0,
+      validation_warnings: 0,
+      passed: true
+    });
     await assert.rejects(() => stat(join(outputDir, "review", "ingestion.md")));
   } finally {
     await rm(outputDir, { recursive: true, force: true });

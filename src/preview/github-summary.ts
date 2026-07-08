@@ -19,6 +19,7 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     ...(manifest.release_admission ? [`- Release admission: ${formatReleaseAdmission(manifest.release_admission)}`] : []),
     ...(manifest.promotion_candidates ? [`- Promotion candidates: ${manifest.promotion_candidates.candidates}`] : []),
     ...(manifest.promotion_plan ? [`- Promotion plan: ${formatPromotionPlan(manifest.promotion_plan)}`] : []),
+    ...(manifest.promotion_check ? [`- Promotion check: ${formatPromotionCheck(manifest.promotion_check)}`] : []),
     `- Checksums: ${Object.keys(manifest.checksums).length} files`
   ];
   return `${lines.join("\n")}\n`;
@@ -66,4 +67,9 @@ function formatReleaseAdmission(admission: NonNullable<ArtifactManifest["release
 function formatPromotionPlan(plan: NonNullable<ArtifactManifest["promotion_plan"]>): string {
   const mergeStatus = plan.manual_merge_required ? "manual merge required" : "no manual merge required";
   return `${plan.candidates} candidates, ${mergeStatus}`;
+}
+
+function formatPromotionCheck(check: NonNullable<ArtifactManifest["promotion_check"]>): string {
+  const status = check.passed ? "passed" : "failed";
+  return `${check.ready_for_manual_merge} ready, ${check.blocked} blocked, ${status}`;
 }

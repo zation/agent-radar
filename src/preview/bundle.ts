@@ -58,6 +58,15 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     candidates: options.ingestion.promotionPlan.summary.candidates,
     manual_merge_required: options.ingestion.promotionPlan.summary.manual_merge_required
   };
+  manifest.promotion_check = {
+    candidates: options.ingestion.promotionCheck.summary.candidates,
+    ready_for_manual_merge: options.ingestion.promotionCheck.summary.ready_for_manual_merge,
+    blocked: options.ingestion.promotionCheck.summary.blocked,
+    duplicate_tool_ids: options.ingestion.promotionCheck.summary.duplicate_tool_ids,
+    validation_errors: options.ingestion.promotionCheck.summary.validation_errors,
+    validation_warnings: options.ingestion.promotionCheck.summary.validation_warnings,
+    passed: options.ingestion.promotionCheck.passed
+  };
   await writeFile(join(options.distDir, "artifact-manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
 }
 

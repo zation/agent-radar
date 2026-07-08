@@ -31,6 +31,15 @@ export interface IngestionCliSummaryInput {
       manual_merge_required: boolean;
     };
   };
+  promotionCheck: {
+    passed: boolean;
+    summary: {
+      ready_for_manual_merge: number;
+      blocked: number;
+      validation_errors: number;
+      validation_warnings: number;
+    };
+  };
 }
 
 export interface IngestionCliSummary {
@@ -54,6 +63,13 @@ export interface IngestionCliSummary {
   promotion_plan: {
     candidates: number;
     manual_merge_required: boolean;
+  };
+  promotion_check: {
+    passed: boolean;
+    ready_for_manual_merge: number;
+    blocked: number;
+    validation_errors: number;
+    validation_warnings: number;
   };
 }
 
@@ -79,6 +95,13 @@ export function formatIngestionCliSummary(result: IngestionCliSummaryInput): Ing
     promotion_plan: {
       candidates: result.promotionPlan.summary.candidates,
       manual_merge_required: result.promotionPlan.summary.manual_merge_required
+    },
+    promotion_check: {
+      passed: result.promotionCheck.passed,
+      ready_for_manual_merge: result.promotionCheck.summary.ready_for_manual_merge,
+      blocked: result.promotionCheck.summary.blocked,
+      validation_errors: result.promotionCheck.summary.validation_errors,
+      validation_warnings: result.promotionCheck.summary.validation_warnings
     }
   };
 }
