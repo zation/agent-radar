@@ -214,6 +214,15 @@ async function writePromotionCandidates(outputDir: string, promotionCandidates: 
   const promotionCandidatesDir = join(outputDir, "data", "promotion_candidates");
   await mkdir(promotionCandidatesDir, { recursive: true });
   await writeFile(join(promotionCandidatesDir, "tool_cards.json"), JSON.stringify(promotionCandidates, null, 2), "utf8");
+  await writeFile(join(promotionCandidatesDir, "seed_tool_card_candidates.ts"), serializePromotionSeedCandidates(promotionCandidates), "utf8");
+}
+
+function serializePromotionSeedCandidates(promotionCandidates: ToolCardPromotionCandidates): string {
+  const drafts = promotionCandidates.items.map((item) => item.draft);
+  return `import type { ToolCard } from "../../src/schema.js";
+
+export const promotionSeedToolCardCandidates: ToolCard[] = ${JSON.stringify(drafts, null, 2)};
+`;
 }
 
 async function writePromotionPlan(outputDir: string, promotionPlan: ToolCardPromotionPlan): Promise<void> {

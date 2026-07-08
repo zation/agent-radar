@@ -723,6 +723,7 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.equal(result.promotionPlan.items[0]?.tool_id, "agent-new-tool");
     assert.equal(result.promotionPlan.items[0]?.target_file, "src/data/seed-tool-cards.ts");
     assert.equal(result.promotionPlan.items[0]?.recommended_action, "manual_merge_to_seed_tool_cards");
+    assert.equal(result.promotionPlan.items[0]?.seed_candidate_artifact_path, "data/promotion_candidates/seed_tool_card_candidates.ts");
 
     const admission = JSON.parse(await readFile(join(outputDir, "data", "release_admission", "tool_card_drafts.json"), "utf8")) as {
       schema_version: string;
@@ -742,13 +743,20 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     const promotionPlan = JSON.parse(await readFile(join(outputDir, "data", "promotion_candidates", "promotion_plan.json"), "utf8")) as {
       schema_version: string;
       summary: { candidates: number; manual_merge_required: boolean };
-      items: Array<{ tool_id: string; target_file: string; candidate_artifact_path: string }>;
+      items: Array<{ tool_id: string; target_file: string; candidate_artifact_path: string; seed_candidate_artifact_path: string }>;
     };
     assert.equal(promotionPlan.schema_version, "tool_card_promotion_plan.v1");
     assert.deepEqual(promotionPlan.summary, { candidates: 1, manual_merge_required: true });
     assert.equal(promotionPlan.items[0]?.tool_id, "agent-new-tool");
     assert.equal(promotionPlan.items[0]?.target_file, "src/data/seed-tool-cards.ts");
     assert.equal(promotionPlan.items[0]?.candidate_artifact_path, "data/promotion_candidates/tool_cards.json");
+    assert.equal(promotionPlan.items[0]?.seed_candidate_artifact_path, "data/promotion_candidates/seed_tool_card_candidates.ts");
+
+    const seedSnippet = await readFile(join(outputDir, "data", "promotion_candidates", "seed_tool_card_candidates.ts"), "utf8");
+    assert.match(seedSnippet, /import type \{ ToolCard \} from "\.\.\/\.\.\/src\/schema\.js";/);
+    assert.match(seedSnippet, /export const promotionSeedToolCardCandidates: ToolCard\[\] = \[/);
+    assert.match(seedSnippet, /"id": "agent-new-tool"/);
+    assert.match(seedSnippet, /"evidence_refs": \[\s*"manual-agent-radar-seed-agent-new-tool-20260708"\s*\]/);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

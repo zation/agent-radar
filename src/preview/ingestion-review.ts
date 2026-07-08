@@ -128,7 +128,7 @@ function renderPromotionPlan(result: RunIngestionResult): string[] {
     "",
     "## Promotion Plan",
     ...result.promotionPlan.items.map((item) => {
-      return `- ${item.tool_id} target=${item.target_file} action=${item.recommended_action} candidate_artifact=${item.candidate_artifact_path}`;
+      return `- ${item.tool_id} target=${item.target_file} action=${item.recommended_action} candidate_artifact=${item.candidate_artifact_path} seed_candidate_artifact=${item.seed_candidate_artifact_path}`;
     })
   ];
 }

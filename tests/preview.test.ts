@@ -273,6 +273,7 @@ const ingestionResult: RunIngestionResult = {
         recommended_action: "manual_merge_to_seed_tool_cards",
         target_file: "src/data/seed-tool-cards.ts",
         candidate_artifact_path: "data/promotion_candidates/tool_cards.json",
+        seed_candidate_artifact_path: "data/promotion_candidates/seed_tool_card_candidates.ts",
         approval: {
           reviewed_by: "maintainer",
           reviewed_at: "2026-07-07T12:00:00Z",
@@ -309,7 +310,7 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /agent-codex \(Codex\) source_record=manual-agent-radar-seed-agent-codex-20260707 reviewer=maintainer reviewed_at=2026-07-07T12:00:00Z/);
   assert.match(markdown, /approval_reason=Reviewed for preview\./);
   assert.match(markdown, /## Promotion Plan/);
-  assert.match(markdown, /agent-codex target=src\/data\/seed-tool-cards\.ts action=manual_merge_to_seed_tool_cards candidate_artifact=data\/promotion_candidates\/tool_cards\.json/);
+  assert.match(markdown, /agent-codex target=src\/data\/seed-tool-cards\.ts action=manual_merge_to_seed_tool_cards candidate_artifact=data\/promotion_candidates\/tool_cards\.json seed_candidate_artifact=data\/promotion_candidates\/seed_tool_card_candidates\.ts/);
 });
 
 test("builds artifact manifest with checksums and eval summary", async () => {
