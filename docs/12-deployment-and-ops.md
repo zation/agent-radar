@@ -227,8 +227,9 @@ Preview deployment 应包含：
 
 - 产品网站本体。
 - `data/*`：Tool Cards、ratings、search index、eval summary、D1 seed。
+- `data/mcp_examples.json`：MCP JSON-RPC 请求示例，供 agent/client 集成验证。
 - `reports/*`：eval report。
-- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary、构建时间和关键文件 checksum。
+- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary、构建时间和关键文件 checksum；checksum 覆盖 `mcp_examples.json`。
 
 GitHub Actions summary 应包含：
 
@@ -307,6 +308,7 @@ MCP API 部署在 Cloudflare Workers，读取 Cloudflare D1 SQLite 和静态 JSO
 
 - `/api/mcp_manifest`：HTTP JSON 工具清单。
 - `/api/mcp`：MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和 `tools/call`。
+- `data/mcp_examples.json`：部署产物中的 JSON-RPC 请求示例，可用于 agent/client smoke test。
 
 支持工具：
 

@@ -303,6 +303,7 @@ Workers API 同时提供两种 agent-facing 入口：
 
 - `/api/mcp_manifest`：返回只读工具定义，供简单 HTTP JSON client 消费。
 - `/api/mcp`：最小 MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和 `tools/call`。`tools/call` 只包装下列只读工具，返回 text content 中的 JSON 字符串。
+- `data/mcp_examples.json`：发布流水线输出的 agent-facing JSON-RPC 示例，覆盖 initialize、tools/list、get_tool_card 和 search_tools。
 
 ### `search_tools`
 

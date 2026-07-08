@@ -21,6 +21,7 @@ interface ManifestFile {
   tool_card_validation: string;
   tool_card_url_validation: string;
   mcp_tools: string;
+  mcp_examples: string;
 }
 
 test("builds MVP data artifacts and an eval report", async () => {
@@ -48,6 +49,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.tool_card_validation, "data/tool_card_validation.json");
     assert.equal(manifest.tool_card_url_validation, "data/tool_card_url_validation.json");
     assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
+    assert.equal(manifest.mcp_examples, "data/mcp_examples.json");
 
     const sourceRegistry = JSON.parse(await readFile(join(outputDir, "data", "source_registry.json"), "utf8"));
     assert.equal(sourceRegistry.schema_version, "source_registry.v1");
@@ -76,6 +78,19 @@ test("builds MVP data artifacts and an eval report", async () => {
     const mcpTools = JSON.parse(await readFile(join(outputDir, "data", "mcp_tools.json"), "utf8"));
     assert.equal(mcpTools.schema_version, "mcp_tool_manifest.v1");
     assert.equal(mcpTools.tools.length, 4);
+
+    const mcpExamples = JSON.parse(await readFile(join(outputDir, "data", "mcp_examples.json"), "utf8")) as {
+      schema_version: string;
+      endpoint: string;
+      examples: Array<{ name: string; request: { method: string; params?: { name?: string } } }>;
+    };
+    assert.equal(mcpExamples.schema_version, "mcp_examples.v1");
+    assert.equal(mcpExamples.endpoint, "/api/mcp");
+    assert.deepEqual(
+      mcpExamples.examples.map((example) => example.name),
+      ["initialize", "tools/list", "tools/call:get_tool_card", "tools/call:search_tools"]
+    );
+    assert.equal(mcpExamples.examples.find((example) => example.name === "tools/call:get_tool_card")?.request.params?.name, "get_tool_card");
 
     const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
     assert.ok(searchIndex.documents.length >= 20);
