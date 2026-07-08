@@ -39,6 +39,7 @@
   - MiniMax：`MiniMax M3`
   - DeepSeek：`DeepSeek V4 Pro`、`DeepSeek V4 Flash`
 - 推荐 provider endpoint、model label、API model 和 instruction role 已集中到 provider registry，避免推荐引擎内散落常量。
+- Recommend UI 的模型下拉选项已从同一份 provider registry 派生，避免前后端 provider label 分叉。
 - LLM provider 请求会记录 provider、endpoint、model、状态码和脱敏错误体，不记录 API key。
 - Provider 401/403、429、模型不可用和 JSON 输出异常已映射为稳定 API error code，并在 Recommend UI 中展示 provider/status 上下文。
 - 无 `AGENT_RADAR_LLM_API_KEY` 时，pipeline/eval 会生成 blocked eval summary，而不是运行旧本地推荐引擎。
@@ -348,7 +349,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
   - Production 只 promote 已审核的 preview deployment 或同一个 immutable bundle，不重新运行 pipeline/eval。
   - 记录 production deployment id、manifest checksum 和 D1 seed checksum。
 - 增加 1-2 个官方来源的 crawler/parser，保持 GitHub topics disabled 直到噪声评估完成。
-- 为 provider registry 增加版本号和 UI/配置导出能力。
+- 为 provider registry 增加版本号和运行时配置导出能力。
 - 补齐完整 MCP server 协议包装和 agent-facing 示例。
 - 让 eval report 区分 `blocked_no_key`、`provider_error`、`schema_error`、`quality_failure`。
 

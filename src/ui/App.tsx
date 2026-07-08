@@ -33,6 +33,7 @@ import { buildCompareColumns } from "./compare-view.js";
 import { buildCollapsedRecommendationSummary, getRecommendationSubmitLabel } from "./recommendation-form.js";
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
 import { createRecommendationItems, formatRecommendationApiError, type RecommendationApiErrorBody, type RecommendationItem } from "./recommendation-view.js";
+import { listUiRecommendationModelOptions } from "./provider-options.js";
 import "./styles.css";
 
 const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
@@ -40,13 +41,7 @@ const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
 type Page = "tools" | "recommend" | "compare";
 type RiskTolerance = "low" | "medium" | "high";
 
-const modelOptions = [
-  "OpenAI GPT-4.1",
-  "OpenAI GPT-4.1 mini",
-  "MiniMax M3",
-  "DeepSeek V4 Pro",
-  "DeepSeek V4 Flash"
-];
+const modelOptions = listUiRecommendationModelOptions();
 
 const typeOptions = ["all", "skill", "mcp", "agent"];
 const riskOptions: RiskTolerance[] = ["low", "medium", "high"];
