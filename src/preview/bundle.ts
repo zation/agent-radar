@@ -40,5 +40,8 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     eligible_for_publish: options.ingestion.releaseAdmission.summary.eligible_for_publish,
     blocked: options.ingestion.releaseAdmission.summary.blocked
   };
+  manifest.promotion_candidates = {
+    candidates: options.ingestion.promotionCandidates.summary.candidates
+  };
   await writeFile(join(options.distDir, "artifact-manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
 }

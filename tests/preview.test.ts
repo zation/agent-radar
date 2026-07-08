@@ -147,6 +147,14 @@ const ingestionResult: RunIngestionResult = {
         blocking_reasons: []
       }
     ]
+  },
+  promotionCandidates: {
+    schema_version: "tool_card_promotion_candidates.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    summary: {
+      candidates: 1
+    },
+    items: []
   }
 };
 
@@ -161,6 +169,7 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /Crawl audit: 1 success, 0 partial, 0 failed/);
   assert.match(markdown, /Approvals: 1 approved, 0 rejected, 0 needs changes/);
   assert.match(markdown, /Release admission: 1 eligible, 0 blocked/);
+  assert.match(markdown, /Promotion candidates: 1/);
 });
 
 test("builds artifact manifest with checksums and eval summary", async () => {
@@ -241,6 +250,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       tool_card_url_validation: { checked: number; reachable: number; failed: number; skipped: number };
       ingestion_review: { approvals: { approved: number; rejected: number; needs_changes: number } };
       release_admission: { eligible_for_publish: number; blocked: number };
+      promotion_candidates: { candidates: number };
     };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
@@ -250,6 +260,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.deepEqual(artifactManifest.tool_card_url_validation, { checked: 0, reachable: 0, failed: 0, skipped: 12 });
     assert.deepEqual(artifactManifest.ingestion_review.approvals, { approved: 1, rejected: 0, needs_changes: 0 });
     assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 0 });
+    assert.deepEqual(artifactManifest.promotion_candidates, { candidates: 1 });
     await assert.rejects(() => stat(join(outputDir, "review", "ingestion.md")));
   } finally {
     await rm(outputDir, { recursive: true, force: true });

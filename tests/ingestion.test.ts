@@ -485,6 +485,11 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.equal(result.releaseAdmission.summary.eligible_for_publish, 1);
     assert.equal(result.releaseAdmission.items[0]?.status, "eligible_for_publish");
     assert.deepEqual(result.releaseAdmission.items[0]?.blocking_reasons, []);
+    assert.equal(result.promotionCandidates.schema_version, "tool_card_promotion_candidates.v1");
+    assert.equal(result.promotionCandidates.summary.candidates, 1);
+    assert.equal(result.promotionCandidates.items[0]?.tool_id, "agent-new-tool");
+    assert.equal(result.promotionCandidates.items[0]?.approval.reviewed_by, "maintainer");
+    assert.equal(result.promotionCandidates.items[0]?.draft.id, "agent-new-tool");
 
     const admission = JSON.parse(await readFile(join(outputDir, "data", "release_admission", "tool_card_drafts.json"), "utf8")) as {
       schema_version: string;
@@ -493,6 +498,14 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.equal(admission.schema_version, "tool_card_release_admission.v1");
     assert.equal(admission.items[0]?.tool_id, "agent-new-tool");
     assert.equal(admission.items[0]?.status, "eligible_for_publish");
+    const promotionCandidates = JSON.parse(await readFile(join(outputDir, "data", "promotion_candidates", "tool_cards.json"), "utf8")) as {
+      schema_version: string;
+      summary: { candidates: number };
+      items: Array<{ tool_id: string; draft: { id: string } }>;
+    };
+    assert.equal(promotionCandidates.schema_version, "tool_card_promotion_candidates.v1");
+    assert.equal(promotionCandidates.summary.candidates, 1);
+    assert.equal(promotionCandidates.items[0]?.draft.id, "agent-new-tool");
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

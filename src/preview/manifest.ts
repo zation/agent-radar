@@ -42,6 +42,9 @@ export interface ArtifactManifest {
     eligible_for_publish: number;
     blocked: number;
   };
+  promotion_candidates?: {
+    candidates: number;
+  };
   checksums: Record<string, string>;
 }
 

@@ -13,6 +13,7 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult): strin
     `- Crawl audit: ${result.crawlAudit.summary.success} success, ${result.crawlAudit.summary.partial} partial, ${result.crawlAudit.summary.failed} failed`,
     `- Approvals: ${result.approvalArtifact.summary.approved} approved, ${result.approvalArtifact.summary.rejected} rejected, ${result.approvalArtifact.summary.needs_changes} needs changes`,
     `- Release admission: ${result.releaseAdmission.summary.eligible_for_publish} eligible, ${result.releaseAdmission.summary.blocked} blocked`,
+    `- Promotion candidates: ${result.promotionCandidates.summary.candidates}`,
     `- Failed snapshots: ${result.snapshots.filter((snapshot) => snapshot.status === "failed").length}`,
     "",
     "## Sources",
