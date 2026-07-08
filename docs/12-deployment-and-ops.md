@@ -245,7 +245,7 @@ checkout
   -> npm run promotion:check
   -> deploy dist-pages to Cloudflare Pages preview
   -> if AGENT_RADAR_MCP_BASE_URL is configured, npm run mcp:smoke against that existing MCP base URL
-  -> append artifacts/review/ingestion.md to GitHub Actions summary
+  -> append compact review summary to GitHub Actions summary
   -> upload immutable preview bundle
   -> promote-production job waits on GitHub Environment: production
   -> after approval, download the same preview bundle and record production approval evidence
@@ -266,10 +266,9 @@ Preview deployment 应包含：
 
 GitHub Actions summary 应包含：
 
-- `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选；summary 会列出 discovery candidate 明细、approval request 模板、auto review 建议动作和 scorecard、release admission item 的 status/gate/blocking reasons；如果 Source Registry diff 包含字段级 review requirements，summary 会列出 source、field 和 review reason；如果存在 promotion candidates，summary 会列出候选 tool id、Source Record id、review gate、reviewer、review time、review reason、目标 artifact 和 promotion check 状态。
-- Cloudflare Pages preview URL。
-- MCP smoke 结果；如果未配置 `AGENT_RADAR_MCP_BASE_URL`，summary 会明确标注 skipped。
-- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、eval failure categories、Source Registry review summary、Tool Card field provenance summary、crawl audit summary、ingestion approval summary、discovery candidates summary、approval requests summary、field value provenance summary、auto review summary、release admission summary、promotion candidates summary 和 checksum 数量。
+- compact review summary，用于维护者快速判断是否需要人工介入。summary 只展示 ref/SHA、data version、Cloudflare Pages preview URL、golden eval、source registry 待确认、Tool Card approval 待处理、release admission blocked、promotion check failure、critical field provenance missing、crawl failure/partial 和 MCP smoke 等需要审核的重要信息。
+- `artifacts/review/ingestion.md` 仍作为 uploaded artifact 保存完整采集明细，包括 discovery candidate、approval request 模板、auto review scorecard、release admission item、promotion candidate 和 promotion plan；不再整段写入 GitHub Step Summary。
+- `artifact-manifest.json` 继续作为机器可读摘要保存在 preview bundle 中；Step Summary 只展示其中会影响审核决策的字段。
 
 GitHub 配置要求：
 

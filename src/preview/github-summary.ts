@@ -27,6 +27,113 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
   return `${lines.join("\n")}\n`;
 }
 
+export interface McpSmokeSummary {
+  endpoint: string;
+  passed: number;
+  total: number;
+  skipped: boolean;
+}
+
+export interface CompactReviewSummaryOptions {
+  refName: string;
+  sha: string;
+  deployOutput?: string;
+  mcpSmoke?: McpSmokeSummary;
+}
+
+export function renderCompactReviewSummaryMarkdown(manifest: ArtifactManifest, options: CompactReviewSummaryOptions): string {
+  const lines = [
+    "## Agent Radar Preview",
+    "",
+    `- Ref: \`${options.refName}\``,
+    `- SHA: \`${options.sha}\``,
+    `- Data: \`${manifest.data_version}\``,
+    `- Eval: ${formatStatus(manifest.eval.passed === manifest.eval.total)} ${manifest.eval.passed}/${manifest.eval.total} using \`${manifest.eval.model}\``,
+    ...renderDeployOutput(options.deployOutput),
+    "",
+    "### Review Required",
+    ...renderReviewRequired(manifest),
+    "",
+    "### Release Gates",
+    ...renderReleaseGates(manifest, options.mcpSmoke),
+    "",
+    "### Full Artifacts",
+    "- Download the preview bundle artifact for full ingestion details.",
+    "- Detailed review file: `artifacts/review/ingestion.md`"
+  ];
+
+  return `${lines.join("\n")}\n`;
+}
+
+function renderDeployOutput(output: string | undefined): string[] {
+  const url = extractFirstUrl(output);
+  return url ? [`- Preview: ${url}`] : [];
+}
+
+function renderReviewRequired(manifest: ArtifactManifest): string[] {
+  const items: string[] = [];
+  const sourceRequests = manifest.source_registry_review_requests;
+  if (sourceRequests && sourceRequests.pending_review > 0) {
+    items.push(`- Source registry: ${sourceRequests.pending_review} pending confirmation${sourceRequests.confirmation_required > 0 ? `, ${sourceRequests.confirmation_required} required` : ""}`);
+  }
+
+  const approvalRequests = manifest.approval_requests;
+  if (approvalRequests && (approvalRequests.pending_approval > 0 || approvalRequests.duplicate_review_required > 0 || approvalRequests.blocked_validation > 0)) {
+    items.push(
+      `- Tool Card approvals: ${approvalRequests.pending_approval} pending, ${approvalRequests.duplicate_review_required} duplicate review, ${approvalRequests.blocked_validation} blocked validation`
+    );
+  }
+
+  const releaseAdmission = manifest.release_admission;
+  if (releaseAdmission && releaseAdmission.blocked > 0) {
+    items.push(`- Release admission: ${releaseAdmission.blocked} blocked, ${releaseAdmission.eligible_for_publish} eligible`);
+  }
+
+  const promotionCheck = manifest.promotion_check;
+  if (promotionCheck && (!promotionCheck.passed || promotionCheck.blocked > 0 || promotionCheck.validation_errors > 0 || promotionCheck.duplicate_tool_ids > 0)) {
+    items.push(
+      `- Promotion check: ${promotionCheck.ready_for_publish} ready, ${promotionCheck.blocked} blocked, ${promotionCheck.validation_errors} validation errors, ${promotionCheck.duplicate_tool_ids} duplicate ids`
+    );
+  }
+
+  const evalFailures = manifest.eval.total - manifest.eval.passed;
+  if (evalFailures > 0) items.push(`- Golden eval: ${evalFailures} failing (${formatFailureCategories(manifest.eval.failure_categories)})`);
+
+  const fieldProvenance = manifest.tool_card_field_provenance;
+  if (fieldProvenance && fieldProvenance.missing > 0) {
+    items.push(`- Field provenance: ${fieldProvenance.missing} critical fields missing evidence`);
+  }
+
+  const crawlAudit = manifest.crawl_audit;
+  if (crawlAudit && (crawlAudit.failed > 0 || crawlAudit.partial > 0)) {
+    items.push(`- Crawl audit: ${crawlAudit.failed} failed, ${crawlAudit.partial} partial`);
+  }
+
+  return items.length > 0 ? items : ["- None. Review the full artifact only if you want detailed provenance."];
+}
+
+function renderReleaseGates(manifest: ArtifactManifest, smoke: McpSmokeSummary | undefined): string[] {
+  const promotion = manifest.promotion_check
+    ? `${formatStatus(manifest.promotion_check.passed)} promotion ${manifest.promotion_check.ready_for_publish}/${manifest.promotion_check.candidates} ready`
+    : "unknown promotion check";
+  const evalGate = `${formatStatus(manifest.eval.passed === manifest.eval.total)} eval ${manifest.eval.passed}/${manifest.eval.total}`;
+  const sourceReview = manifest.source_registry_review
+    ? `${formatStatus(manifest.source_registry_review.pending === 0 && manifest.source_registry_review.rejected === 0 && manifest.source_registry_review.needs_changes === 0)} source review ${manifest.source_registry_review.confirmed}/${manifest.source_registry_review.total_requirements} confirmed`
+    : "source review unavailable";
+  const mcp = smoke ? `${formatStatus(smoke.skipped ? true : smoke.passed === smoke.total)} MCP smoke ${smoke.skipped ? "skipped" : `${smoke.passed}/${smoke.total}`}` : "MCP smoke skipped";
+
+  return [`- ${evalGate}`, `- ${promotion}`, `- ${sourceReview}`, `- ${mcp}`];
+}
+
+function formatStatus(passed: boolean): string {
+  return passed ? "PASS" : "NEEDS REVIEW";
+}
+
+function extractFirstUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return /(https?:\/\/\S+)/.exec(value)?.[1]?.replace(/[).,]+$/, "");
+}
+
 function formatFailureCategories(categories: Record<string, number>): string {
   const entries = Object.entries(categories).sort(([left], [right]) => left.localeCompare(right));
   if (entries.length === 0) return "`none=0`";

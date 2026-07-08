@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { createPreviewBundle } from "../src/preview/bundle.js";
-import { renderArtifactManifestSummaryMarkdown } from "../src/preview/github-summary.js";
+import { renderArtifactManifestSummaryMarkdown, renderCompactReviewSummaryMarkdown } from "../src/preview/github-summary.js";
 import { renderIngestionReviewMarkdown } from "../src/preview/ingestion-review.js";
 import { buildArtifactManifest } from "../src/preview/manifest.js";
 import type { RunIngestionResult } from "../src/ingestion/run.js";
@@ -577,6 +577,115 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
   assert.match(markdown, /- Promotion plan: 2 candidates, ready for reliable publish/);
   assert.match(markdown, /- Promotion check: 1 ready, 1 blocked, failed/);
   assert.match(markdown, /- Checksums: 2 files/);
+});
+
+test("renders compact review summary with only actionable review items", () => {
+  const markdown = renderCompactReviewSummaryMarkdown(
+    {
+      schema_version: "artifact_manifest.v1",
+      git_sha: "abc123",
+      built_at: "2026-07-07T00:00:00Z",
+      data_version: "data-test",
+      eval: {
+        passed: 9,
+        total: 10,
+        model: "deepseek-v4-flash",
+        failure_categories: { none: 9, quality_failure: 1 }
+      },
+      source_registry_review: {
+        total_requirements: 2,
+        confirmed: 1,
+        rejected: 0,
+        needs_changes: 0,
+        pending: 1
+      },
+      source_registry_review_requests: {
+        pending_review: 1,
+        confirmation_required: 1
+      },
+      approval_requests: {
+        pending_approval: 2,
+        duplicate_review_required: 1,
+        blocked_validation: 0
+      },
+      release_admission: {
+        eligible_for_publish: 8,
+        blocked: 2
+      },
+      promotion_check: {
+        candidates: 10,
+        ready_for_publish: 8,
+        blocked: 2,
+        duplicate_tool_ids: 1,
+        validation_errors: 1,
+        validation_warnings: 3,
+        passed: false
+      },
+      tool_card_field_provenance: {
+        cards_checked: 10,
+        fields_checked: 30,
+        covered: 27,
+        covered_by_manual_review: 0,
+        missing: 3
+      },
+      crawl_audit: {
+        total: 11,
+        success: 10,
+        partial: 1,
+        failed: 0
+      },
+      checksums: {
+        "data/manifest.json": "sha256:manifest"
+      }
+    },
+    {
+      refName: "v0.2.1",
+      sha: "abc123",
+      deployOutput: "Preview available at https://example.pages.dev",
+      mcpSmoke: { endpoint: "https://agent-radar.example/api/mcp", passed: 4, total: 4, skipped: false }
+    }
+  );
+
+  assert.match(markdown, /## Agent Radar Preview/);
+  assert.match(markdown, /- Preview: https:\/\/example\.pages\.dev/);
+  assert.match(markdown, /### Review Required/);
+  assert.match(markdown, /- Source registry: 1 pending confirmation, 1 required/);
+  assert.match(markdown, /- Tool Card approvals: 2 pending, 1 duplicate review, 0 blocked validation/);
+  assert.match(markdown, /- Golden eval: 1 failing/);
+  assert.match(markdown, /- Field provenance: 3 critical fields missing evidence/);
+  assert.match(markdown, /- Crawl audit: 0 failed, 1 partial/);
+  assert.match(markdown, /- NEEDS REVIEW eval 9\/10/);
+  assert.match(markdown, /- NEEDS REVIEW promotion 8\/10 ready/);
+  assert.match(markdown, /- PASS MCP smoke 4\/4/);
+  assert.doesNotMatch(markdown, /Field value provenance/);
+  assert.doesNotMatch(markdown, /Checksums: /);
+});
+
+test("renders compact review summary as clean when no action is needed", () => {
+  const markdown = renderCompactReviewSummaryMarkdown(
+    {
+      schema_version: "artifact_manifest.v1",
+      git_sha: "abc123",
+      built_at: "2026-07-07T00:00:00Z",
+      data_version: "data-test",
+      eval: { passed: 10, total: 10, model: "deepseek-v4-flash", failure_categories: { none: 10 } },
+      source_registry_review: { total_requirements: 0, confirmed: 0, rejected: 0, needs_changes: 0, pending: 0 },
+      source_registry_review_requests: { pending_review: 0, confirmation_required: 0 },
+      approval_requests: { pending_approval: 0, duplicate_review_required: 0, blocked_validation: 0 },
+      release_admission: { eligible_for_publish: 10, blocked: 0 },
+      promotion_check: { candidates: 10, ready_for_publish: 10, blocked: 0, duplicate_tool_ids: 0, validation_errors: 0, validation_warnings: 0, passed: true },
+      tool_card_field_provenance: { cards_checked: 10, fields_checked: 30, covered: 30, covered_by_manual_review: 0, missing: 0 },
+      crawl_audit: { total: 11, success: 11, partial: 0, failed: 0 },
+      checksums: {}
+    },
+    { refName: "main", sha: "abc123", mcpSmoke: { endpoint: "not configured", passed: 0, total: 0, skipped: true } }
+  );
+
+  assert.match(markdown, /- None\. Review the full artifact only if you want detailed provenance\./);
+  assert.match(markdown, /- PASS eval 10\/10/);
+  assert.match(markdown, /- PASS promotion 10\/10 ready/);
+  assert.match(markdown, /- PASS source review 0\/0 confirmed/);
+  assert.match(markdown, /- PASS MCP smoke skipped/);
 });
 
 test("creates preview bundle review assets and artifact manifest", async () => {

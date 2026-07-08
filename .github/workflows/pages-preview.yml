@@ -66,29 +66,7 @@ jobs:
         env:
           DEPLOY_OUTPUT: ${{ steps.deploy.outputs.command-output }}
         run: |
-          {
-            echo "## Agent Radar Preview"
-            echo
-            echo "- Ref: \`${GITHUB_REF_NAME}\`"
-            echo "- SHA: \`${GITHUB_SHA}\`"
-            echo
-            echo "### Cloudflare Deploy Output"
-            echo
-            echo '```text'
-            printf '%s\n' "$DEPLOY_OUTPUT"
-            echo '```'
-            echo
-            node dist/src/cli/render-artifact-summary.js
-            echo "### MCP Smoke"
-            echo
-            if [ -f mcp-smoke-result.json ]; then
-              node -e 'const fs = require("fs"); const lines = fs.readFileSync("mcp-smoke-result.json", "utf8").split(/\n/); const start = lines.findIndex((line) => line.trim().startsWith("{")); const smoke = JSON.parse(lines.slice(start).join("\n")); console.log(`- Endpoint: \`${smoke.endpoint}\``); console.log(`- Result: ${smoke.summary.passed}/${smoke.summary.total} checks passed`);'
-            else
-              echo "- Skipped: \`AGENT_RADAR_MCP_BASE_URL\` repository variable is not configured."
-            fi
-            echo
-            cat artifacts/review/ingestion.md
-          } >> "$GITHUB_STEP_SUMMARY"
+          node dist/src/cli/render-review-summary.js >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload preview bundle
         uses: actions/upload-artifact@v4
