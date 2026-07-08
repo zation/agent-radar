@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { seedToolCards } from "../src/data/seed-tool-cards.js";
-import { checkToolCardUrls, validateToolCards } from "../src/validation/tool-card-validator.js";
+import { buildToolCardFieldProvenance, checkToolCardUrls, validateToolCards } from "../src/validation/tool-card-validator.js";
 import type { ToolCard } from "../src/schema.js";
 
 test("tool card validator accepts reviewed seed cards", () => {
@@ -135,6 +135,47 @@ test("tool card validator warns when non-manual evidence lacks critical field co
   assert.match(validation.warnings.join("\n"), /field-provenance-card: permissions lacks field-level evidence ref/);
   assert.match(validation.warnings.join("\n"), /field-provenance-card: security lacks field-level evidence ref/);
   assert.match(validation.warnings.join("\n"), /field-provenance-card: maintenance lacks field-level evidence ref/);
+});
+
+test("builds schema-level field provenance for critical Tool Card fields", () => {
+  const missingCard: ToolCard = {
+    ...seedToolCards[0],
+    id: "field-provenance-missing-card",
+    evidence_refs: ["source-record-field-provenance-card"]
+  };
+  const coveredCard: ToolCard = {
+    ...seedToolCards[0],
+    id: "field-provenance-covered-card",
+    evidence_refs: ["source-record-field-provenance-card", "field:permissions", "field:security:source-record-field-provenance-card", "source-record-field-provenance-card#maintenance"]
+  };
+
+  const artifact = buildToolCardFieldProvenance([missingCard, coveredCard], "2026-07-08T00:00:00Z");
+
+  assert.equal(artifact.schema_version, "tool_card_field_provenance.v1");
+  assert.equal(artifact.generated_at, "2026-07-08T00:00:00Z");
+  assert.deepEqual(artifact.critical_fields, ["permissions", "security", "maintenance"]);
+  assert.deepEqual(artifact.summary, {
+    cards_checked: 2,
+    fields_checked: 6,
+    covered: 3,
+    covered_by_manual_review: 0,
+    missing: 3
+  });
+  assert.deepEqual(
+    artifact.items.map((item) => [item.tool_id, item.field, item.status]),
+    [
+      ["field-provenance-missing-card", "permissions", "missing"],
+      ["field-provenance-missing-card", "security", "missing"],
+      ["field-provenance-missing-card", "maintenance", "missing"],
+      ["field-provenance-covered-card", "permissions", "covered"],
+      ["field-provenance-covered-card", "security", "covered"],
+      ["field-provenance-covered-card", "maintenance", "covered"]
+    ]
+  );
+  assert.deepEqual(
+    artifact.items.find((item) => item.tool_id === "field-provenance-covered-card" && item.field === "security")?.evidence_refs,
+    ["field:security:source-record-field-provenance-card"]
+  );
 });
 
 test("tool card URL checker records reachable failed and skipped URLs", async () => {

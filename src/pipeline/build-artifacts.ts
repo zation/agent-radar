@@ -11,7 +11,7 @@ import { buildSourceRegistryArtifact, buildSourceRegistryDiff, sourceRegistry } 
 import { rateAllToolCards } from "../rating/engine.js";
 import { DEFAULT_RECOMMENDATION_MODEL, buildProviderRegistryArtifact } from "../recommendation/provider-registry.js";
 import { buildSearchIndex } from "../search/index-builder.js";
-import { buildSkippedToolCardUrlValidation, checkToolCardUrls, validateToolCards } from "../validation/tool-card-validator.js";
+import { buildSkippedToolCardUrlValidation, buildToolCardFieldProvenance, checkToolCardUrls, validateToolCards } from "../validation/tool-card-validator.js";
 
 export interface BuildArtifactsOptions {
   outputDir: string;
@@ -38,6 +38,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   if (!toolCardValidation.passed) {
     throw new Error(`Tool Card validation failed: ${toolCardValidation.errors.join("; ")}`);
   }
+  const toolCardFieldProvenance = buildToolCardFieldProvenance(toolCards, "2026-07-06T00:00:00Z");
 
   const ratings = rateAllToolCards(toolCards);
   const index = buildSearchIndex(toolCards, ratings);
@@ -66,6 +67,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await writeFile(join(publicDataDir, "source_registry_diff.json"), JSON.stringify(sourceRegistryDiff, null, 2), "utf8");
   await writeFile(join(publicDataDir, "source_registry_review.json"), JSON.stringify(sourceRegistryReview, null, 2), "utf8");
   await writeFile(join(publicDataDir, "tool_card_validation.json"), JSON.stringify(toolCardValidation, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "tool_card_field_provenance.json"), JSON.stringify(toolCardFieldProvenance, null, 2), "utf8");
   await writeFile(join(publicDataDir, "tool_card_url_validation.json"), JSON.stringify(toolCardUrlValidation, null, 2), "utf8");
   await writeFile(join(publicDataDir, "provider_registry.json"), JSON.stringify(providerRegistry, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_tools.json"), JSON.stringify(mcpToolManifest, null, 2), "utf8");
@@ -95,6 +97,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         source_registry_diff: "data/source_registry_diff.json",
         source_registry_review: "data/source_registry_review.json",
         tool_card_validation: "data/tool_card_validation.json",
+        tool_card_field_provenance: "data/tool_card_field_provenance.json",
         tool_card_url_validation: "data/tool_card_url_validation.json",
         provider_registry: "data/provider_registry.json",
         mcp_tools: "data/mcp_tools.json",

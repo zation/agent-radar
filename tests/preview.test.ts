@@ -279,6 +279,14 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       "utf8"
     );
     await writeFile(
+      join(outputDir, "data", "tool_card_field_provenance.json"),
+      JSON.stringify({
+        schema_version: "tool_card_field_provenance.v1",
+        summary: { cards_checked: 20, fields_checked: 60, covered: 0, covered_by_manual_review: 60, missing: 0 }
+      }),
+      "utf8"
+    );
+    await writeFile(
       join(outputDir, "data", "source_registry_review.json"),
       JSON.stringify({
         schema_version: "source_registry_review.v1",
@@ -303,6 +311,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       source_registry_diff: { added: number; removed: number; changed: number };
       source_registry_review: { total_requirements: number; confirmed: number; rejected: number; needs_changes: number; pending: number };
       tool_card_url_validation: { checked: number; reachable: number; failed: number; skipped: number };
+      tool_card_field_provenance: { cards_checked: number; fields_checked: number; covered: number; covered_by_manual_review: number; missing: number };
       ingestion_review: { approvals: { approved: number; rejected: number; needs_changes: number } };
       release_admission: { eligible_for_publish: number; blocked: number };
       promotion_candidates: { candidates: number };
@@ -316,6 +325,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.deepEqual(artifactManifest.source_registry_diff, { added: 2, removed: 0, changed: 1 });
     assert.deepEqual(artifactManifest.source_registry_review, { total_requirements: 1, confirmed: 0, rejected: 0, needs_changes: 0, pending: 1 });
     assert.deepEqual(artifactManifest.tool_card_url_validation, { checked: 0, reachable: 0, failed: 0, skipped: 12 });
+    assert.deepEqual(artifactManifest.tool_card_field_provenance, { cards_checked: 20, fields_checked: 60, covered: 0, covered_by_manual_review: 60, missing: 0 });
     assert.deepEqual(artifactManifest.ingestion_review.approvals, { approved: 1, rejected: 0, needs_changes: 0 });
     assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 0 });
     assert.deepEqual(artifactManifest.promotion_candidates, { candidates: 1 });

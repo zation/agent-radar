@@ -232,17 +232,18 @@ Preview deployment 应包含：
 - 产品网站本体。
 - `data/*`：Tool Cards、ratings、search index、eval summary、D1 seed。
 - `data/provider_registry.json`：版本化 provider runtime config，供 UI、API 和发布审核确认 BYOK model/provider 选项一致。
+- `data/tool_card_field_provenance.json`：关键字段 provenance summary，覆盖 `permissions`、`security` 和 `maintenance` 的字段级证据状态。
 - `data/mcp_examples.json`：MCP JSON-RPC 请求示例，供 agent/client 集成验证。
 - `data/mcp_smoke_checklist.json`：MCP deployment review checklist，列出 initialize、tools/list、只读 tools/call 和只读边界的必检项。
 - `reports/*`：eval report。
-- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary、构建时间和关键文件 checksum；checksum 覆盖 `provider_registry.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`。
+- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、Tool Card field provenance summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary、构建时间和关键文件 checksum；checksum 覆盖 `provider_registry.json`、`tool_card_field_provenance.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`。
 
 GitHub Actions summary 应包含：
 
 - `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选；如果 Source Registry diff 包含字段级 review requirements，summary 会列出 source、field 和 review reason。
 - Cloudflare Pages preview URL。
 - MCP smoke 结果；如果未配置 `AGENT_RADAR_MCP_BASE_URL`，summary 会明确标注 skipped。
-- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary 和 checksum 数量。
+- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、Tool Card field provenance summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary 和 checksum 数量。
 
 GitHub 配置要求：
 

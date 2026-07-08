@@ -17,6 +17,30 @@ export interface ToolCardValidationOptions {
   overrideRecords?: OverrideRecord[];
 }
 
+export type ToolCardCriticalField = "permissions" | "security" | "maintenance";
+export type ToolCardFieldProvenanceStatus = "covered" | "covered_by_manual_review" | "missing";
+
+export interface ToolCardFieldProvenanceItem {
+  tool_id: string;
+  field: ToolCardCriticalField;
+  status: ToolCardFieldProvenanceStatus;
+  evidence_refs: string[];
+}
+
+export interface ToolCardFieldProvenanceArtifact {
+  schema_version: "tool_card_field_provenance.v1";
+  generated_at: string;
+  critical_fields: ToolCardCriticalField[];
+  summary: {
+    cards_checked: number;
+    fields_checked: number;
+    covered: number;
+    covered_by_manual_review: number;
+    missing: number;
+  };
+  items: ToolCardFieldProvenanceItem[];
+}
+
 export interface ToolCardUrlValidationItem {
   tool_id: string;
   url: string;
@@ -71,6 +95,31 @@ export function validateToolCards(cards: ToolCard[], options: ToolCardValidation
     passed: errors.length === 0,
     errors,
     warnings
+  };
+}
+
+export function buildToolCardFieldProvenance(cards: ToolCard[], generatedAt: string): ToolCardFieldProvenanceArtifact {
+  const criticalFields: ToolCardCriticalField[] = ["permissions", "security", "maintenance"];
+  const items = cards.flatMap((card) =>
+    criticalFields.map((field) => ({
+      tool_id: card.id,
+      field,
+      ...getFieldProvenance(card, field)
+    }))
+  );
+
+  return {
+    schema_version: "tool_card_field_provenance.v1",
+    generated_at: generatedAt,
+    critical_fields: criticalFields,
+    summary: {
+      cards_checked: cards.length,
+      fields_checked: items.length,
+      covered: items.filter((item) => item.status === "covered").length,
+      covered_by_manual_review: items.filter((item) => item.status === "covered_by_manual_review").length,
+      missing: items.filter((item) => item.status === "missing").length
+    },
+    items
   };
 }
 
@@ -234,7 +283,7 @@ function validateUrlFieldEvidence(card: ToolCard, errors: string[]): void {
 function validateCriticalFieldEvidence(card: ToolCard, warnings: string[]): void {
   if (hasManualReviewEvidence(card)) return;
 
-  for (const field of ["permissions", "security", "maintenance"]) {
+  for (const field of ["permissions", "security", "maintenance"] satisfies ToolCardCriticalField[]) {
     if (!hasFieldEvidence(card, field)) warnings.push(`${card.id}: ${field} lacks field-level evidence ref`);
   }
 }
@@ -243,8 +292,20 @@ function hasManualReviewEvidence(card: ToolCard): boolean {
   return card.evidence_refs.some((ref) => ref.startsWith("manual-review-"));
 }
 
-function hasFieldEvidence(card: ToolCard, field: string): boolean {
-  return card.evidence_refs.some((ref) => ref === `field:${field}` || ref.startsWith(`field:${field}:`) || ref.endsWith(`#${field}`));
+function hasFieldEvidence(card: ToolCard, field: ToolCardCriticalField): boolean {
+  return getFieldEvidenceRefs(card, field).length > 0;
+}
+
+function getFieldProvenance(card: ToolCard, field: ToolCardCriticalField): { status: ToolCardFieldProvenanceStatus; evidence_refs: string[] } {
+  const fieldEvidenceRefs = getFieldEvidenceRefs(card, field);
+  if (fieldEvidenceRefs.length > 0) return { status: "covered", evidence_refs: fieldEvidenceRefs };
+  const manualReviewRefs = card.evidence_refs.filter((ref) => ref.startsWith("manual-review-"));
+  if (manualReviewRefs.length > 0) return { status: "covered_by_manual_review", evidence_refs: manualReviewRefs };
+  return { status: "missing", evidence_refs: [] };
+}
+
+function getFieldEvidenceRefs(card: ToolCard, field: ToolCardCriticalField): string[] {
+  return card.evidence_refs.filter((ref) => ref === `field:${field}` || ref.startsWith(`field:${field}:`) || ref.endsWith(`#${field}`));
 }
 
 function isIsoUtc(value: string): boolean {

@@ -19,6 +19,7 @@ interface ManifestFile {
   source_registry_diff: string;
   source_registry_review: string;
   tool_card_validation: string;
+  tool_card_field_provenance: string;
   tool_card_url_validation: string;
   provider_registry: string;
   mcp_tools: string;
@@ -49,6 +50,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.source_registry_diff, "data/source_registry_diff.json");
     assert.equal(manifest.source_registry_review, "data/source_registry_review.json");
     assert.equal(manifest.tool_card_validation, "data/tool_card_validation.json");
+    assert.equal(manifest.tool_card_field_provenance, "data/tool_card_field_provenance.json");
     assert.equal(manifest.tool_card_url_validation, "data/tool_card_url_validation.json");
     assert.equal(manifest.provider_registry, "data/provider_registry.json");
     assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
@@ -73,6 +75,18 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(toolCardValidation.schema_version, "tool_card_validation.v1");
     assert.equal(toolCardValidation.passed, true);
     assert.equal(toolCardValidation.checked_count, summary.toolCount);
+
+    const toolCardFieldProvenance = JSON.parse(await readFile(join(outputDir, "data", "tool_card_field_provenance.json"), "utf8")) as {
+      schema_version: string;
+      critical_fields: string[];
+      summary: { cards_checked: number; fields_checked: number; covered_by_manual_review: number; missing: number };
+    };
+    assert.equal(toolCardFieldProvenance.schema_version, "tool_card_field_provenance.v1");
+    assert.deepEqual(toolCardFieldProvenance.critical_fields, ["permissions", "security", "maintenance"]);
+    assert.equal(toolCardFieldProvenance.summary.cards_checked, summary.toolCount);
+    assert.equal(toolCardFieldProvenance.summary.fields_checked, summary.toolCount * 3);
+    assert.equal(toolCardFieldProvenance.summary.covered_by_manual_review, summary.toolCount * 3);
+    assert.equal(toolCardFieldProvenance.summary.missing, 0);
 
     const toolCardUrlValidation = JSON.parse(await readFile(join(outputDir, "data", "tool_card_url_validation.json"), "utf8"));
     assert.equal(toolCardUrlValidation.schema_version, "tool_card_url_validation.v1");

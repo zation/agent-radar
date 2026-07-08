@@ -38,6 +38,13 @@ export interface ArtifactManifest {
     failed: number;
     skipped: number;
   };
+  tool_card_field_provenance?: {
+    cards_checked: number;
+    fields_checked: number;
+    covered: number;
+    covered_by_manual_review: number;
+    missing: number;
+  };
   ingestion_review?: {
     approvals: {
       approved: number;
@@ -68,6 +75,7 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
   const sourceRegistryDiff = await readSourceRegistryDiffSummary(options.distDir);
   const sourceRegistryReview = await readSourceRegistryReviewSummary(options.distDir);
   const toolCardUrlValidation = await readToolCardUrlValidationSummary(options.distDir);
+  const toolCardFieldProvenance = await readToolCardFieldProvenanceSummary(options.distDir);
 
   return {
     schema_version: "artifact_manifest.v1",
@@ -83,6 +91,7 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
     ...(sourceRegistryDiff ? { source_registry_diff: sourceRegistryDiff } : {}),
     ...(sourceRegistryReview ? { source_registry_review: sourceRegistryReview } : {}),
     ...(toolCardUrlValidation ? { tool_card_url_validation: toolCardUrlValidation } : {}),
+    ...(toolCardFieldProvenance ? { tool_card_field_provenance: toolCardFieldProvenance } : {}),
     checksums: await checksumFiles(options.distDir)
   };
 }
@@ -105,6 +114,18 @@ async function readToolCardUrlValidationSummary(distDir: string): Promise<Artifa
       summary?: ArtifactManifest["tool_card_url_validation"];
     };
     return validation.summary;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+async function readToolCardFieldProvenanceSummary(distDir: string): Promise<ArtifactManifest["tool_card_field_provenance"] | undefined> {
+  try {
+    const provenance = JSON.parse(await readFile(join(distDir, "data", "tool_card_field_provenance.json"), "utf8")) as {
+      summary?: ArtifactManifest["tool_card_field_provenance"];
+    };
+    return provenance.summary;
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
     throw error;
