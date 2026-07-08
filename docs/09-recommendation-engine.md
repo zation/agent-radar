@@ -299,6 +299,11 @@ Top 结果应避免全是同一类型，除非任务明确要求。
 
 ## Workers MCP API 工具
 
+Workers API 同时提供两种 agent-facing 入口：
+
+- `/api/mcp_manifest`：返回只读工具定义，供简单 HTTP JSON client 消费。
+- `/api/mcp`：最小 MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和 `tools/call`。`tools/call` 只包装下列只读工具，返回 text content 中的 JSON 字符串。
+
 ### `search_tools`
 
 输入：

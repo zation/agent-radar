@@ -39,6 +39,34 @@ interface McpManifestResponse {
   tools: Array<{ name: string; read_only: boolean }>;
 }
 
+interface McpInitializeResponse {
+  jsonrpc: string;
+  id: number;
+  result: {
+    serverInfo: { name: string };
+    capabilities: { tools: { listChanged: boolean } };
+  };
+}
+
+interface McpToolsListResponse {
+  result: {
+    tools: Array<{ name: string; inputSchema?: unknown }>;
+  };
+}
+
+interface McpToolCallResponse {
+  jsonrpc: string;
+  id: string;
+  result: {
+    content: Array<{ type: string; text: string }>;
+  };
+}
+
+interface ToolCardLookupPayload {
+  schema_version: string;
+  tool_card: { id: string };
+}
+
 test("search_tools returns summaries with match reasons", async () => {
   const response = await handler(
     new Request("https://agent-radar.test/api/search_tools", {
@@ -140,6 +168,65 @@ test("mcp_manifest exposes read-only tool definitions", async () => {
     ["search_tools", "get_tool_card", "recommend_tools", "explain_rating"]
   );
   assert.equal(body.tools.every((tool: { read_only: boolean }) => tool.read_only), true);
+});
+
+test("mcp endpoint initializes and lists read-only tools", async () => {
+  const initializeResponse = await handler(
+    new Request("https://agent-radar.test/api/mcp", {
+      method: "POST",
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "initialize", params: {} })
+    })
+  );
+
+  assert.equal(initializeResponse.status, 200);
+  const initializeBody = (await initializeResponse.json()) as McpInitializeResponse;
+  assert.equal(initializeBody.jsonrpc, "2.0");
+  assert.equal(initializeBody.id, 1);
+  assert.equal(initializeBody.result.serverInfo.name, "agent-radar");
+  assert.equal(initializeBody.result.capabilities.tools.listChanged, false);
+
+  const listResponse = await handler(
+    new Request("https://agent-radar.test/api/mcp", {
+      method: "POST",
+      body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list", params: {} })
+    })
+  );
+
+  assert.equal(listResponse.status, 200);
+  const listBody = (await listResponse.json()) as McpToolsListResponse;
+  assert.deepEqual(
+    listBody.result.tools.map((tool: { name: string }) => tool.name),
+    ["search_tools", "get_tool_card", "recommend_tools", "explain_rating"]
+  );
+  assert.equal(listBody.result.tools.every((tool: { inputSchema?: unknown }) => Boolean(tool.inputSchema)), true);
+});
+
+test("mcp endpoint calls read-only tools and returns JSON content", async () => {
+  const response = await handler(
+    new Request("https://agent-radar.test/api/mcp", {
+      method: "POST",
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: "call-1",
+        method: "tools/call",
+        params: {
+          name: "get_tool_card",
+          arguments: {
+            tool_id: "skill-openai-docs"
+          }
+        }
+      })
+    })
+  );
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as McpToolCallResponse;
+  assert.equal(body.jsonrpc, "2.0");
+  assert.equal(body.id, "call-1");
+  assert.equal(body.result.content[0].type, "text");
+  const payload = JSON.parse(body.result.content[0]?.text ?? "{}") as ToolCardLookupPayload;
+  assert.equal(payload.schema_version, "tool_card_lookup_result.v1");
+  assert.equal(payload.tool_card.id, "skill-openai-docs");
 });
 
 test("rejects unsupported writes and unknown routes", async () => {

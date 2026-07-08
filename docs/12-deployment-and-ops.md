@@ -303,6 +303,11 @@ LLM-backed 推荐发布说明：
 
 MCP API 部署在 Cloudflare Workers，读取 Cloudflare D1 SQLite 和静态 JSON artifacts。
 
+入口：
+
+- `/api/mcp_manifest`：HTTP JSON 工具清单。
+- `/api/mcp`：MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和 `tools/call`。
+
 支持工具：
 
 - `search_tools`
@@ -316,6 +321,7 @@ MCP API 部署在 Cloudflare Workers，读取 Cloudflare D1 SQLite 和静态 JSO
 - 不安装第三方工具。
 - 不持久化用户 secret；Recommend BYOK key 只用于当前 provider 请求。
 - 不执行推荐候选。
+- MCP `tools/call` 只包装上述只读查询工具；未知 method 或未知 tool 返回 JSON-RPC error。
 - 使用 Cloudflare 免费额度。
 
 ### Cloudflare Workers 方式

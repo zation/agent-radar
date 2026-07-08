@@ -27,6 +27,7 @@ export function createApiHandler(repository: ToolRepository, options: ApiHandler
       if (url.pathname === "/api/recommend_tools") return json(await recommend(repository, (await readInput(request, url)) as unknown as RecommendToolsInput, options));
       if (url.pathname === "/api/explain_rating") return json(explainRating(repository, getRequiredToolId(await readInput(request, url))));
       if (url.pathname === "/api/mcp_manifest") return json(buildMcpToolManifest());
+      if (url.pathname === "/api/mcp") return json(await handleMcpJsonRpc(repository, request, options));
 
       return json({ error: "not_found", message: "Unknown route." }, 404);
     } catch (error) {
@@ -43,6 +44,96 @@ export function createApiHandler(repository: ToolRepository, options: ApiHandler
       }
       const message = error instanceof Error ? error.message : "Unknown error";
       return json({ error: "bad_request", message }, 400);
+    }
+  };
+}
+
+interface JsonRpcRequest {
+  jsonrpc?: string;
+  id?: string | number | null;
+  method?: string;
+  params?: Record<string, unknown>;
+}
+
+async function handleMcpJsonRpc(repository: ToolRepository, request: Request, options: ApiHandlerOptions): Promise<Record<string, unknown>> {
+  if (request.method !== "POST") {
+    return jsonRpcError(null, -32600, "MCP JSON-RPC endpoint requires POST.");
+  }
+
+  const rpc = (await request.json()) as JsonRpcRequest;
+  if (rpc.jsonrpc !== "2.0" || !rpc.method) return jsonRpcError(rpc.id ?? null, -32600, "Invalid JSON-RPC request.");
+
+  try {
+    if (rpc.method === "initialize") {
+      return jsonRpcResult(rpc.id ?? null, {
+        protocolVersion: "2024-11-05",
+        serverInfo: {
+          name: "agent-radar",
+          version: "0.1.0"
+        },
+        capabilities: {
+          tools: {
+            listChanged: false
+          }
+        }
+      });
+    }
+
+    if (rpc.method === "tools/list") {
+      return jsonRpcResult(rpc.id ?? null, {
+        tools: buildMcpToolManifest().tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.input_schema
+        }))
+      });
+    }
+
+    if (rpc.method === "tools/call") {
+      const result = await callMcpTool(repository, rpc.params ?? {}, options);
+      return jsonRpcResult(rpc.id ?? null, {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2)
+          }
+        ]
+      });
+    }
+
+    return jsonRpcError(rpc.id ?? null, -32601, `Unknown MCP method: ${rpc.method}`);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "MCP tool call failed.";
+    return jsonRpcError(rpc.id ?? null, -32000, message);
+  }
+}
+
+async function callMcpTool(repository: ToolRepository, params: Record<string, unknown>, options: ApiHandlerOptions): Promise<unknown> {
+  const name = readString(params.name);
+  const toolArguments = ((params.arguments ?? {}) as Record<string, unknown>) ?? {};
+
+  if (name === "search_tools") return searchTools(repository, toolArguments);
+  if (name === "get_tool_card") return getToolCard(repository, getRequiredToolId(toolArguments));
+  if (name === "recommend_tools") return recommend(repository, toolArguments as unknown as RecommendToolsInput, options);
+  if (name === "explain_rating") return explainRating(repository, getRequiredToolId(toolArguments));
+  throw new Error(`Unknown MCP tool: ${name}`);
+}
+
+function jsonRpcResult(id: string | number | null, result: unknown): Record<string, unknown> {
+  return {
+    jsonrpc: "2.0",
+    id,
+    result
+  };
+}
+
+function jsonRpcError(id: string | number | null, code: number, message: string): Record<string, unknown> {
+  return {
+    jsonrpc: "2.0",
+    id,
+    error: {
+      code,
+      message
     }
   };
 }
