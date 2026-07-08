@@ -15,6 +15,7 @@ import {
   Bot,
   CheckCircle2,
   CircleHelp,
+  ClipboardCheck,
   Database,
   Filter,
   Gauge,
@@ -34,11 +35,12 @@ import { buildCollapsedRecommendationSummary, getRecommendationSubmitLabel } fro
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
 import { createRecommendationItems, formatRecommendationApiError, type RecommendationApiErrorBody, type RecommendationItem } from "./recommendation-view.js";
 import { listUiRecommendationModelOptions } from "./provider-options.js";
+import { createSourceReviewRows, type SourceReviewRow } from "./review-view.js";
 import "./styles.css";
 
 const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
 
-type Page = "tools" | "recommend" | "compare";
+type Page = "tools" | "recommend" | "compare" | "review";
 type RiskTolerance = "low" | "medium" | "high";
 
 const modelOptions = listUiRecommendationModelOptions();
@@ -98,6 +100,10 @@ export default function App() {
     if (!artifacts) return [];
     return buildCompareColumns(artifacts.tools, compareIds);
   }, [artifacts, compareIds]);
+  const sourceReviewRows = useMemo(() => {
+    if (!artifacts) return [];
+    return createSourceReviewRows(artifacts.sourceReviewRequests);
+  }, [artifacts]);
 
   const selectedTool = filteredTools.find((tool) => tool.card.id === selectedId) ?? filteredTools[0] ?? artifacts?.tools[0];
   const selectedRecommendationTool =
@@ -170,6 +176,7 @@ export default function App() {
               <TabsTrigger value="tools">Tools</TabsTrigger>
               <TabsTrigger value="recommend">Recommend</TabsTrigger>
               <TabsTrigger value="compare">Compare</TabsTrigger>
+              <TabsTrigger value="review">Review</TabsTrigger>
             </TabsList>
           </Tabs>
           <EvalStatusPopover summary={artifacts.evalSummary} />
@@ -236,6 +243,10 @@ export default function App() {
             })
           }
         />
+      )}
+
+      {activePage === "review" && (
+        <ReviewPage requests={artifacts.sourceReviewRequests} rows={sourceReviewRows} />
       )}
     </main>
   );
@@ -716,6 +727,72 @@ function ComparePage({
         </CardContent>
       </Card>
     </section>
+  );
+}
+
+function ReviewPage({ requests, rows }: { requests: UiArtifacts["sourceReviewRequests"]; rows: SourceReviewRow[] }) {
+  return (
+    <section className="mx-auto grid max-w-[1500px] gap-4 p-3 md:p-5">
+      <Card className="app-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ClipboardCheck />
+            Source Review
+          </CardTitle>
+          <CardDescription>{requests.summary.pending_review} pending requests, {requests.summary.confirmation_required} requiring confirmation</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3">
+          <ReviewMetric label="Pending" value={requests.summary.pending_review} />
+          <ReviewMetric label="Confirm" value={requests.summary.confirmation_required} />
+          <ReviewMetric label="Generated" value={requests.generated_at} />
+        </CardContent>
+      </Card>
+      <section className="grid gap-3">
+        {rows.length === 0 ? (
+          <Card className="app-card">
+            <CardContent className="py-8 text-sm text-muted-foreground">No pending source review requests.</CardContent>
+          </Card>
+        ) : (
+          rows.map((row) => <SourceReviewCard key={row.id} row={row} />)
+        )}
+      </section>
+    </section>
+  );
+}
+
+function ReviewMetric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <Card size="sm" className="info-block-card">
+      <CardHeader>
+        <CardDescription>{label}</CardDescription>
+        <CardTitle className="text-sm break-words">{value}</CardTitle>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function SourceReviewCard({ row }: { row: SourceReviewRow }) {
+  return (
+    <Card className="app-card">
+      <CardHeader>
+        <div className="grid gap-3 md:grid-cols-[1fr_auto]">
+          <div className="min-w-0">
+            <CardDescription>{row.sourceId} / {row.field}</CardDescription>
+            <CardTitle className="mt-1 text-base">{row.id}</CardTitle>
+          </div>
+          <Badge className={cn("w-fit", row.priority === "confirmation required" ? "review-priority-confirm" : "review-priority-request")} variant="outline">
+            {row.priority}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3">
+        <p className="text-sm leading-6 text-muted-foreground">{row.reason}</p>
+        <div className="grid gap-3 md:grid-cols-2">
+          <InfoBlock icon={<CheckCircle2 />} label="Decision Options" value={row.decisionOptions} />
+          <InfoBlock icon={<ClipboardCheck />} label="Required Fields" value={row.requiredFields} />
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

@@ -216,6 +216,18 @@ textarea {
   color: var(--risk-text);
 }
 
+.review-priority-confirm {
+  border-color: var(--risk-border);
+  background: var(--risk-bg);
+  color: var(--risk-text);
+}
+
+.review-priority-request {
+  border-color: var(--trusted-border);
+  background: var(--trusted-bg);
+  color: var(--trusted-text);
+}
+
 .compare-grid {
   display: grid;
   font-size: 0.8125rem;
