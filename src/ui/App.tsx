@@ -34,7 +34,7 @@ import { createEvalPopoverRows } from "./eval-popover.js";
 import { buildCompareColumns } from "./compare-view.js";
 import { buildCollapsedRecommendationSummary, getRecommendationSubmitLabel } from "./recommendation-form.js";
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
-import { createRecommendationItems, formatRecommendationApiError, type RecommendationApiErrorBody, type RecommendationItem } from "./recommendation-view.js";
+import { createRecommendationItems, formatRecommendationApiError, parseRecommendationApiResponse, type RecommendationApiErrorBody, type RecommendationItem } from "./recommendation-view.js";
 import { listUiRecommendationModelOptions } from "./provider-options.js";
 import { buildSourceReviewRecordDraft, createSourceReviewRows, formatCurrentIsoUtc, type SourceReviewRow } from "./review-view.js";
 import "./styles.css";
@@ -145,7 +145,7 @@ export default function App() {
           model: modelName
         })
       });
-      const body = (await response.json()) as RecommendationResult | RecommendationApiErrorBody;
+      const body = await parseRecommendationApiResponse(response);
       if (!response.ok) {
         throw new Error(formatRecommendationApiError(body as RecommendationApiErrorBody));
       }

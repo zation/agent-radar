@@ -4,7 +4,7 @@ import type { RecommendationResult } from "../src/schema.js";
 import { seedToolCards } from "../src/data/seed-tool-cards.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { createToolViewModels } from "../src/ui/data.js";
-import { createRecommendationItems, formatRecommendationApiError } from "../src/ui/recommendation-view.js";
+import { createRecommendationItems, formatRecommendationApiError, parseRecommendationApiResponse } from "../src/ui/recommendation-view.js";
 
 test("creates selectable recommendation items with tool details", () => {
   const tools = createToolViewModels(seedToolCards, rateAllToolCards(seedToolCards));
@@ -57,5 +57,12 @@ test("formats provider API errors with actionable context", () => {
       provider_status: 429
     }),
     "Provider rate limit was reached. [provider_rate_limited · deepseek · HTTP 429]"
+  );
+});
+
+test("formats empty API responses instead of leaking Response.json parse errors", async () => {
+  await assert.rejects(
+    parseRecommendationApiResponse(new Response("", { status: 502, statusText: "Bad Gateway" })),
+    /Recommendation API returned an empty response\. \[HTTP 502\]/
   );
 });

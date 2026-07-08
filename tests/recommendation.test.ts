@@ -140,6 +140,35 @@ test("parses fenced JSON provider responses", async () => {
   });
 });
 
+test("extracts recommendation JSON from provider content with thinking preface", async () => {
+  const fetchImpl: typeof fetch = () =>
+    Promise.resolve(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: [
+                  "I should inspect the catalog first, then return the requested object.",
+                  "{\"recommended_action\":\"no_reliable_match\",\"candidates\":[],\"rejected_candidates\":[]}"
+                ].join("\n")
+              }
+            }
+          ]
+        })
+      )
+    );
+  const client = createOpenAiRecommendationClient(fetchImpl);
+
+  const output = await client.recommend({ apiKey: "minimax-secret", model: "MiniMax M3", prompt: "{}" });
+
+  assert.deepEqual(output, {
+    recommended_action: "no_reliable_match",
+    candidates: [],
+    rejected_candidates: []
+  });
+});
+
 test("builds recommendations from an LLM client response", async () => {
   const calls: Array<{ apiKey: string; model: string; prompt: string }> = [];
   const client: RecommendationLlmClient = {

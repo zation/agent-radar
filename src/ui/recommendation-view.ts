@@ -28,3 +28,16 @@ export function formatRecommendationApiError(body: RecommendationApiErrorBody): 
   const details = [body.error, body.provider, typeof body.provider_status === "number" ? `HTTP ${body.provider_status}` : undefined].filter(Boolean);
   return details.length > 0 ? `${message} [${details.join(" · ")}]` : message;
 }
+
+export async function parseRecommendationApiResponse(response: Response): Promise<RecommendationResult | RecommendationApiErrorBody> {
+  const text = await response.text();
+  if (!text.trim()) {
+    throw new Error(`Recommendation API returned an empty response. [HTTP ${response.status}]`);
+  }
+
+  try {
+    return JSON.parse(text) as RecommendationResult | RecommendationApiErrorBody;
+  } catch {
+    throw new Error(`Recommendation API returned a non-JSON response. [HTTP ${response.status}]`);
+  }
+}

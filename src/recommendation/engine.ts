@@ -197,7 +197,42 @@ export function createOpenAiRecommendationClient(fetchImpl: typeof fetch = fetch
 function normalizeProviderJsonContent(content: string): string {
   const trimmed = content.trim();
   const fencedJson = trimmed.match(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i);
-  return fencedJson ? fencedJson[1].trim() : trimmed;
+  const candidate = fencedJson ? fencedJson[1].trim() : trimmed;
+  if (candidate.startsWith("{")) return candidate;
+  return extractFirstJsonObject(candidate) ?? candidate;
+}
+
+function extractFirstJsonObject(content: string): string | undefined {
+  const start = content.indexOf("{");
+  if (start < 0) return undefined;
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < content.length; index += 1) {
+    const char = content[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+    } else if (char === "{") {
+      depth += 1;
+    } else if (char === "}") {
+      depth -= 1;
+      if (depth === 0) return content.slice(start, index + 1).trim();
+    }
+  }
+
+  return undefined;
 }
 
 function buildProviderRequestBody(modelRequest: ModelRequest, prompt: string): Record<string, unknown> {
