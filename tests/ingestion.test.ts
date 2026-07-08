@@ -580,6 +580,19 @@ test("ingestion applies override records to draft normalization artifacts", asyn
 
     assert.equal(result.toolCardDrafts[0]?.summary, "Override summary for review queue.");
     assert.deepEqual(result.toolCardDrafts[0]?.evidence_refs, ["manual-agent-radar-seed-agent-codex-20260708", "override-agent-codex-summary-20260708"]);
+    assert.deepEqual(
+      result.fieldProvenance.items.find((item) => item.provenance_type === "override_record" && item.tool_card_field === "summary"),
+      {
+        tool_id: "agent-codex",
+        source_record_id: "manual-agent-radar-seed-agent-codex-20260708",
+        tool_card_field: "summary",
+        source_field_path: "override_records.override-agent-codex-summary-20260708.new_value",
+        source_value_preview: "Override summary for review queue.",
+        normalized_value_preview: "Override summary for review queue.",
+        provenance_type: "override_record",
+        override_record_id: "override-agent-codex-summary-20260708"
+      }
+    );
     assert.equal(result.overrideRecords.length, 1);
     assert.equal(result.approvalArtifact.summary.approved, 1);
     assert.deepEqual(result.reviewQueue.items[0]?.approval, {

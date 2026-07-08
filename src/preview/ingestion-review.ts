@@ -76,7 +76,8 @@ function renderFieldValueProvenance(result: RunIngestionResult): string[] {
     "",
     "## Field Value Provenance",
     ...result.fieldProvenance.items.slice(0, 20).map((item) => {
-      return `- ${item.tool_id} ${item.tool_card_field} source=${item.source_field_path} source_record=${item.source_record_id} value=${item.source_value_preview}`;
+      const overrideRecord = item.override_record_id ? ` override_record=${item.override_record_id}` : "";
+      return `- ${item.tool_id} ${item.tool_card_field} type=${item.provenance_type} source=${item.source_field_path} source_record=${item.source_record_id}${overrideRecord} value=${item.source_value_preview}`;
     })
   ];
 }

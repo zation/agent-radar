@@ -1,4 +1,5 @@
 import type { SourceRecord, ToolCard } from "../schema.js";
+import type { OverrideRecord } from "./normalizer.js";
 
 export interface ToolCardFieldValueProvenanceItem {
   tool_id: string;
@@ -7,7 +8,8 @@ export interface ToolCardFieldValueProvenanceItem {
   source_field_path: string;
   source_value_preview: string;
   normalized_value_preview: string;
-  provenance_type: "source_record";
+  provenance_type: "source_record" | "override_record";
+  override_record_id?: string;
 }
 
 export interface ToolCardFieldValueProvenance {
@@ -23,15 +25,17 @@ export interface ToolCardFieldValueProvenance {
 export function buildToolCardFieldValueProvenance(
   drafts: ToolCard[],
   sourceRecords: SourceRecord[],
-  generatedAt: string
+  generatedAt: string,
+  overrideRecords: OverrideRecord[] = []
 ): ToolCardFieldValueProvenance {
   const sourceRecordsById = new Map(sourceRecords.map((record) => [record.id, record]));
+  const overridesByToolId = groupOverridesByToolId(overrideRecords);
   const items = drafts.flatMap((draft) => {
     const sourceRecordId = draft.evidence_refs[0] ?? "";
     const sourceRecord = sourceRecordsById.get(sourceRecordId);
     if (!sourceRecord) return [];
 
-    return Object.entries(sourceRecord.raw_fields).flatMap(([field, sourceValue]) => {
+    const sourceItems = Object.entries(sourceRecord.raw_fields).flatMap(([field, sourceValue]) => {
       if (!(field in draft)) return [];
       const normalizedValue = draft[field as keyof ToolCard];
       return [
@@ -46,6 +50,24 @@ export function buildToolCardFieldValueProvenance(
         }
       ];
     });
+
+    const overrideItems = (overridesByToolId.get(draft.id) ?? []).flatMap((override) => {
+      if (!draft.evidence_refs.includes(override.id)) return [];
+      return [
+        {
+          tool_id: draft.id,
+          source_record_id: sourceRecord.id,
+          tool_card_field: String(override.field),
+          source_field_path: `override_records.${override.id}.new_value`,
+          source_value_preview: previewValue(override.new_value),
+          normalized_value_preview: previewValue(draft[override.field]),
+          provenance_type: "override_record" as const,
+          override_record_id: override.id
+        }
+      ];
+    });
+
+    return [...sourceItems, ...overrideItems];
   });
 
   return {
@@ -57,6 +79,14 @@ export function buildToolCardFieldValueProvenance(
     },
     items
   };
+}
+
+function groupOverridesByToolId(overrideRecords: OverrideRecord[]): Map<string, OverrideRecord[]> {
+  const grouped = new Map<string, OverrideRecord[]>();
+  for (const override of overrideRecords) {
+    grouped.set(override.target_id, [...(grouped.get(override.target_id) ?? []), override]);
+  }
+  return grouped;
 }
 
 function previewValue(value: unknown): string {

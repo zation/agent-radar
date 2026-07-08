@@ -75,7 +75,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeToolCardDrafts(options.outputDir, draftsBySource);
   const sourceRecords = [...recordsBySource.values()].flat();
   const toolCardDrafts = [...draftsBySource.values()].flat();
-  const fieldProvenance = buildToolCardFieldValueProvenance(toolCardDrafts, sourceRecords, now);
+  const fieldProvenance = buildToolCardFieldValueProvenance(toolCardDrafts, sourceRecords, now, overrideRecords);
   await writeFieldProvenance(options.outputDir, fieldProvenance);
   const existingToolCards = options.existingToolCards ?? seedToolCards;
   const duplicateReport = buildToolCardDuplicateReport(toolCardDrafts, existingToolCards, now);
