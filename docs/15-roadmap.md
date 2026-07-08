@@ -68,7 +68,7 @@
 - Tool Card validator 已支持 override evidence ref 审计：引用 `override-*` 时必须提供对应 Override Record 上下文。
 - Tool Card validator 已支持最小 URL 字段 evidence coverage：关键 URL 字段必须被 `source_urls` 覆盖，并在 validation artifact 中输出 error/warning summary。
 - Tool Card validator 已对非人工审核来源的 `permissions`、`security` 和 `maintenance` 缺少字段级 evidence refs 输出 warning，先建立关键字段 provenance coverage 信号。
-- 发布流水线已输出 `tool_card_field_provenance.json` schema-level artifact，按 `permissions`、`security` 和 `maintenance` 汇总字段级证据、人工审核覆盖和缺失项，并同步到 preview artifact manifest。
+- 发布流水线已输出 `tool_card_field_provenance.json` schema-level artifact，按 `permissions`、`security` 和 `maintenance` 汇总字段级证据、人工审核覆盖和缺失项，并同步到 preview artifact manifest 与 GitHub Actions preview summary。
 - 发布流水线已输出 `tool_card_url_validation.json` artifact；默认跳过外网可达性检查，设置 `AGENT_RADAR_CHECK_URLS=true` 时可执行 Tool Card URL HEAD/GET 检查，并把 summary 同步到 preview artifact manifest。
 - 发布流水线已输出 `mcp_tools.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`，Workers API 提供 `/api/mcp_manifest` 返回只读工具定义，并提供 `/api/mcp` 最小 MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和只读 `tools/call`。
 - Golden queries 已扩展到 v0.2 下限 10 条，覆盖 coding agent、agent framework、数据库 MCP、GitHub 和监控调试场景。

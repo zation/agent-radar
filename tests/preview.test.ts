@@ -230,6 +230,13 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
         quality_failure: 1
       }
     },
+    tool_card_field_provenance: {
+      cards_checked: 20,
+      fields_checked: 60,
+      covered: 12,
+      covered_by_manual_review: 45,
+      missing: 3
+    },
     checksums: {
       "data/manifest.json": "sha256:manifest",
       "data/provider_registry.json": "sha256:provider"
@@ -240,6 +247,7 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
   assert.match(markdown, /- Schema: `artifact_manifest\.v1`/);
   assert.match(markdown, /- Eval: 1\/3 using `deepseek-v4-flash`/);
   assert.match(markdown, /- Eval failure categories: `blocked_no_key=1`, `none=1`, `quality_failure=1`/);
+  assert.match(markdown, /- Tool Card field provenance: 57\/60 fields covered \(12 field refs, 45 manual review, 3 missing\)/);
   assert.match(markdown, /- Checksums: 2 files/);
 });
 
