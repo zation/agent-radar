@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildToolCardDuplicateReport } from "../src/ingestion/deduper.js";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 
 test("deduper reports draft matches against existing Tool Cards by id and canonical urls", () => {
-  const existing = seedToolCards.find((card) => card.id === "agent-codex");
+  const existing = reviewedToolCardFixtures.find((card) => card.id === "agent-codex");
   assert.ok(existing);
 
   const report = buildToolCardDuplicateReport(
@@ -27,7 +27,7 @@ test("deduper reports draft matches against existing Tool Cards by id and canoni
 });
 
 test("deduper reports duplicate signals between incoming drafts", () => {
-  const existing = seedToolCards.find((card) => card.id === "agent-codex");
+  const existing = reviewedToolCardFixtures.find((card) => card.id === "agent-codex");
   assert.ok(existing);
 
   const report = buildToolCardDuplicateReport(

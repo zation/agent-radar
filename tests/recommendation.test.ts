@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { createOpenAiRecommendationClient, normalizeApiKey, recommendTools, resolveModelRequest, type RecommendationLlmClient } from "../src/recommendation/engine.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 
-const ratings = rateAllToolCards(seedToolCards);
+const ratings = rateAllToolCards(reviewedToolCardFixtures);
 
 test("routes MiniMax model labels to the MiniMax chat completions endpoint", () => {
   assert.deepEqual(resolveModelRequest("MiniMax M3"), {
@@ -206,7 +206,7 @@ test("builds recommendations from an LLM client response", async () => {
       risk_tolerance: "medium",
       top_k: 3
     },
-    seedToolCards,
+    reviewedToolCardFixtures,
     ratings,
     { apiKey: "sk-test-secret", model: "gpt-4.1", client }
   );
@@ -243,7 +243,7 @@ test("does not allow the LLM to recommend unknown tool ids", async () => {
     }
   };
 
-  const result = await recommendTools({ task: "pick a tool" }, seedToolCards, ratings, {
+  const result = await recommendTools({ task: "pick a tool" }, reviewedToolCardFixtures, ratings, {
     apiKey: "sk-test-secret",
     model: "gpt-4.1",
     client
@@ -275,7 +275,7 @@ test("keeps high-risk LLM recommendations behind human approval", async () => {
     }
   };
 
-  const result = await recommendTools({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low" }, seedToolCards, ratings, {
+  const result = await recommendTools({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low" }, reviewedToolCardFixtures, ratings, {
     apiKey: "sk-test-secret",
     model: "gpt-4.1",
     client
@@ -312,7 +312,7 @@ test("adds local permission risks when LLM candidate risks omit tool card scopes
     }
   };
 
-  const result = await recommendTools({ task: "让 agent 打开本地网页并做截图验证", risk_tolerance: "medium" }, seedToolCards, ratings, {
+  const result = await recommendTools({ task: "让 agent 打开本地网页并做截图验证", risk_tolerance: "medium" }, reviewedToolCardFixtures, ratings, {
     apiKey: "sk-test-secret",
     model: "gpt-4.1",
     client
@@ -345,7 +345,7 @@ test("infers high-risk permissions for no reliable match queries", async () => {
     }
   };
 
-  const result = await recommendTools({ task: "自动处理线上支付退款并读取生产数据库", risk_tolerance: "low" }, seedToolCards, ratings, {
+  const result = await recommendTools({ task: "自动处理线上支付退款并读取生产数据库", risk_tolerance: "low" }, reviewedToolCardFixtures, ratings, {
     apiKey: "sk-test-secret",
     model: "gpt-4.1",
     client
@@ -385,7 +385,7 @@ test("recovers database MCP candidates when LLM over-rejects high-risk productio
       risk_tolerance: "low",
       preferred_tool_types: ["mcp"]
     },
-    seedToolCards,
+    reviewedToolCardFixtures,
     ratings,
     { apiKey: "sk-test-secret", model: "deepseek-v4-flash", client }
   );
@@ -424,7 +424,7 @@ test("recovers database MCP candidates when LLM avoids high-risk production data
       risk_tolerance: "low",
       preferred_tool_types: ["mcp"]
     },
-    seedToolCards,
+    reviewedToolCardFixtures,
     ratings,
     { apiKey: "sk-test-secret", model: "deepseek-v4-flash", client }
   );
@@ -461,7 +461,7 @@ test("recovers database MCP candidates when LLM asks for human review without ca
       risk_tolerance: "low",
       preferred_tool_types: ["mcp"]
     },
-    seedToolCards,
+    reviewedToolCardFixtures,
     ratings,
     { apiKey: "sk-test-secret", model: "deepseek-v4-flash", client }
   );
@@ -499,7 +499,7 @@ test("forces no reliable match for low-tolerance payment plus database operation
     }
   };
 
-  const result = await recommendTools({ task: "自动处理线上支付退款并读取生产数据库", risk_tolerance: "low" }, seedToolCards, ratings, {
+  const result = await recommendTools({ task: "自动处理线上支付退款并读取生产数据库", risk_tolerance: "low" }, reviewedToolCardFixtures, ratings, {
     apiKey: "sk-test-secret",
     model: "gpt-4.1",
     client

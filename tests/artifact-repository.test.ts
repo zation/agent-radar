@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createArtifactRepositoryFromText } from "../src/api/artifact-repository.js";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { buildSearchIndex } from "../src/search/index-builder.js";
 
 test("creates API repository from generated artifact text", () => {
-  const cards = [seedToolCards[0]];
+  const cards = [reviewedToolCardFixtures[0]];
   const ratings = rateAllToolCards(cards);
   const index = buildSearchIndex(cards, ratings);
   const repository = createArtifactRepositoryFromText({

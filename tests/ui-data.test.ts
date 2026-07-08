@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { createToolViewModels, loadUiArtifacts, parseJsonl } from "../src/ui/data.js";
 
@@ -11,14 +11,14 @@ test("parses JSONL records for browser-loaded artifacts", () => {
 });
 
 test("creates tool view models with ratings and default sort", () => {
-  const viewModels = createToolViewModels(seedToolCards, rateAllToolCards(seedToolCards));
+  const viewModels = createToolViewModels(reviewedToolCardFixtures, rateAllToolCards(reviewedToolCardFixtures));
 
   assert.equal(viewModels[0].rating.overall_score >= viewModels.at(-1)!.rating.overall_score, true);
   assert.ok(viewModels.every((model) => model.card.id === model.rating.tool_id));
 });
 
 test("loads source registry review requests for the review page", async () => {
-  const firstCard = seedToolCards[0];
+  const firstCard = reviewedToolCardFixtures[0];
   assert.ok(firstCard);
   const cards = `${JSON.stringify(firstCard)}\n`;
   const ratings = `${JSON.stringify(rateAllToolCards([firstCard])[0])}\n`;

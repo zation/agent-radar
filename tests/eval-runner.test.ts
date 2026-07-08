@@ -4,9 +4,9 @@ import { goldenQueries } from "../src/eval/golden-queries.js";
 import { createBlockedEvalSummary, runGoldenQueries } from "../src/eval/runner.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { RecommendationProviderError } from "../src/recommendation/engine.js";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 
-const ratings = rateAllToolCards(seedToolCards);
+const ratings = rateAllToolCards(reviewedToolCardFixtures);
 
 test("blocked eval summary records blocked_no_key category", () => {
   const summary = createBlockedEvalSummary(goldenQueries.slice(0, 1), "AGENT_RADAR_LLM_API_KEY is required.");
@@ -16,7 +16,7 @@ test("blocked eval summary records blocked_no_key category", () => {
 });
 
 test("golden query mismatches are marked as quality failures", async () => {
-  const summary = await runGoldenQueries(goldenQueries.slice(0, 1), seedToolCards, ratings, {
+  const summary = await runGoldenQueries(goldenQueries.slice(0, 1), reviewedToolCardFixtures, ratings, {
     apiKey: "sk-test-secret",
     model: "gpt-4.1",
     client: {
@@ -52,7 +52,7 @@ test("golden query mismatches are marked as quality failures", async () => {
 });
 
 test("provider errors are captured as provider_error eval results", async () => {
-  const summary = await runGoldenQueries(goldenQueries.slice(0, 1), seedToolCards, ratings, {
+  const summary = await runGoldenQueries(goldenQueries.slice(0, 1), reviewedToolCardFixtures, ratings, {
     apiKey: "sk-test-secret",
     model: "gpt-4.1",
     client: {
@@ -73,7 +73,7 @@ test("provider errors are captured as provider_error eval results", async () => 
 });
 
 test("unexpected recommendation parse errors are captured as schema_error eval results", async () => {
-  const summary = await runGoldenQueries(goldenQueries.slice(0, 1), seedToolCards, ratings, {
+  const summary = await runGoldenQueries(goldenQueries.slice(0, 1), reviewedToolCardFixtures, ratings, {
     apiKey: "sk-test-secret",
     model: "gpt-4.1",
     client: {

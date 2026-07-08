@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { RecommendationResult } from "../src/schema.js";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { createToolViewModels } from "../src/ui/data.js";
 import { createRecommendationItems, formatRecommendationApiError, parseRecommendationApiResponse } from "../src/ui/recommendation-view.js";
 
 test("creates selectable recommendation items with tool details", () => {
-  const tools = createToolViewModels(seedToolCards, rateAllToolCards(seedToolCards));
+  const tools = createToolViewModels(reviewedToolCardFixtures, rateAllToolCards(reviewedToolCardFixtures));
   const result: RecommendationResult = {
     id: "rec-test",
     schema_version: "recommendation_result.v1",

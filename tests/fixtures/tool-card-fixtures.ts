@@ -1,8 +1,8 @@
-import type { ToolCard } from "../schema.js";
+import type { ToolCard } from "../../src/schema.js";
 
 const now = "2026-07-06T00:00:00Z";
 
-export const seedToolCards: ToolCard[] = [
+export const reviewedToolCardFixtures: ToolCard[] = [
   {
     id: "skill-openai-docs",
     schema_version: "tool_card.v1",

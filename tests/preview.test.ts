@@ -22,7 +22,7 @@ const ingestionResult: RunIngestionResult = {
     items: [
       {
         source_id: "manual-agent-radar-seed",
-        source_url: "internal://manual-review/seed-tool-cards",
+        source_url: "internal://manual-review/tool-card-fixtures",
         collection_method: "manual",
         recommended_frequency: "manual",
         parser: "manual_seed_parser",
@@ -43,7 +43,7 @@ const ingestionResult: RunIngestionResult = {
     items: [
       {
         source_id: "manual-agent-radar-seed",
-        source_url: "internal://manual-review/seed-tool-cards",
+        source_url: "internal://manual-review/tool-card-fixtures",
         snapshot_id: "manual-agent-radar-seed-20260707-abc123",
         fetched_at: "2026-07-07T00:00:00Z",
         fetch_method: "manual",
@@ -60,7 +60,7 @@ const ingestionResult: RunIngestionResult = {
       id: "manual-agent-radar-seed-20260707-abc123",
       schema_version: "raw_snapshot.v1",
       source_id: "manual-agent-radar-seed",
-      source_url: "internal://manual-review/seed-tool-cards",
+      source_url: "internal://manual-review/tool-card-fixtures",
       fetched_at: "2026-07-07T00:00:00Z",
       fetch_method: "manual",
       status: "success",

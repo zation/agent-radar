@@ -3,7 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { buildArtifacts } from "../src/pipeline/build-artifacts.js";
 import type { ToolCard } from "../src/schema.js";
 
@@ -198,7 +198,7 @@ test("builds MVP data artifacts and an eval report", async () => {
 test("pipeline rejects invalid tool cards before publishing artifacts", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-"));
   const invalidCard: ToolCard = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "invalid-release-card",
     source_urls: [],
     evidence_refs: []
@@ -221,7 +221,7 @@ test("pipeline can run Tool Card URL reachability checks when enabled", async ()
   try {
     await buildArtifacts({
       outputDir,
-      toolCards: [seedToolCards[0]],
+      toolCards: [reviewedToolCardFixtures[0]],
       checkUrlReachability: true,
       fetchImpl
     });

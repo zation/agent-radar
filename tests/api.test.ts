@@ -2,16 +2,16 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createApiHandler } from "../src/api/handler.js";
 import { createStaticRepository } from "../src/api/repository.js";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { RecommendationProviderError } from "../src/recommendation/engine.js";
 import { buildSearchIndex } from "../src/search/index-builder.js";
 
-const ratings = rateAllToolCards(seedToolCards);
+const ratings = rateAllToolCards(reviewedToolCardFixtures);
 const repository = createStaticRepository({
-  cards: seedToolCards,
+  cards: reviewedToolCardFixtures,
   ratings,
-  index: buildSearchIndex(seedToolCards, ratings)
+  index: buildSearchIndex(reviewedToolCardFixtures, ratings)
 });
 const handler = createApiHandler(repository, {
   recommendationClient: {

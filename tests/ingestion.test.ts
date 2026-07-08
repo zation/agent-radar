@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { formatIngestionCliSummary } from "../src/cli/ingest-summary.js";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { crawlEnabledSources } from "../src/ingestion/crawler.js";
 import { buildToolDiscoveryCandidates } from "../src/ingestion/discovery-candidates.js";
 import { parseSnapshot } from "../src/ingestion/parser.js";
@@ -18,8 +18,8 @@ assert.ok(githubTopicSource);
 
 const manualTestSource: SourceDefinition = {
   id: "manual-agent-radar-seed",
-  name: "Agent Radar manually reviewed seed tools",
-  url: "internal://manual-review/seed-tool-cards",
+  name: "Agent Radar reviewed tool card fixtures",
+  url: "internal://manual-review/tool-card-fixtures",
   source_type: "manual",
   covered_tool_types: ["skill", "mcp", "agent"],
   collection_method: "manual",
@@ -590,7 +590,7 @@ test("ingestion writes tool card drafts from complete manual source records", as
       outputDir,
       now: "2026-07-08T00:00:00Z",
       sources: [manualTestSource],
-      existingToolCards: seedToolCards,
+      existingToolCards: reviewedToolCardFixtures,
       fetchImpl: () =>
         Promise.resolve(new Response(
           JSON.stringify({
@@ -1051,7 +1051,7 @@ test("ingestion promotes low risk GitHub repository drafts through auto review",
 
 test("release admission blocks approved drafts that duplicate other incoming drafts", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
-  const base = seedToolCards.find((card) => card.id === "agent-codex");
+  const base = reviewedToolCardFixtures.find((card) => card.id === "agent-codex");
   assert.ok(base);
 
   try {

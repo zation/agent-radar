@@ -1,21 +1,21 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { buildToolCardFieldProvenance, checkToolCardUrls, validateToolCards } from "../src/validation/tool-card-validator.js";
 import type { ToolCard } from "../src/schema.js";
 
-test("tool card validator accepts reviewed seed cards", () => {
-  const validation = validateToolCards(seedToolCards);
+test("tool card validator accepts reviewed fixture cards", () => {
+  const validation = validateToolCards(reviewedToolCardFixtures);
 
   assert.equal(validation.passed, true);
   assert.deepEqual(validation.errors, []);
   assert.deepEqual(validation.summary, { errors: 0, warnings: 0 });
-  assert.equal(validation.checked_count, seedToolCards.length);
+  assert.equal(validation.checked_count, reviewedToolCardFixtures.length);
 });
 
 test("tool card validator rejects cards missing release-quality fields", () => {
   const invalidCard: ToolCard = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "invalid-tool-card",
     source_urls: [],
     use_cases: [],
@@ -23,7 +23,7 @@ test("tool card validator rejects cards missing release-quality fields", () => {
     install_methods: [],
     permissions: [{ scope: "unknown", access: "unknown", required: true, notes: "" }],
     security: {
-      ...seedToolCards[0].security,
+      ...reviewedToolCardFixtures[0].security,
       risk_level: "unknown",
       security_notes: ""
     },
@@ -48,7 +48,7 @@ test("tool card validator rejects cards missing release-quality fields", () => {
 
 test("tool card validator accepts ISO UTC timestamps with milliseconds", () => {
   const card: ToolCard = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "millisecond-timestamp-card",
     last_checked_at: "2026-07-08T12:34:56.789Z",
     created_at: "2026-07-08T12:34:56.789Z",
@@ -62,7 +62,7 @@ test("tool card validator accepts ISO UTC timestamps with milliseconds", () => {
 
 test("tool card validator audits override evidence references", () => {
   const overrideEvidenceCard: ToolCard = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "override-evidence-card",
     evidence_refs: ["override-openai-docs-summary-20260708"]
   };
@@ -97,7 +97,7 @@ test("tool card validator audits override evidence references", () => {
 
 test("tool card validator requires URL fields to be covered by source URLs", () => {
   const card: ToolCard = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "url-field-evidence-card",
     source_urls: ["https://example.com/source"],
     docs_url: "https://example.com/docs",
@@ -124,7 +124,7 @@ test("tool card validator requires URL fields to be covered by source URLs", () 
 
 test("tool card validator warns when non-manual evidence lacks critical field coverage", () => {
   const card: ToolCard = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "field-provenance-card",
     evidence_refs: ["source-record-field-provenance-card"]
   };
@@ -139,12 +139,12 @@ test("tool card validator warns when non-manual evidence lacks critical field co
 
 test("builds schema-level field provenance for critical Tool Card fields", () => {
   const missingCard: ToolCard = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "field-provenance-missing-card",
     evidence_refs: ["source-record-field-provenance-card"]
   };
   const coveredCard: ToolCard = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "field-provenance-covered-card",
     evidence_refs: ["source-record-field-provenance-card", "field:permissions", "field:security:source-record-field-provenance-card", "source-record-field-provenance-card#maintenance"]
   };
@@ -193,7 +193,7 @@ test("tool card URL checker records reachable failed and skipped URLs", async ()
   };
 
   const card: ToolCard = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "url-reachability-card",
     source_urls: ["https://example.com/head-ok", "https://example.com/head-405", "https://example.com/missing", "internal://manual-review/source"],
     docs_url: "https://example.com/head-ok",

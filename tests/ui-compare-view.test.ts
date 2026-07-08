@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { buildCompareColumns } from "../src/ui/compare-view.js";
 import { createToolViewModels } from "../src/ui/data.js";
 
-const tools = createToolViewModels(seedToolCards, rateAllToolCards(seedToolCards));
+const tools = createToolViewModels(reviewedToolCardFixtures, rateAllToolCards(reviewedToolCardFixtures));
 
 test("builds compare columns from selected tool ids without duplicates", () => {
   const columns = buildCompareColumns(tools, [

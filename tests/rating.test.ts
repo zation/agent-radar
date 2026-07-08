@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { rateToolCard } from "../src/rating/engine.js";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import type { ToolCard } from "../src/schema.js";
 
 test("rates official low-risk skills as recommendable with explanations", () => {
-  const card = seedToolCards.find((tool) => tool.id === "skill-openai-docs")!;
+  const card = reviewedToolCardFixtures.find((tool) => tool.id === "skill-openai-docs")!;
   const rating = rateToolCard(card);
 
   assert.equal(rating.rules_version, "rating_rules.v0.1-draft");
@@ -17,7 +17,7 @@ test("rates official low-risk skills as recommendable with explanations", () => 
 
 test("downgrades unknown code execution tools to avoid", () => {
   const unsafeCard: ToolCard = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "unknown-code-execution-tool",
     name: "Unknown Code Execution Tool",
     type: "agent",
@@ -30,7 +30,7 @@ test("downgrades unknown code execution tools to avoid", () => {
       requires_human_approval: true,
       security_notes: "Source and execution boundary are unknown."
     },
-    maintenance: { ...seedToolCards[0].maintenance, status: "unknown", maintainer_type: "unknown" }
+    maintenance: { ...reviewedToolCardFixtures[0].maintenance, status: "unknown", maintainer_type: "unknown" }
   };
 
   const rating = rateToolCard(unsafeCard);

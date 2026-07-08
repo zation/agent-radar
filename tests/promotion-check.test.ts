@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { seedToolCards } from "../src/data/seed-tool-cards.js";
+import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { buildToolCardPromotionCheck } from "../src/ingestion/promotion-check.js";
 import type { ToolCardPromotionCandidates } from "../src/ingestion/promotion-candidates.js";
 
 const generatedAt = "2026-07-08T00:00:00Z";
 
 test("promotion check passes empty candidate artifact", () => {
-  const check = buildToolCardPromotionCheck(emptyCandidates(), seedToolCards, generatedAt);
+  const check = buildToolCardPromotionCheck(emptyCandidates(), reviewedToolCardFixtures, generatedAt);
 
   assert.equal(check.schema_version, "tool_card_promotion_check.v1");
   assert.equal(check.passed, true);
@@ -24,12 +24,12 @@ test("promotion check passes empty candidate artifact", () => {
 
 test("promotion check passes valid non-duplicate candidates", () => {
   const candidate = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     id: "skill-new-reviewed-docs",
     name: "New Reviewed Docs Skill",
     evidence_refs: ["manual-review-new-reviewed-docs"]
   };
-  const check = buildToolCardPromotionCheck(candidatesWithDraft(candidate), seedToolCards, generatedAt);
+  const check = buildToolCardPromotionCheck(candidatesWithDraft(candidate), reviewedToolCardFixtures, generatedAt);
 
   assert.equal(check.passed, true);
   assert.deepEqual(check.summary, {
@@ -53,11 +53,11 @@ test("promotion check passes valid non-duplicate candidates", () => {
 
 test("promotion check blocks duplicates and invalid candidate cards", () => {
   const duplicateAndInvalid = {
-    ...seedToolCards[0],
+    ...reviewedToolCardFixtures[0],
     source_urls: [],
     install_methods: []
   };
-  const check = buildToolCardPromotionCheck(candidatesWithDraft(duplicateAndInvalid), seedToolCards, generatedAt);
+  const check = buildToolCardPromotionCheck(candidatesWithDraft(duplicateAndInvalid), reviewedToolCardFixtures, generatedAt);
 
   assert.equal(check.passed, false);
   assert.equal(check.summary.candidates, 1);
@@ -66,7 +66,7 @@ test("promotion check blocks duplicates and invalid candidate cards", () => {
   assert.equal(check.summary.duplicate_tool_ids, 1);
   assert.equal(check.summary.validation_errors > 0, true);
   assert.equal(check.items[0]?.status, "blocked");
-  assert.deepEqual(check.items[0]?.duplicate_of_tool_ids, [seedToolCards[0].id]);
+  assert.deepEqual(check.items[0]?.duplicate_of_tool_ids, [reviewedToolCardFixtures[0].id]);
   assert.match(check.items[0]?.blocking_reasons.join("\n") ?? "", /duplicate_existing_tool_id/);
   assert.match(check.items[0]?.validation_errors.join("\n") ?? "", /source_urls is required/);
   assert.match(check.items[0]?.validation_errors.join("\n") ?? "", /install_methods is required/);
