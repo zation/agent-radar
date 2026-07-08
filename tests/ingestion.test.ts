@@ -447,7 +447,7 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
                 name: "New Tool",
                 type: "agent",
                 summary: "A newly reviewed coding agent draft.",
-                source_urls: ["https://example.com/new-tool"],
+                source_urls: ["https://example.com/new-tool", "https://example.com/new-tool/docs"],
                 docs_url: "https://example.com/new-tool/docs",
                 primary_purpose: "coding_agent",
                 use_cases: ["modify code", "run tests"],

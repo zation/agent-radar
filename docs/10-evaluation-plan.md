@@ -213,6 +213,11 @@ severity: critical
 | 过期率 | stale Tool Card / 全部 Tool Card | <= 20% |
 | 权限未知率 | permissions unknown / 全部 Tool Card | <= 15% |
 
+当前最小自动校验：
+
+- Tool Card release validator 要求 URL 字段被 `source_urls` 覆盖，包括 `docs_url`、`repo_url`、`homepage_url`、`package_urls` 和 `install_methods.docs_url`。
+- 更细的字段级 provenance 仍保留为后续增强，例如为 `permissions`、`security` 和 `maintenance` 绑定具体 Source Record 字段。
+
 关键字段：
 
 - `type`

@@ -9,6 +9,7 @@ test("tool card validator accepts reviewed seed cards", () => {
 
   assert.equal(validation.passed, true);
   assert.deepEqual(validation.errors, []);
+  assert.deepEqual(validation.summary, { errors: 0, warnings: 0 });
   assert.equal(validation.checked_count, seedToolCards.length);
 });
 
@@ -34,6 +35,7 @@ test("tool card validator rejects cards missing release-quality fields", () => {
   const validation = validateToolCards([invalidCard]);
 
   assert.equal(validation.passed, false);
+  assert.equal(validation.summary.errors > 0, true);
   assert.match(validation.errors.join("\n"), /invalid-tool-card: source_urls is required/);
   assert.match(validation.errors.join("\n"), /invalid-tool-card: use_cases is required/);
   assert.match(validation.errors.join("\n"), /invalid-tool-card: not_for is required/);
@@ -91,4 +93,31 @@ test("tool card validator audits override evidence references", () => {
   });
 
   assert.equal(auditedOverrideValidation.passed, true);
+});
+
+test("tool card validator requires URL fields to be covered by source URLs", () => {
+  const card: ToolCard = {
+    ...seedToolCards[0],
+    id: "url-field-evidence-card",
+    source_urls: ["https://example.com/source"],
+    docs_url: "https://example.com/docs",
+    repo_url: "https://example.com/repo",
+    package_urls: ["https://example.com/package"],
+    install_methods: [
+      {
+        method: "npm",
+        command: "npm install example",
+        docs_url: "https://example.com/install",
+        confidence: "high"
+      }
+    ]
+  };
+
+  const validation = validateToolCards([card]);
+
+  assert.equal(validation.passed, false);
+  assert.match(validation.errors.join("\n"), /url-field-evidence-card: docs_url must be included in source_urls/);
+  assert.match(validation.errors.join("\n"), /url-field-evidence-card: repo_url must be included in source_urls/);
+  assert.match(validation.errors.join("\n"), /url-field-evidence-card: package_urls must be included in source_urls/);
+  assert.match(validation.errors.join("\n"), /url-field-evidence-card: install_methods docs_url must be included in source_urls/);
 });

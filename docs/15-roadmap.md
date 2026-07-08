@@ -61,6 +61,7 @@
 - Source Registry validator 已检查 enabled source 是否包含 robots/terms 审核记录。
 - 发布流水线已输出 `tool_card_validation.json` artifact，并在 Tool Card validator 失败时阻断可靠 artifacts 生成。
 - Tool Card validator 已支持 override evidence ref 审计：引用 `override-*` 时必须提供对应 Override Record 上下文。
+- Tool Card validator 已支持最小 URL 字段 evidence coverage：关键 URL 字段必须被 `source_urls` 覆盖，并在 validation artifact 中输出 error/warning summary。
 - 发布流水线已输出 `mcp_tools.json`，Workers API 也提供 `/api/mcp_manifest` 返回只读工具定义。
 - Golden queries 已扩展到 v0.2 下限 10 条，覆盖 coding agent、agent framework、数据库 MCP、GitHub 和监控调试场景。
 - Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
@@ -69,7 +70,7 @@
 
 当前主要缺口：
 
-- Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和字段级证据质量。
+- Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和更细字段级证据质量。
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 review queue 和 approval records 尚未进入可靠发布数据。
 - 更完整 Source Registry validator、完整 Tool Card validator、跨来源 normalizer、跨来源 deduper 和人工 override 审核 UI 尚未完成。
@@ -353,7 +354,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
 - 把 `npm run ingest` 输出的 release admission 接入人工审核 UI 或可靠发布提升流程。
 - 扩展 Source Registry validator 的变更审计细节，例如字段级 review reason 和人工确认状态。
-- 扩展 Tool Card validator，覆盖字段级 evidence 和 URL 可达性。
+- 扩展 Tool Card validator，覆盖更细字段级 provenance 和 URL 可达性。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。
 - 使用真实 provider key 重跑 10 条 golden queries，并审查新增 case 的推荐质量。
 

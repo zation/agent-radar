@@ -59,7 +59,7 @@ npm run ingest
 - 完整跨来源 deduper、跨来源 normalizer 和人工 override 审核 UI。
 - 更完整的 Source Registry validator；当前已检查 enabled source 的 parser 覆盖、owner、`last_reviewed_at` 和 robots/terms 审核记录，并输出来源变更 diff artifact。
 - 完整的人工审核 UI 和 Tool Card drafts 发布准入流程。
-- 更完整的 Tool Card validator，包括 URL 可达性和字段级 evidence coverage；当前已支持 override evidence ref 对应 Override Record 的审计检查。
+- 更完整的 Tool Card validator，包括 URL 可达性和更细字段级 provenance；当前已支持 override evidence ref 对应 Override Record 的审计检查，并要求 `docs_url`、`repo_url`、`homepage_url`、`package_urls` 和 `install_methods.docs_url` 被 `source_urls` 覆盖。
 
 因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。
 

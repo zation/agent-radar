@@ -4,6 +4,10 @@ import type { OverrideRecord } from "../ingestion/normalizer.js";
 export interface ToolCardValidationResult {
   schema_version: "tool_card_validation.v1";
   checked_count: number;
+  summary: {
+    errors: number;
+    warnings: number;
+  };
   passed: boolean;
   errors: string[];
   warnings: string[];
@@ -25,12 +29,17 @@ export function validateToolCards(cards: ToolCard[], options: ToolCardValidation
 
     validateRequiredStrings(card, errors);
     validateReleaseQuality(card, errors, warnings);
+    validateUrlFieldEvidence(card, errors);
     validateOverrideEvidenceRefs(card, overrideIds, errors);
   }
 
   return {
     schema_version: "tool_card_validation.v1",
     checked_count: cards.length,
+    summary: {
+      errors: errors.length,
+      warnings: warnings.length
+    },
     passed: errors.length === 0,
     errors,
     warnings
@@ -77,6 +86,22 @@ function validateReleaseQuality(card: ToolCard, errors: string[], warnings: stri
       break;
     }
     if (!permission.notes.trim()) warnings.push(`${card.id}: permission ${permission.scope} is missing notes`);
+  }
+}
+
+function validateUrlFieldEvidence(card: ToolCard, errors: string[]): void {
+  const sourceUrls = new Set(card.source_urls);
+
+  if (card.docs_url && !sourceUrls.has(card.docs_url)) errors.push(`${card.id}: docs_url must be included in source_urls`);
+  if (card.repo_url && !sourceUrls.has(card.repo_url)) errors.push(`${card.id}: repo_url must be included in source_urls`);
+  if (card.homepage_url && !sourceUrls.has(card.homepage_url)) errors.push(`${card.id}: homepage_url must be included in source_urls`);
+
+  if (card.package_urls?.some((url) => !sourceUrls.has(url))) {
+    errors.push(`${card.id}: package_urls must be included in source_urls`);
+  }
+
+  if (card.install_methods.some((method) => method.docs_url && !sourceUrls.has(method.docs_url))) {
+    errors.push(`${card.id}: install_methods docs_url must be included in source_urls`);
   }
 }
 
