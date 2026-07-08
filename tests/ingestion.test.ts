@@ -174,6 +174,11 @@ test("ingestion writes tool card drafts from complete manual source records", as
     assert.equal(reviewQueue.schema_version, "tool_card_review_queue.v1");
     assert.equal(reviewQueue.summary.ready_for_review, 1);
     assert.equal(reviewQueue.items[0].source_record_id, "manual-agent-radar-seed-agent-codex-20260708");
+
+    const duplicateReport = JSON.parse(await readFile(join(outputDir, "data", "dedup", "tool_card_duplicates.json"), "utf8"));
+    assert.equal(duplicateReport.schema_version, "tool_card_duplicate_report.v1");
+    assert.equal(duplicateReport.summary.possible_duplicates, 1);
+    assert.deepEqual(duplicateReport.items[0].duplicate_of_tool_ids, ["agent-codex"]);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

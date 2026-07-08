@@ -1,5 +1,6 @@
 import type { SourceRecord, ToolCard } from "../schema.js";
 import { validateToolCards } from "../validation/tool-card-validator.js";
+import { findDuplicateToolIds } from "./deduper.js";
 
 export type ToolCardReviewStatus = "ready_for_review" | "blocked_validation";
 
@@ -61,15 +62,4 @@ function buildReviewQueueItem(draft: ToolCard, recordsById: Map<string, SourceRe
     validation_errors: validation.errors,
     validation_warnings: validation.warnings
   };
-}
-
-function findDuplicateToolIds(draft: ToolCard, existingToolCards: ToolCard[]): string[] {
-  const draftKeys = canonicalToolKeys(draft);
-  return existingToolCards.filter((card) => card.id === draft.id || canonicalToolKeys(card).some((key) => draftKeys.includes(key))).map((card) => card.id);
-}
-
-function canonicalToolKeys(card: ToolCard): string[] {
-  return [card.repo_url, card.homepage_url, card.docs_url, ...(card.package_urls ?? [])]
-    .filter((value): value is string => Boolean(value))
-    .map((value) => value.toLowerCase().replace(/\.git$/, "").replace(/\/$/, ""));
 }
