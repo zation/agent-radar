@@ -45,6 +45,7 @@
 - Provider 401/403、429、模型不可用和 JSON 输出异常已映射为稳定 API error code，并在 Recommend UI 中展示 provider/status 上下文。
 - Eval summary 和 markdown eval report 已输出 `failure_category`，可区分 `blocked_no_key`、`provider_error`、`schema_error` 和 `quality_failure`。
 - Preview artifact manifest 已汇总 eval failure categories，便于发布审核快速判断失败类型。
+- GitHub Actions preview summary 已展示 eval failure categories，便于 reviewer 不打开 JSON 也能看到失败类型分布。
 - Preview artifact manifest 已汇总 ingestion approval summary，便于发布审核快速确认 draft 审核状态。
 - Preview artifact manifest 和 ingestion review 已汇总 release admission summary，便于发布审核快速确认草稿发布准入状态。
 - 无 `AGENT_RADAR_LLM_API_KEY` 时，pipeline/eval 会生成 blocked eval summary，而不是运行旧本地推荐引擎。
@@ -373,7 +374,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 - 增加 1-2 个官方来源的 crawler/parser，保持 GitHub topics disabled 直到噪声评估完成。
 - 将 `provider_registry.json` 接入更完整的 provider 配置 UI；provider registry 版本号和 runtime config artifact 已实现。
 - 配置真实 MCP/Workers base URL，并把 `npm run mcp:smoke` 结果和 Worker deployment id 纳入发布审核；最小 MCP JSON-RPC endpoint、agent-facing examples artifact、deployment checklist 和可配置 smoke 命令已实现。
-- 将 eval failure category 汇总同步展示到 GitHub Actions 审核摘要中。
+- 继续扩展 GitHub Actions 审核摘要中的发布证据；eval failure category 汇总已展示。
 
 ### P2：可信度增强
 

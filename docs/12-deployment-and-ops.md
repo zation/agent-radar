@@ -242,7 +242,7 @@ GitHub Actions summary 应包含：
 - `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选；如果 Source Registry diff 包含字段级 review requirements，summary 会列出 source、field 和 review reason。
 - Cloudflare Pages preview URL。
 - MCP smoke 结果；如果未配置 `AGENT_RADAR_MCP_BASE_URL`，summary 会明确标注 skipped。
-- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、source registry diff summary、source registry review summary、Tool Card URL validation summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary 和 checksum 数量。
+- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary 和 checksum 数量。
 
 GitHub 配置要求：
 

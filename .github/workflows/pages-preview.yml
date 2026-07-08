@@ -75,10 +75,7 @@ jobs:
             printf '%s\n' "$DEPLOY_OUTPUT"
             echo '```'
             echo
-            echo "### Artifact Manifest"
-            echo
-            node -e 'const manifest = require("./dist-pages/artifact-manifest.json"); console.log(`- Schema: \`${manifest.schema_version}\``); console.log(`- Git SHA: \`${manifest.git_sha}\``); console.log(`- Data version: \`${manifest.data_version}\``); console.log(`- Eval: ${manifest.eval.passed}/${manifest.eval.total} using \`${manifest.eval.model}\``); console.log(`- Checksums: ${Object.keys(manifest.checksums).length} files`);'
-            echo
+            node dist/src/cli/render-artifact-summary.js
             echo "### MCP Smoke"
             echo
             if [ -f mcp-smoke-result.json ]; then

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { createPreviewBundle } from "../src/preview/bundle.js";
+import { renderArtifactManifestSummaryMarkdown } from "../src/preview/github-summary.js";
 import { renderIngestionReviewMarkdown } from "../src/preview/ingestion-review.js";
 import { buildArtifactManifest } from "../src/preview/manifest.js";
 import type { RunIngestionResult } from "../src/ingestion/run.js";
@@ -211,6 +212,35 @@ test("builds artifact manifest with checksums and eval summary", async () => {
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
+});
+
+test("renders artifact manifest summary with eval failure categories for GitHub Actions", () => {
+  const markdown = renderArtifactManifestSummaryMarkdown({
+    schema_version: "artifact_manifest.v1",
+    git_sha: "abc123",
+    built_at: "2026-07-07T00:00:00Z",
+    data_version: "data-test",
+    eval: {
+      passed: 1,
+      total: 3,
+      model: "deepseek-v4-flash",
+      failure_categories: {
+        none: 1,
+        blocked_no_key: 1,
+        quality_failure: 1
+      }
+    },
+    checksums: {
+      "data/manifest.json": "sha256:manifest",
+      "data/provider_registry.json": "sha256:provider"
+    }
+  });
+
+  assert.match(markdown, /### Artifact Manifest/);
+  assert.match(markdown, /- Schema: `artifact_manifest\.v1`/);
+  assert.match(markdown, /- Eval: 1\/3 using `deepseek-v4-flash`/);
+  assert.match(markdown, /- Eval failure categories: `blocked_no_key=1`, `none=1`, `quality_failure=1`/);
+  assert.match(markdown, /- Checksums: 2 files/);
 });
 
 test("creates preview bundle review assets and artifact manifest", async () => {
