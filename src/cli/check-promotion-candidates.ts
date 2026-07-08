@@ -5,7 +5,7 @@ const promotionCheckPath = process.argv[2] ?? "data/promotion_candidates/promoti
 const promotionCheck = JSON.parse(await readFile(promotionCheckPath, "utf8")) as ToolCardPromotionCheck;
 
 const summary = promotionCheck.summary;
-const message = `promotion check ${promotionCheck.passed ? "passed" : "failed"}: ${summary.ready_for_manual_merge} ready, ${summary.blocked} blocked, ${summary.validation_errors} validation errors, ${summary.validation_warnings} validation warnings`;
+const message = `promotion check ${promotionCheck.passed ? "passed" : "failed"}: ${summary.ready_for_publish} ready, ${summary.blocked} blocked, ${summary.validation_errors} validation errors, ${summary.validation_warnings} validation warnings`;
 
 if (!promotionCheck.passed) {
   console.error(message);

@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { seedToolCards } from "../data/seed-tool-cards.js";
 import type { RawSourceSnapshot, SourceDefinition } from "../schema.js";
 
 export interface CrawlEnabledSourcesOptions {
@@ -101,16 +100,7 @@ function buildSourceRequest(source: SourceDefinition): { url: string; headers: H
 }
 
 function createDefaultFetch(): typeof fetch {
-  return async (url) => {
-    const requestUrl = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
-    if (requestUrl === "internal://manual-review/seed-tool-cards") {
-      return new Response(JSON.stringify({ tools: seedToolCards }), {
-        status: 200,
-        headers: { "content-type": "application/json" }
-      });
-    }
-    return fetch(url);
-  };
+  return (url, init) => fetch(url, init);
 }
 
 function readSafeRequestMeta(headers: Headers): Record<string, string> {

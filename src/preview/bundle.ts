@@ -67,11 +67,11 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
   };
   manifest.promotion_plan = {
     candidates: options.ingestion.promotionPlan.summary.candidates,
-    manual_merge_required: options.ingestion.promotionPlan.summary.manual_merge_required
+    reliable_publish_ready: options.ingestion.promotionPlan.summary.reliable_publish_ready
   };
   manifest.promotion_check = {
     candidates: options.ingestion.promotionCheck.summary.candidates,
-    ready_for_manual_merge: options.ingestion.promotionCheck.summary.ready_for_manual_merge,
+    ready_for_publish: options.ingestion.promotionCheck.summary.ready_for_publish,
     blocked: options.ingestion.promotionCheck.summary.blocked,
     duplicate_tool_ids: options.ingestion.promotionCheck.summary.duplicate_tool_ids,
     validation_errors: options.ingestion.promotionCheck.summary.validation_errors,

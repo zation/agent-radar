@@ -75,11 +75,11 @@ function formatDiscoveryCandidates(candidates: NonNullable<ArtifactManifest["dis
 }
 
 function formatPromotionPlan(plan: NonNullable<ArtifactManifest["promotion_plan"]>): string {
-  const mergeStatus = plan.manual_merge_required ? "manual merge required" : "no manual merge required";
-  return `${plan.candidates} candidates, ${mergeStatus}`;
+  const publishStatus = plan.reliable_publish_ready ? "ready for reliable publish" : "no reliable publish candidates";
+  return `${plan.candidates} candidates, ${publishStatus}`;
 }
 
 function formatPromotionCheck(check: NonNullable<ArtifactManifest["promotion_check"]>): string {
   const status = check.passed ? "passed" : "failed";
-  return `${check.ready_for_manual_merge} ready, ${check.blocked} blocked, ${status}`;
+  return `${check.ready_for_publish} ready, ${check.blocked} blocked, ${status}`;
 }

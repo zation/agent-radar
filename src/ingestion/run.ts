@@ -17,13 +17,13 @@ import { buildToolCardPromotionPlan, type ToolCardPromotionPlan } from "./promot
 import { buildToolCardReleaseAdmission, type ToolCardReleaseAdmission } from "./release-admission.js";
 import { buildToolCardReviewQueue, type ToolCardReviewQueue } from "./review-queue.js";
 import { getEnabledSources, sourceRegistry } from "./source-registry.js";
-import { seedToolCards } from "../data/seed-tool-cards.js";
-import type { RawSourceSnapshot, SourceRecord, ToolCard } from "../schema.js";
+import type { RawSourceSnapshot, SourceDefinition, SourceRecord, ToolCard } from "../schema.js";
 
 export interface RunIngestionOptions {
   outputDir: string;
   now?: string;
   fetchImpl?: typeof fetch;
+  sources?: SourceDefinition[];
   existingToolCards?: ToolCard[];
   overrideRecords?: OverrideRecord[];
   approvalRecords?: ApprovalRecord[];
@@ -51,8 +51,9 @@ export interface RunIngestionResult {
 
 export async function runIngestion(options: RunIngestionOptions): Promise<RunIngestionResult> {
   const now = options.now ?? new Date().toISOString();
-  const enabledSources = getEnabledSources(sourceRegistry);
-  const crawlPlan = buildSourceCrawlPlan(sourceRegistry, now);
+  const registry = options.sources ?? sourceRegistry;
+  const enabledSources = getEnabledSources(registry);
+  const crawlPlan = buildSourceCrawlPlan(registry, now);
   await writeCrawlPlan(options.outputDir, crawlPlan);
   const snapshots = await crawlEnabledSources({
     sources: enabledSources,
@@ -85,7 +86,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   const toolCardDrafts = [...draftsBySource.values()].flat();
   const fieldProvenance = buildToolCardFieldValueProvenance(toolCardDrafts, sourceRecords, now, overrideRecords);
   await writeFieldProvenance(options.outputDir, fieldProvenance);
-  const existingToolCards = options.existingToolCards ?? seedToolCards;
+  const existingToolCards = options.existingToolCards ?? [];
   const duplicateReport = buildToolCardDuplicateReport(toolCardDrafts, existingToolCards, now);
   await writeDuplicateReport(options.outputDir, duplicateReport);
   const reviewQueue = buildToolCardReviewQueue(toolCardDrafts, sourceRecords, existingToolCards, now, approvalRecords);
@@ -241,15 +242,6 @@ async function writePromotionCandidates(outputDir: string, promotionCandidates: 
   const promotionCandidatesDir = join(outputDir, "data", "promotion_candidates");
   await mkdir(promotionCandidatesDir, { recursive: true });
   await writeFile(join(promotionCandidatesDir, "tool_cards.json"), JSON.stringify(promotionCandidates, null, 2), "utf8");
-  await writeFile(join(promotionCandidatesDir, "seed_tool_card_candidates.ts"), serializePromotionSeedCandidates(promotionCandidates), "utf8");
-}
-
-function serializePromotionSeedCandidates(promotionCandidates: ToolCardPromotionCandidates): string {
-  const drafts = promotionCandidates.items.map((item) => item.draft);
-  return `import type { ToolCard } from "../../src/schema.js";
-
-export const promotionSeedToolCardCandidates: ToolCard[] = ${JSON.stringify(drafts, null, 2)};
-`;
 }
 
 async function writePromotionPlan(outputDir: string, promotionPlan: ToolCardPromotionPlan): Promise<void> {

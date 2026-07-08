@@ -262,9 +262,9 @@ MVP 必须实现：
 - 部署在 Cloudflare Pages 上的公开站点。
 - Golden queries 和推荐质量评测。
 
-MVP 使用人工补全和手动触发更新，不做自动定时采集。
+MVP 使用人工复核和手动触发更新，不做自动定时采集。
 
-当前可靠发布路径仍是人工 seed：`npm run pipeline` 从 `src/data/seed-tool-cards.ts` 读取 Tool Cards 并生成 artifacts。`npm run ingest` 已提供 v0.2 最小采集草稿链路，可读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records，并生成 Tool Card drafts、最小 normalizer/deduper、人工 override artifact、approval/review/release admission、promotion candidates 和 promotion plan；但这些采集产物尚未自动进入可靠推荐发布数据。
+当前可靠发布路径已改为采集优先：`npm run pipeline` 默认读取 enabled Source Registry，抓取公开来源，生成 Source Records、Tool Card drafts、最小 normalizer/deduper、人工 override artifact、approval/review/release admission、promotion candidates 和 promotion plan，并把通过 promotion check 的候选生成可靠发布 artifacts。源码内的 seed Tool Cards 不再作为生产发布输入。
 
 反馈闭环不进入 MVP 可靠发布路径。后续引入反馈写接口时，应先输出反馈 records 和汇总报告，再进入 Review Summary 和评测；不得直接改写发布 artifacts。
 
@@ -295,9 +295,9 @@ MVP 使用人工补全和手动触发更新，不做自动定时采集。
 
 | 编号 | 能力 | 当前状态 | 主要输入 | 主要输出 | 验收方式 |
 | --- | --- | --- | --- | --- | --- |
-| FR-01 | 来源注册 | v0.2 草稿链路已可执行，发布 artifact 未接入 | 来源 URL 与元数据 | Source Registry | 字段检查、人工审核 |
+| FR-01 | 来源注册 | v0.2 采集发布链路已接入 | 来源 URL 与元数据 | Source Registry | 字段检查、人工审核 |
 | FR-02 | 原始快照 | v0.2 草稿链路已实现本地写入 | 来源响应 | Raw Snapshot | 哈希、时间戳、可回放 |
-| FR-03 | Tool Card | MVP 小样本已实现 | Source Record/人工种子数据 | 标准化卡片 | schema 校验、抽样审核 |
+| FR-03 | Tool Card | v0.2 默认由采集候选生成 | Source Record/审核证据/override | 标准化卡片 | schema 校验、抽样审核 |
 | FR-04 | 分类 | MVP 标签体系已用于 Tool Cards | Tool Card 字段 | 多维标签 | 分类规则测试 |
 | FR-05 | 评分 | `rating_rules.v0.1-draft` 已实现 | Tool Card、规则版本 | Rating Result | 单元测试、eval diff |
 | FR-06 | 搜索 | 已实现基础搜索/API/UI | 查询词、过滤器 | 搜索结果 | golden search cases |
@@ -314,7 +314,7 @@ MVP 使用人工补全和手动触发更新，不做自动定时采集。
 - 推荐能力不再维护本地关键词召回/排序引擎。`recommend_tools` 使用 BYOK LLM provider 生成推荐，本地代码负责 provider routing、prompt 上下文、schema 归一化、已知工具 ID 校验和高风险动作保护。
 - 当前支持 OpenAI、MiniMax 和 DeepSeek 的 OpenAI-compatible Chat Completions 路由。
 - 本地开发时 Vite dev server 已挂载 `/api/*`，与 Workers API 使用同一套 handler。
-- `npm run ingest` 已落地最小采集草稿链路；当前发布数据仍来自人工维护的 `seedToolCards`，采集产物进入 Tool Card 草稿和人工审核队列是 v0.2 后续工作。
+- `npm run ingest` 已落地最小采集草稿链路；`npm run pipeline` 默认消费通过 release admission 和 promotion check 的采集候选，生成可靠 Tool Card artifacts。
 - 没有 `AGENT_RADAR_LLM_API_KEY` 时，推荐 eval 输出 blocked summary；这不是推荐质量通过，只表示缺少真实 provider 运行条件。
 - MVP baseline 已用真实 provider key 跑通过 golden query 验证；后续风险转为数据覆盖、采集接入和 provider 错误分层。
 

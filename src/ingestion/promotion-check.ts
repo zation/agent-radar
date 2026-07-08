@@ -5,7 +5,7 @@ import type { ToolCardPromotionCandidates } from "./promotion-candidates.js";
 export interface ToolCardPromotionCheckItem {
   tool_id: string;
   source_record_id: string;
-  status: "ready_for_manual_merge" | "blocked";
+  status: "ready_for_publish" | "blocked";
   blocking_reasons: string[];
   duplicate_of_tool_ids: string[];
   validation_errors: string[];
@@ -18,7 +18,7 @@ export interface ToolCardPromotionCheck {
   passed: boolean;
   summary: {
     candidates: number;
-    ready_for_manual_merge: number;
+    ready_for_publish: number;
     blocked: number;
     duplicate_tool_ids: number;
     validation_errors: number;
@@ -44,7 +44,7 @@ export function buildToolCardPromotionCheck(
     return {
       tool_id: candidate.tool_id,
       source_record_id: candidate.source_record_id,
-      status: blockingReasons.length === 0 ? ("ready_for_manual_merge" as const) : ("blocked" as const),
+      status: blockingReasons.length === 0 ? ("ready_for_publish" as const) : ("blocked" as const),
       blocking_reasons: blockingReasons,
       duplicate_of_tool_ids: duplicateOfToolIds,
       validation_errors: validation.errors,
@@ -55,10 +55,10 @@ export function buildToolCardPromotionCheck(
   return {
     schema_version: "tool_card_promotion_check.v1",
     generated_at: generatedAt,
-    passed: items.every((item) => item.status === "ready_for_manual_merge"),
+    passed: items.every((item) => item.status === "ready_for_publish"),
     summary: {
       candidates: items.length,
-      ready_for_manual_merge: items.filter((item) => item.status === "ready_for_manual_merge").length,
+      ready_for_publish: items.filter((item) => item.status === "ready_for_publish").length,
       blocked: items.filter((item) => item.status === "blocked").length,
       duplicate_tool_ids: items.filter((item) => item.duplicate_of_tool_ids.length > 0).length,
       validation_errors: items.reduce((sum, item) => sum + item.validation_errors.length, 0),

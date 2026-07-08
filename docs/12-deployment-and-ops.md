@@ -68,11 +68,13 @@
 
 ### 当前实现
 
-当前本地 MVP 可靠发布流水线仍使用人工维护的 `src/data/seed-tool-cards.ts` 作为输入，生成评分、搜索索引、D1 seed SQL、golden query 数据和 eval report。`npm run ingest` 已提供 v0.2 采集草稿链路，但不会自动把采集结果发布为可靠 Tool Cards。
+当前本地 MVP 可靠发布流水线默认使用 enabled Source Registry 的采集结果作为输入，生成评分、搜索索引、D1 seed SQL、golden query 数据和 eval report。源码内的 seed Tool Cards 不再作为生产发布输入。
 
 ```text
-manual seed Tool Cards
-  -> validate TypeScript/schema shape
+enabled Source Registry
+  -> crawl/parse/normalize
+  -> release admission + promotion check
+  -> validate Tool Card schema
   -> rate
   -> build static index + D1 seed SQL
   -> run eval or blocked eval summary
@@ -80,7 +82,7 @@ manual seed Tool Cards
   -> Vite Web UI / Workers-style API reads artifacts
 ```
 
-当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、最小 normalizer、最小 deduper、人工 override artifact、Approval Request、review queue、auto review、release admission、promotion candidates、seed candidate snippet、promotion plan 和 promotion check dry-run，用于验证采集契约。Web UI 已可展示 Source Registry review confirmation requests，并生成可复制的 review record JSON 草稿。尚未实现的是完整跨来源 normalizer、完整跨来源 deduper、人工 override 审核 UI，以及 discovery/promotion candidates 到可靠发布 artifacts 的人工提升执行流程。
+当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、最小 normalizer、最小 deduper、人工 override artifact、Approval Request、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 已可展示 Source Registry review confirmation requests，并生成可复制的 review record JSON 草稿。尚未实现的是完整跨来源 normalizer、完整跨来源 deduper 和人工 override 审核 UI。
 
 ### 目标形态
 
@@ -99,7 +101,7 @@ MVP 不启用自动 schedule。维护者手动触发更新和发布。
 
 ## 发布产物
 
-发布产物由 `npm run pipeline` 在本地或 CI 中生成，默认不作为源码长期提交。源码仓库保留 Tool Card seed、golden queries、评分/推荐代码、schema、migration 和文档；`public/data`、`public/reports`、`dist`、`dist-pages` 属于可再生成产物，应作为 GitHub Actions artifacts、GitHub Release assets 或 Pages 部署输出保存。
+发布产物由 `npm run pipeline` 在本地或 CI 中生成，默认不作为源码长期提交。源码仓库保留 Source Registry、golden queries、评分/推荐代码、schema、migration 和文档；`public/data`、`public/reports`、`dist`、`dist-pages` 属于可再生成产物，应作为 GitHub Actions artifacts、GitHub Release assets 或 Pages 部署输出保存。
 
 | 产物 | 路径示例 | 用途 |
 | --- | --- | --- |
@@ -166,10 +168,10 @@ npm run dev -- --port 4173
 - `npm run pages:build`：构建 Cloudflare Pages 风格静态 UI，输出到本地 `dist-pages/`。
 - `npm run dev:with-data`：先运行 pipeline 生成本地发布产物，再启动 Vite dev server。
 - `npm run release:build`：运行测试、生成发布产物并构建 Pages 输出，适合 CI 或手动发布前使用。
-- `npm run promotion:check`：读取 `data/promotion_candidates/promotion_check.json`，如果 promotion candidate 与现有 seed 重复或未通过 Tool Card validator dry-run，则非 0 退出；preview workflow 会在部署前执行该 gate。
+- `npm run promotion:check`：读取 `data/promotion_candidates/promotion_check.json`，如果 promotion candidate 重复或未通过 Tool Card validator dry-run，则非 0 退出；preview workflow 会在部署前执行该 gate。
 - `npm run mcp:smoke`：当前对 `AGENT_RADAR_MCP_BASE_URL` 指向的已单独部署 MCP/Workers base URL 执行 JSON-RPC smoke test，覆盖 initialize、tools/list、只读 tools/call 和只读边界；完成 MCP server 部署后应优先使用 deploy output 自动传入的 base URL。
 - `npm run preview:build`：在 release build 后运行 ingest，把 artifact manifest 写入 `dist-pages/`，把审核报告写入 `artifacts/review/`，用于 Cloudflare Pages preview 和 GitHub Actions summary 审核。
-- `npm run dev -- --port 4173`：本地预览 Pages UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler。
+- `npm run dev -- --port 4173`：本地预览 Pages UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler；直接运行前需要已有 `public/data`，通常优先使用 `npm run dev:with-data`。
 
 LLM 推荐相关环境变量：
 
@@ -261,7 +263,7 @@ Preview deployment 应包含：
 
 GitHub Actions summary 应包含：
 
-- `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选；summary 会列出 discovery candidate 明细、approval request 模板、auto review 建议动作和 scorecard、release admission item 的 status/gate/blocking reasons；如果 Source Registry diff 包含字段级 review requirements，summary 会列出 source、field 和 review reason；如果存在 promotion candidates，summary 会列出候选 tool id、Source Record id、review gate、reviewer、review time、review reason、seed candidate snippet 路径和 promotion check 状态。
+- `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选；summary 会列出 discovery candidate 明细、approval request 模板、auto review 建议动作和 scorecard、release admission item 的 status/gate/blocking reasons；如果 Source Registry diff 包含字段级 review requirements，summary 会列出 source、field 和 review reason；如果存在 promotion candidates，summary 会列出候选 tool id、Source Record id、review gate、reviewer、review time、review reason、目标 artifact 和 promotion check 状态。
 - Cloudflare Pages preview URL。
 - MCP smoke 结果；如果未配置 `AGENT_RADAR_MCP_BASE_URL`，summary 会明确标注 skipped。
 - `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、eval failure categories、Source Registry review summary、Tool Card field provenance summary、crawl audit summary、ingestion approval summary、discovery candidates summary、approval requests summary、field value provenance summary、auto review summary、release admission summary、promotion candidates summary 和 checksum 数量。

@@ -346,23 +346,22 @@ const ingestionResult: RunIngestionResult = {
     generated_at: "2026-07-07T00:00:00Z",
     summary: {
       candidates: 1,
-      manual_merge_required: true
+      reliable_publish_ready: true
     },
     items: [
       {
         tool_id: "agent-codex",
         source_record_id: "manual-agent-radar-seed-agent-codex-20260707",
-        recommended_action: "manual_merge_to_seed_tool_cards",
-        target_file: "src/data/seed-tool-cards.ts",
+        recommended_action: "publish_via_reliable_pipeline",
+        target_artifact: "public/data/tool_cards.jsonl",
         candidate_artifact_path: "data/promotion_candidates/tool_cards.json",
-        seed_candidate_artifact_path: "data/promotion_candidates/seed_tool_card_candidates.ts",
         review: {
           gate: "manual_approval",
           reviewed_by: "maintainer",
           reviewed_at: "2026-07-07T12:00:00Z",
           reason: "Reviewed for preview."
         },
-        checks: ["Run npm run pipeline after manual merge."]
+        checks: ["Run npm run pipeline to rebuild reliable Tool Card artifacts from admitted candidates."]
       }
     ]
   },
@@ -372,7 +371,7 @@ const ingestionResult: RunIngestionResult = {
     passed: true,
     summary: {
       candidates: 1,
-      ready_for_manual_merge: 1,
+      ready_for_publish: 1,
       blocked: 0,
       duplicate_tool_ids: 0,
       validation_errors: 0,
@@ -382,7 +381,7 @@ const ingestionResult: RunIngestionResult = {
       {
         tool_id: "agent-codex",
         source_record_id: "manual-agent-radar-seed-agent-codex-20260707",
-        status: "ready_for_manual_merge",
+        status: "ready_for_publish",
         blocking_reasons: [],
         duplicate_of_tool_ids: [],
         validation_errors: [],
@@ -418,12 +417,12 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /agent-codex source_record=manual-agent-radar-seed-agent-codex-20260707 status=eligible_for_publish gate=manual_approval blocking_reasons=none/);
   assert.match(markdown, /agent-blocked source_record=manual-agent-radar-seed-agent-blocked-20260707 status=blocked gate=blocked blocking_reasons=approval_or_auto_review_not_passed,possible_duplicate/);
   assert.match(markdown, /Promotion candidates: 1/);
-  assert.match(markdown, /Promotion plan: 1 candidates, manual merge required/);
+  assert.match(markdown, /Promotion plan: 1 candidates, ready for reliable publish/);
   assert.match(markdown, /## Promotion Candidates/);
   assert.match(markdown, /agent-codex \(Codex\) source_record=manual-agent-radar-seed-agent-codex-20260707 gate=manual_approval reviewer=maintainer reviewed_at=2026-07-07T12:00:00Z/);
   assert.match(markdown, /review_reason=Reviewed for preview\./);
   assert.match(markdown, /## Promotion Plan/);
-  assert.match(markdown, /agent-codex target=src\/data\/seed-tool-cards\.ts action=manual_merge_to_seed_tool_cards candidate_artifact=data\/promotion_candidates\/tool_cards\.json seed_candidate_artifact=data\/promotion_candidates\/seed_tool_card_candidates\.ts/);
+  assert.match(markdown, /agent-codex target=public\/data\/tool_cards\.jsonl action=publish_via_reliable_pipeline candidate_artifact=data\/promotion_candidates\/tool_cards\.json/);
 });
 
 test("builds artifact manifest with checksums and eval summary", async () => {
@@ -543,11 +542,11 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
     },
     promotion_plan: {
       candidates: 2,
-      manual_merge_required: true
+      reliable_publish_ready: true
     },
     promotion_check: {
       candidates: 2,
-      ready_for_manual_merge: 1,
+      ready_for_publish: 1,
       blocked: 1,
       duplicate_tool_ids: 1,
       validation_errors: 2,
@@ -575,7 +574,7 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
   assert.match(markdown, /- Release admission: 2 eligible, 18 blocked/);
   assert.match(markdown, /- Discovery candidates: 3 candidates, 3 pending manual review/);
   assert.match(markdown, /- Promotion candidates: 2/);
-  assert.match(markdown, /- Promotion plan: 2 candidates, manual merge required/);
+  assert.match(markdown, /- Promotion plan: 2 candidates, ready for reliable publish/);
   assert.match(markdown, /- Promotion check: 1 ready, 1 blocked, failed/);
   assert.match(markdown, /- Checksums: 2 files/);
 });
@@ -681,8 +680,8 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       release_admission: { eligible_for_publish: number; blocked: number };
       discovery_candidates: { candidates: number; pending_manual_review: number };
       promotion_candidates: { candidates: number };
-      promotion_plan: { candidates: number; manual_merge_required: boolean };
-      promotion_check: { candidates: number; ready_for_manual_merge: number; blocked: number; duplicate_tool_ids: number; validation_errors: number; validation_warnings: number; passed: boolean };
+      promotion_plan: { candidates: number; reliable_publish_ready: boolean };
+      promotion_check: { candidates: number; ready_for_publish: number; blocked: number; duplicate_tool_ids: number; validation_errors: number; validation_warnings: number; passed: boolean };
     };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
@@ -704,10 +703,10 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 1 });
     assert.deepEqual(artifactManifest.discovery_candidates, { candidates: 1, pending_manual_review: 1 });
     assert.deepEqual(artifactManifest.promotion_candidates, { candidates: 1 });
-    assert.deepEqual(artifactManifest.promotion_plan, { candidates: 1, manual_merge_required: true });
+    assert.deepEqual(artifactManifest.promotion_plan, { candidates: 1, reliable_publish_ready: true });
     assert.deepEqual(artifactManifest.promotion_check, {
       candidates: 1,
-      ready_for_manual_merge: 1,
+      ready_for_publish: 1,
       blocked: 0,
       duplicate_tool_ids: 0,
       validation_errors: 0,

@@ -13,7 +13,7 @@ test("promotion check passes empty candidate artifact", () => {
   assert.equal(check.passed, true);
   assert.deepEqual(check.summary, {
     candidates: 0,
-    ready_for_manual_merge: 0,
+    ready_for_publish: 0,
     blocked: 0,
     duplicate_tool_ids: 0,
     validation_errors: 0,
@@ -34,7 +34,7 @@ test("promotion check passes valid non-duplicate candidates", () => {
   assert.equal(check.passed, true);
   assert.deepEqual(check.summary, {
     candidates: 1,
-    ready_for_manual_merge: 1,
+    ready_for_publish: 1,
     blocked: 0,
     duplicate_tool_ids: 0,
     validation_errors: 0,
@@ -43,7 +43,7 @@ test("promotion check passes valid non-duplicate candidates", () => {
   assert.deepEqual(check.items[0], {
     tool_id: "skill-new-reviewed-docs",
     source_record_id: "source-record-skill-new-reviewed-docs",
-    status: "ready_for_manual_merge",
+    status: "ready_for_publish",
     blocking_reasons: [],
     duplicate_of_tool_ids: [],
     validation_errors: [],
@@ -61,7 +61,7 @@ test("promotion check blocks duplicates and invalid candidate cards", () => {
 
   assert.equal(check.passed, false);
   assert.equal(check.summary.candidates, 1);
-  assert.equal(check.summary.ready_for_manual_merge, 0);
+  assert.equal(check.summary.ready_for_publish, 0);
   assert.equal(check.summary.blocked, 1);
   assert.equal(check.summary.duplicate_tool_ids, 1);
   assert.equal(check.summary.validation_errors > 0, true);

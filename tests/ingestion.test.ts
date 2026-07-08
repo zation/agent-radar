@@ -11,15 +11,43 @@ import { parseSnapshot } from "../src/ingestion/parser.js";
 import { runIngestion } from "../src/ingestion/run.js";
 import { buildSourceRegistryReviewArtifact, buildSourceRegistryReviewRequests } from "../src/ingestion/source-review.js";
 import { buildSourceRegistryDiff, getEnabledSources, sourceRegistry, validateSourceRegistry } from "../src/ingestion/source-registry.js";
+import type { SourceDefinition } from "../src/schema.js";
+
+const githubTopicSource = sourceRegistry.find((source) => source.id === "github-topic-mcp");
+assert.ok(githubTopicSource);
+
+const manualTestSource: SourceDefinition = {
+  id: "manual-agent-radar-seed",
+  name: "Agent Radar manually reviewed seed tools",
+  url: "internal://manual-review/seed-tool-cards",
+  source_type: "manual",
+  covered_tool_types: ["skill", "mcp", "agent"],
+  collection_method: "manual",
+  recommended_frequency: "manual",
+  trust_level: "official",
+  field_coverage: ["name", "type", "source_urls", "use_cases", "not_for", "permissions", "security", "confidence"],
+  rate_limits: "local manual source",
+  terms_notes: "Uses test-maintained seed data with explicit source URLs on each Tool Card.",
+  access_review: {
+    robots_txt: "not_applicable",
+    terms: "reviewed",
+    reviewed_by: "agent-radar",
+    reviewed_at: "2026-07-07T00:00:00Z",
+    notes: "Internal test source; source URLs on Tool Cards remain the public evidence boundary."
+  },
+  parser: "manual_seed_parser",
+  failure_policy: "failure blocks only ingestion draft generation",
+  enabled: true,
+  owner: "agent-radar",
+  last_reviewed_at: "2026-07-07T00:00:00Z"
+};
 
 test("source registry exposes only enabled MVP sources", () => {
   const enabled = getEnabledSources(sourceRegistry);
 
-  assert.deepEqual(enabled.map((source) => source.id), ["manual-agent-radar-seed", "github-topic-mcp"]);
-  assert.equal(enabled[0]?.collection_method, "manual");
-  assert.equal(enabled[0]?.trust_level, "official");
-  assert.equal(enabled[1]?.collection_method, "api");
-  assert.equal(enabled[1]?.parser, "github_topic_parser");
+  assert.deepEqual(enabled.map((source) => source.id), ["github-topic-mcp"]);
+  assert.equal(enabled[0]?.collection_method, "api");
+  assert.equal(enabled[0]?.parser, "github_topic_parser");
 });
 
 test("ingestion CLI summary includes approval and release gates", () => {
@@ -32,8 +60,8 @@ test("ingestion CLI summary includes approval and release gates", () => {
     autoReview: { summary: { promote: 1, keep_draft: 0, needs_review: 1, reject: 0, retire: 0 } },
     releaseAdmission: { summary: { eligible_for_publish: 1, blocked: 1 } },
     promotionCandidates: { summary: { candidates: 1 } },
-    promotionPlan: { summary: { candidates: 1, manual_merge_required: true } },
-    promotionCheck: { passed: false, summary: { ready_for_manual_merge: 0, blocked: 1, validation_errors: 2, validation_warnings: 3 } }
+    promotionPlan: { summary: { candidates: 1, reliable_publish_ready: true } },
+    promotionCheck: { passed: false, summary: { ready_for_publish: 0, blocked: 1, validation_errors: 2, validation_warnings: 3 } }
   });
 
   assert.deepEqual(summary, {
@@ -67,11 +95,11 @@ test("ingestion CLI summary includes approval and release gates", () => {
     promotion_candidates: 1,
     promotion_plan: {
       candidates: 1,
-      manual_merge_required: true
+      reliable_publish_ready: true
     },
     promotion_check: {
       passed: false,
-      ready_for_manual_merge: 0,
+      ready_for_publish: 0,
       blocked: 1,
       validation_errors: 2,
       validation_warnings: 3
@@ -82,7 +110,7 @@ test("ingestion CLI summary includes approval and release gates", () => {
 test("source registry validator rejects unsafe enabled sources", () => {
   const errors = validateSourceRegistry([
     {
-      ...sourceRegistry[1],
+      ...githubTopicSource,
       enabled: true,
       parser: undefined,
       terms_notes: "",
@@ -98,7 +126,7 @@ test("source registry validator rejects unsafe enabled sources", () => {
 test("source registry validator rejects enabled sources without parser coverage", () => {
   const errors = validateSourceRegistry([
     {
-      ...sourceRegistry[1],
+      ...githubTopicSource,
       enabled: true,
       parser: "unknown_parser"
     }
@@ -145,7 +173,7 @@ test("github topic parser creates repository source records from API payloads", 
         content_hash: "sha256:test",
         content_path: contentPath
       },
-      sourceRegistry[1],
+      githubTopicSource,
       outputDir,
       "2026-07-08T00:00:00Z"
     );
@@ -222,43 +250,47 @@ test("discovery candidates summarize repository source records for manual review
 test("source registry validator rejects enabled sources without review owner", () => {
   const errors = validateSourceRegistry([
     {
-      ...sourceRegistry[0],
+      ...githubTopicSource,
       owner: ""
     }
   ]);
 
-  assert.match(errors.join("\n"), /manual-agent-radar-seed: enabled source requires owner/);
+  assert.match(errors.join("\n"), /github-topic-mcp: enabled source requires owner/);
 });
 
 test("source registry validator rejects enabled sources without robots and terms review", () => {
   const errors = validateSourceRegistry([
     {
-      ...sourceRegistry[0],
+      ...githubTopicSource,
       access_review: undefined
     }
   ]);
 
-  assert.match(errors.join("\n"), /manual-agent-radar-seed: enabled source requires robots review/);
-  assert.match(errors.join("\n"), /manual-agent-radar-seed: enabled source requires terms review/);
+  assert.match(errors.join("\n"), /github-topic-mcp: enabled source requires robots review/);
+  assert.match(errors.join("\n"), /github-topic-mcp: enabled source requires terms review/);
 });
 
 test("source registry diff records added removed and changed source ids", () => {
   const diff = buildSourceRegistryDiff(
     [
-      sourceRegistry[0],
       {
-        ...sourceRegistry[1],
+        ...githubTopicSource,
+        enabled: false
+      },
+      {
+        ...githubTopicSource,
+        id: "removed-source",
         enabled: false
       }
     ],
     [
       {
-        ...sourceRegistry[0],
+        ...githubTopicSource,
         enabled: false,
-        last_reviewed_at: "2026-07-08T00:00:00Z"
+        last_reviewed_at: "2026-07-09T00:00:00Z"
       },
       {
-        ...sourceRegistry[1],
+        ...githubTopicSource,
         id: "new-official-source",
         enabled: false
       }
@@ -269,23 +301,17 @@ test("source registry diff records added removed and changed source ids", () => 
   assert.equal(diff.schema_version, "source_registry_diff.v1");
   assert.deepEqual(diff.summary, { added: 1, removed: 1, changed: 1 });
   assert.deepEqual(diff.added.map((source) => source.id), ["new-official-source"]);
-  assert.deepEqual(diff.removed.map((source) => source.id), ["github-topic-mcp"]);
-  assert.deepEqual(diff.changed[0]?.changed_fields, ["enabled", "last_reviewed_at"]);
-  assert.deepEqual(diff.changed[0]?.review_requirements, [
-    {
-      field: "enabled",
-      reason: "Source enablement changes crawl scope and require maintainer confirmation.",
-      confirmation_required: true
-    }
-  ]);
+  assert.deepEqual(diff.removed.map((source) => source.id), ["removed-source"]);
+  assert.deepEqual(diff.changed[0]?.changed_fields, ["last_reviewed_at"]);
+  assert.deepEqual(diff.changed[0]?.review_requirements, []);
 });
 
 test("source registry review artifact tracks pending and confirmed requirements", () => {
   const diff = buildSourceRegistryDiff(
-    [sourceRegistry[1]],
+    [githubTopicSource],
     [
       {
-        ...sourceRegistry[1],
+        ...githubTopicSource,
         enabled: true,
         parser: "github_topic_parser",
         trust_level: "official",
@@ -326,10 +352,10 @@ test("source registry review artifact tracks pending and confirmed requirements"
 
 test("source registry review requests provide templates for pending requirements", () => {
   const diff = buildSourceRegistryDiff(
-    [sourceRegistry[1]],
+    [githubTopicSource],
     [
       {
-        ...sourceRegistry[1],
+        ...githubTopicSource,
         enabled: true,
         parser: "github_topic_parser",
         trust_level: "official",
@@ -376,31 +402,31 @@ test("crawler saves immutable raw snapshots without request secrets", async () =
 
   try {
     const [snapshot] = await crawlEnabledSources({
-      sources: getEnabledSources(sourceRegistry),
+      sources: [githubTopicSource],
       outputDir,
       now: "2026-07-07T00:00:00Z",
       fetchImpl: (_url, init) => {
         const headers = new Headers(init?.headers);
         assert.equal(headers.get("authorization"), null);
         return Promise.resolve(
-          new Response(JSON.stringify({ tools: [{ id: "agent-codex", name: "Codex" }] }), {
+          new Response(JSON.stringify({ items: [{ full_name: "modelcontextprotocol/servers", html_url: "https://github.com/modelcontextprotocol/servers" }] }), {
             status: 200,
-            headers: { "content-type": "application/json", etag: "seed-v1" }
+            headers: { "content-type": "application/json", etag: "topic-v1" }
           })
         );
       }
     });
 
     assert.equal(snapshot?.schema_version, "raw_snapshot.v1");
-    assert.equal(snapshot?.source_id, "manual-agent-radar-seed");
+    assert.equal(snapshot?.source_id, "github-topic-mcp");
     assert.equal(snapshot?.status, "success");
     assert.match(snapshot?.content_hash ?? "", /^sha256:/);
     assert.ok(snapshot?.content_path.endsWith(".json"));
-    assert.deepEqual(snapshot?.request_meta, { etag: "seed-v1" });
+    assert.deepEqual(snapshot?.request_meta, { etag: "topic-v1" });
 
     const content = await readFile(join(outputDir, snapshot?.content_path ?? ""), "utf8");
     const meta = JSON.parse(await readFile(join(outputDir, `${snapshot?.content_path}.meta.json`), "utf8")) as { request_meta: Record<string, string> };
-    assert.match(content, /agent-codex/);
+    assert.match(content, /modelcontextprotocol/);
     assert.equal(JSON.stringify(meta).includes("authorization"), false);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
@@ -412,7 +438,7 @@ test("crawler fetches GitHub topic sources through public search API without sec
 
   try {
     const [snapshot] = await crawlEnabledSources({
-      sources: [sourceRegistry[1]],
+      sources: [githubTopicSource],
       outputDir,
       now: "2026-07-08T00:00:00Z",
       fetchImpl: (url, init) => {
@@ -462,25 +488,23 @@ test("ingestion writes a crawl plan for enabled sources", async () => {
       outputDir,
       now: "2026-07-08T00:00:00Z",
       fetchImpl: () =>
-        Promise.resolve(new Response(JSON.stringify({ tools: [] }), { status: 200, headers: { "content-type": "application/json" } }))
+        Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200, headers: { "content-type": "application/json" } }))
     });
 
     assert.equal(result.crawlPlan.schema_version, "source_crawl_plan.v1");
-    assert.equal(result.crawlPlan.summary.total, 2);
+    assert.equal(result.crawlPlan.summary.total, 1);
     assert.equal(result.crawlPlan.summary.disabled, 0);
-    assert.equal(result.crawlPlan.items[0]?.source_id, "manual-agent-radar-seed");
+    assert.equal(result.crawlPlan.items[0]?.source_id, "github-topic-mcp");
     assert.equal(result.crawlPlan.items[0]?.status, "ready");
-    assert.equal(result.crawlPlan.items[0]?.parser, "manual_seed_parser");
-    assert.equal(result.crawlPlan.items[1]?.source_id, "github-topic-mcp");
-    assert.equal(result.crawlPlan.items[1]?.status, "ready");
+    assert.equal(result.crawlPlan.items[0]?.parser, "github_topic_parser");
 
     const crawlPlan = JSON.parse(await readFile(join(outputDir, "data", "crawl_plan", "source_crawl_plan.json"), "utf8")) as {
       schema_version: string;
       items: Array<{ source_id: string; status: string }>;
     };
     assert.equal(crawlPlan.schema_version, "source_crawl_plan.v1");
-    assert.equal(crawlPlan.items[0]?.source_id, "manual-agent-radar-seed");
-    assert.equal(crawlPlan.items[1]?.status, "ready");
+    assert.equal(crawlPlan.items[0]?.source_id, "github-topic-mcp");
+    assert.equal(crawlPlan.items[0]?.status, "ready");
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
@@ -494,14 +518,14 @@ test("ingestion writes crawl audit log from snapshots", async () => {
       outputDir,
       now: "2026-07-08T00:00:00Z",
       fetchImpl: () =>
-        Promise.resolve(new Response(JSON.stringify({ tools: [] }), { status: 200, headers: { "content-type": "application/json", etag: "audit-v1" } }))
+        Promise.resolve(new Response(JSON.stringify({ items: [] }), { status: 200, headers: { "content-type": "application/json", etag: "audit-v1" } }))
     });
 
     assert.equal(result.crawlAudit.schema_version, "crawl_audit.v1");
-    assert.equal(result.crawlAudit.summary.success, 2);
-    assert.equal(result.crawlAudit.items[0]?.source_id, "manual-agent-radar-seed");
+    assert.equal(result.crawlAudit.summary.success, 1);
+    assert.equal(result.crawlAudit.items[0]?.source_id, "github-topic-mcp");
     assert.equal(result.crawlAudit.items[0]?.status, "success");
-    assert.equal(result.crawlAudit.items[0]?.fetch_method, "manual");
+    assert.equal(result.crawlAudit.items[0]?.fetch_method, "api");
     assert.match(result.crawlAudit.items[0]?.content_hash ?? "", /^sha256:/);
     assert.deepEqual(result.crawlAudit.items[0]?.request_meta, { etag: "audit-v1" });
 
@@ -511,8 +535,8 @@ test("ingestion writes crawl audit log from snapshots", async () => {
       items: Array<{ source_id: string; status: string }>;
     };
     assert.equal(audit.schema_version, "crawl_audit.v1");
-    assert.equal(audit.summary.success, 2);
-    assert.equal(audit.items[0]?.source_id, "manual-agent-radar-seed");
+    assert.equal(audit.summary.success, 1);
+    assert.equal(audit.items[0]?.source_id, "github-topic-mcp");
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
@@ -525,6 +549,7 @@ test("ingestion parses manual seed snapshots into source records", async () => {
     const result = await runIngestion({
       outputDir,
       now: "2026-07-07T00:00:00Z",
+      sources: [manualTestSource],
       fetchImpl: () =>
         Promise.resolve(new Response(
           JSON.stringify({
@@ -541,7 +566,7 @@ test("ingestion parses manual seed snapshots into source records", async () => {
         ))
     });
 
-    assert.equal(result.snapshots.length, 2);
+    assert.equal(result.snapshots.length, 1);
     assert.equal(result.sourceRecords.length, 1);
     assert.equal(result.sourceRecords[0]?.schema_version, "source_record.v1");
     assert.equal(result.sourceRecords[0]?.source_id, "manual-agent-radar-seed");
@@ -564,6 +589,8 @@ test("ingestion writes tool card drafts from complete manual source records", as
     const result = await runIngestion({
       outputDir,
       now: "2026-07-08T00:00:00Z",
+      sources: [manualTestSource],
+      existingToolCards: seedToolCards,
       fetchImpl: () =>
         Promise.resolve(new Response(
           JSON.stringify({
@@ -716,6 +743,7 @@ test("ingestion applies override records to draft normalization artifacts", asyn
     const result = await runIngestion({
       outputDir,
       now: "2026-07-08T00:00:00Z",
+      sources: [manualTestSource],
       overrideRecords: [
         {
           id: "override-agent-codex-summary-20260708",
@@ -835,6 +863,7 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     const result = await runIngestion({
       outputDir,
       now: "2026-07-08T00:00:00Z",
+      sources: [manualTestSource],
       existingToolCards: [],
       approvalRecords: [
         {
@@ -904,16 +933,15 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.equal(result.promotionCandidates.items[0]?.review.reviewed_by, "maintainer");
     assert.equal(result.promotionCandidates.items[0]?.draft.id, "agent-new-tool");
     assert.equal(result.promotionPlan.schema_version, "tool_card_promotion_plan.v1");
-    assert.deepEqual(result.promotionPlan.summary, { candidates: 1, manual_merge_required: true });
+    assert.deepEqual(result.promotionPlan.summary, { candidates: 1, reliable_publish_ready: true });
     assert.equal(result.promotionPlan.items[0]?.tool_id, "agent-new-tool");
-    assert.equal(result.promotionPlan.items[0]?.target_file, "src/data/seed-tool-cards.ts");
-    assert.equal(result.promotionPlan.items[0]?.recommended_action, "manual_merge_to_seed_tool_cards");
-    assert.equal(result.promotionPlan.items[0]?.seed_candidate_artifact_path, "data/promotion_candidates/seed_tool_card_candidates.ts");
+    assert.equal(result.promotionPlan.items[0]?.target_artifact, "public/data/tool_cards.jsonl");
+    assert.equal(result.promotionPlan.items[0]?.recommended_action, "publish_via_reliable_pipeline");
     assert.equal(result.promotionCheck.schema_version, "tool_card_promotion_check.v1");
     assert.equal(result.promotionCheck.passed, true);
     assert.deepEqual(result.promotionCheck.summary, {
       candidates: 1,
-      ready_for_manual_merge: 1,
+      ready_for_publish: 1,
       blocked: 0,
       duplicate_tool_ids: 0,
       validation_errors: 0,
@@ -937,30 +965,23 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.equal(promotionCandidates.items[0]?.draft.id, "agent-new-tool");
     const promotionPlan = JSON.parse(await readFile(join(outputDir, "data", "promotion_candidates", "promotion_plan.json"), "utf8")) as {
       schema_version: string;
-      summary: { candidates: number; manual_merge_required: boolean };
-      items: Array<{ tool_id: string; target_file: string; candidate_artifact_path: string; seed_candidate_artifact_path: string }>;
+      summary: { candidates: number; reliable_publish_ready: boolean };
+      items: Array<{ tool_id: string; target_artifact: string; candidate_artifact_path: string }>;
     };
     assert.equal(promotionPlan.schema_version, "tool_card_promotion_plan.v1");
-    assert.deepEqual(promotionPlan.summary, { candidates: 1, manual_merge_required: true });
+    assert.deepEqual(promotionPlan.summary, { candidates: 1, reliable_publish_ready: true });
     assert.equal(promotionPlan.items[0]?.tool_id, "agent-new-tool");
-    assert.equal(promotionPlan.items[0]?.target_file, "src/data/seed-tool-cards.ts");
+    assert.equal(promotionPlan.items[0]?.target_artifact, "public/data/tool_cards.jsonl");
     assert.equal(promotionPlan.items[0]?.candidate_artifact_path, "data/promotion_candidates/tool_cards.json");
-    assert.equal(promotionPlan.items[0]?.seed_candidate_artifact_path, "data/promotion_candidates/seed_tool_card_candidates.ts");
-
-    const seedSnippet = await readFile(join(outputDir, "data", "promotion_candidates", "seed_tool_card_candidates.ts"), "utf8");
-    assert.match(seedSnippet, /import type \{ ToolCard \} from "\.\.\/\.\.\/src\/schema\.js";/);
-    assert.match(seedSnippet, /export const promotionSeedToolCardCandidates: ToolCard\[\] = \[/);
-    assert.match(seedSnippet, /"id": "agent-new-tool"/);
-    assert.match(seedSnippet, /"evidence_refs": \[\s*"manual-agent-radar-seed-agent-new-tool-20260708"\s*\]/);
 
     const promotionCheck = JSON.parse(await readFile(join(outputDir, "data", "promotion_candidates", "promotion_check.json"), "utf8")) as {
       schema_version: string;
       passed: boolean;
-      summary: { ready_for_manual_merge: number; validation_warnings: number };
+      summary: { ready_for_publish: number; validation_warnings: number };
     };
     assert.equal(promotionCheck.schema_version, "tool_card_promotion_check.v1");
     assert.equal(promotionCheck.passed, true);
-    assert.equal(promotionCheck.summary.ready_for_manual_merge, 1);
+    assert.equal(promotionCheck.summary.ready_for_publish, 1);
     assert.equal(promotionCheck.summary.validation_warnings, 3);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
@@ -1050,6 +1071,7 @@ test("release admission blocks approved drafts that duplicate other incoming dra
     const result = await runIngestion({
       outputDir,
       now: "2026-07-08T00:00:00Z",
+      sources: [manualTestSource],
       existingToolCards: [],
       approvalRecords: [
         {

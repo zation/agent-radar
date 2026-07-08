@@ -3,31 +3,6 @@ import { isSupportedSourceParser } from "./parser.js";
 
 export const sourceRegistry: SourceDefinition[] = [
   {
-    id: "manual-agent-radar-seed",
-    name: "Agent Radar manually reviewed seed tools",
-    url: "internal://manual-review/seed-tool-cards",
-    source_type: "manual",
-    covered_tool_types: ["skill", "mcp", "agent"],
-    collection_method: "manual",
-    recommended_frequency: "manual",
-    trust_level: "official",
-    field_coverage: ["name", "type", "source_urls", "use_cases", "not_for", "permissions", "security", "confidence"],
-    rate_limits: "local manual source",
-    terms_notes: "Uses project-maintained seed data with explicit source URLs on each Tool Card.",
-    access_review: {
-      robots_txt: "not_applicable",
-      terms: "reviewed",
-      reviewed_by: "agent-radar",
-      reviewed_at: "2026-07-07T00:00:00Z",
-      notes: "Internal manual source; source URLs on Tool Cards remain the public evidence boundary."
-    },
-    parser: "manual_seed_parser",
-    failure_policy: "failure blocks only ingestion draft generation; published MVP seed artifacts remain unchanged",
-    enabled: true,
-    owner: "agent-radar",
-    last_reviewed_at: "2026-07-07T00:00:00Z"
-  },
-  {
     id: "github-topic-mcp",
     name: "GitHub topic mcp",
     url: "https://github.com/topics/mcp",

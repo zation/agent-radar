@@ -3,19 +3,20 @@ import { join } from "node:path";
 import { buildMcpExamplesArtifact } from "../api/mcp-examples.js";
 import { buildMcpSmokeChecklistArtifact } from "../api/mcp-smoke-checklist.js";
 import { buildMcpToolManifest } from "../api/mcp-manifest.js";
-import { seedToolCards } from "../data/seed-tool-cards.js";
 import { goldenQueries } from "../eval/golden-queries.js";
 import { createBlockedEvalSummary, runGoldenQueries, type EvalSummary } from "../eval/runner.js";
+import { runIngestion } from "../ingestion/run.js";
 import { buildSourceRegistryReviewArtifact, buildSourceRegistryReviewRequests } from "../ingestion/source-review.js";
 import { buildSourceRegistryArtifact, buildSourceRegistryDiff, sourceRegistry } from "../ingestion/source-registry.js";
 import { rateAllToolCards } from "../rating/engine.js";
 import { DEFAULT_RECOMMENDATION_MODEL, buildProviderRegistryArtifact } from "../recommendation/provider-registry.js";
 import { buildSearchIndex } from "../search/index-builder.js";
+import type { ToolCard } from "../schema.js";
 import { buildSkippedToolCardUrlValidation, buildToolCardFieldProvenance, checkToolCardUrls, validateToolCards } from "../validation/tool-card-validator.js";
 
 export interface BuildArtifactsOptions {
   outputDir: string;
-  toolCards?: typeof seedToolCards;
+  toolCards?: ToolCard[];
   checkUrlReachability?: boolean;
   fetchImpl?: typeof fetch;
 }
@@ -33,7 +34,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await mkdir(publicDataDir, { recursive: true });
   await mkdir(reportsDir, { recursive: true });
 
-  const toolCards = options.toolCards ?? seedToolCards;
+  const toolCards = options.toolCards ?? (await buildReliableToolCardsFromIngestion(options));
   const toolCardValidation = validateToolCards(toolCards);
   if (!toolCardValidation.passed) {
     throw new Error(`Tool Card validation failed: ${toolCardValidation.errors.join("; ")}`);
@@ -124,6 +125,21 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   };
 }
 
+async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOptions): Promise<ToolCard[]> {
+  const ingestion = await runIngestion({
+    outputDir: options.outputDir,
+    now: "2026-07-06T00:00:00Z",
+    fetchImpl: options.fetchImpl,
+    existingToolCards: []
+  });
+
+  if (!ingestion.promotionCheck.passed) {
+    throw new Error(`Promotion check failed: ${JSON.stringify(ingestion.promotionCheck.summary)}`);
+  }
+
+  return ingestion.promotionCandidates.items.map((item) => item.draft);
+}
+
 function toJsonl(records: unknown[]): string {
   return `${records.map((record) => JSON.stringify(record)).join("\n")}\n`;
 }
@@ -147,7 +163,7 @@ function renderEvalReport(dataVersion: string, summary: EvalSummary): string {
 }
 
 function renderD1SeedSql(
-  cards: typeof seedToolCards,
+  cards: ToolCard[],
   ratings: ReturnType<typeof rateAllToolCards>,
   documents: ReturnType<typeof buildSearchIndex>["documents"]
 ): string {

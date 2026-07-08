@@ -1,19 +1,16 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import type { IncomingMessage } from "node:http";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, type Plugin } from "vite";
+import { createArtifactRepositoryFromText } from "./src/api/artifact-repository.js";
 import { createApiHandler } from "./src/api/handler.js";
-import { createStaticRepository } from "./src/api/repository.js";
-import { seedToolCards } from "./src/data/seed-tool-cards.js";
-import { rateAllToolCards } from "./src/rating/engine.js";
-import { buildSearchIndex } from "./src/search/index-builder.js";
 
-const ratings = rateAllToolCards(seedToolCards);
-const repository = createStaticRepository({
-  cards: seedToolCards,
-  ratings,
-  index: buildSearchIndex(seedToolCards, ratings)
+const repository = createArtifactRepositoryFromText({
+  toolCardsJsonl: readArtifact("tool_cards.jsonl"),
+  ratingsJsonl: readArtifact("ratings.jsonl"),
+  searchIndexJson: readArtifact("search_index.json")
 });
 const handleApiRequest = createApiHandler(repository);
 
@@ -29,6 +26,10 @@ export default defineConfig({
     emptyOutDir: true
   }
 });
+
+function readArtifact(filename: string): string {
+  return readFileSync(path.resolve(import.meta.dirname, "public", "data", filename), "utf8");
+}
 
 function agentRadarApiDevPlugin(): Plugin {
   return {

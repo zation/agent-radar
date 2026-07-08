@@ -43,13 +43,13 @@ export interface IngestionCliSummaryInput {
   promotionPlan: {
     summary: {
       candidates: number;
-      manual_merge_required: boolean;
+      reliable_publish_ready: boolean;
     };
   };
   promotionCheck: {
     passed: boolean;
     summary: {
-      ready_for_manual_merge: number;
+      ready_for_publish: number;
       blocked: number;
       validation_errors: number;
       validation_warnings: number;
@@ -88,11 +88,11 @@ export interface IngestionCliSummary {
   promotion_candidates: number;
   promotion_plan: {
     candidates: number;
-    manual_merge_required: boolean;
+    reliable_publish_ready: boolean;
   };
   promotion_check: {
     passed: boolean;
-    ready_for_manual_merge: number;
+    ready_for_publish: number;
     blocked: number;
     validation_errors: number;
     validation_warnings: number;
@@ -131,11 +131,11 @@ export function formatIngestionCliSummary(result: IngestionCliSummaryInput): Ing
     promotion_candidates: result.promotionCandidates.summary.candidates,
     promotion_plan: {
       candidates: result.promotionPlan.summary.candidates,
-      manual_merge_required: result.promotionPlan.summary.manual_merge_required
+      reliable_publish_ready: result.promotionPlan.summary.reliable_publish_ready
     },
     promotion_check: {
       passed: result.promotionCheck.passed,
-      ready_for_manual_merge: result.promotionCheck.summary.ready_for_manual_merge,
+      ready_for_publish: result.promotionCheck.summary.ready_for_publish,
       blocked: result.promotionCheck.summary.blocked,
       validation_errors: result.promotionCheck.summary.validation_errors,
       validation_warnings: result.promotionCheck.summary.validation_warnings

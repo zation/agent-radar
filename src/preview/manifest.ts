@@ -85,11 +85,11 @@ export interface ArtifactManifest {
   };
   promotion_plan?: {
     candidates: number;
-    manual_merge_required: boolean;
+    reliable_publish_ready: boolean;
   };
   promotion_check?: {
     candidates: number;
-    ready_for_manual_merge: number;
+    ready_for_publish: number;
     blocked: number;
     duplicate_tool_ids: number;
     validation_errors: number;

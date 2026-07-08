@@ -32,14 +32,37 @@ test("builds MVP data artifacts and an eval report", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-"));
   const originalApiKey = process.env.AGENT_RADAR_LLM_API_KEY;
   const originalModel = process.env.AGENT_RADAR_LLM_MODEL;
+  const fetchImpl: typeof fetch = async (url) => {
+    const requestUrl = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
+    if (requestUrl.startsWith("https://api.github.com/search/repositories")) {
+      return new Response(
+        JSON.stringify({
+          items: [
+            {
+              full_name: "example/public-mcp",
+              name: "public-mcp",
+              html_url: "https://github.com/example/public-mcp",
+              description: "Public MCP server for test fixtures.",
+              stargazers_count: 2000,
+              license: { spdx_id: "MIT" },
+              pushed_at: "2026-07-07T00:00:00Z",
+              topics: ["mcp", "model-context-protocol"]
+            }
+          ]
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    }
+    return new Response("not found", { status: 404 });
+  };
 
   try {
     delete process.env.AGENT_RADAR_LLM_API_KEY;
     delete process.env.AGENT_RADAR_LLM_MODEL;
 
-    const summary = await buildArtifacts({ outputDir });
+    const summary = await buildArtifacts({ outputDir, fetchImpl });
 
-    assert.equal(summary.toolCount >= 20, true);
+    assert.equal(summary.toolCount, 1);
     assert.equal(summary.goldenQueriesPassed, 0);
     assert.equal(summary.goldenQueriesTotal >= 10, true);
 
@@ -61,13 +84,13 @@ test("builds MVP data artifacts and an eval report", async () => {
 
     const sourceRegistry = JSON.parse(await readFile(join(outputDir, "data", "source_registry.json"), "utf8"));
     assert.equal(sourceRegistry.schema_version, "source_registry.v1");
-    assert.equal(sourceRegistry.sources.length >= 2, true);
+    assert.equal(sourceRegistry.sources.length, 1);
     assert.equal(sourceRegistry.validation.passed, true);
     assert.deepEqual(sourceRegistry.validation.errors, []);
 
     const sourceRegistryDiff = JSON.parse(await readFile(join(outputDir, "data", "source_registry_diff.json"), "utf8"));
     assert.equal(sourceRegistryDiff.schema_version, "source_registry_diff.v1");
-    assert.deepEqual(sourceRegistryDiff.summary, { added: 2, removed: 0, changed: 0 });
+    assert.deepEqual(sourceRegistryDiff.summary, { added: 1, removed: 0, changed: 0 });
 
     const sourceRegistryReview = JSON.parse(await readFile(join(outputDir, "data", "source_registry_review.json"), "utf8"));
     assert.equal(sourceRegistryReview.schema_version, "source_registry_review.v1");
@@ -90,8 +113,8 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.deepEqual(toolCardFieldProvenance.critical_fields, ["permissions", "security", "maintenance"]);
     assert.equal(toolCardFieldProvenance.summary.cards_checked, summary.toolCount);
     assert.equal(toolCardFieldProvenance.summary.fields_checked, summary.toolCount * 3);
-    assert.equal(toolCardFieldProvenance.summary.covered_by_manual_review, summary.toolCount * 3);
-    assert.equal(toolCardFieldProvenance.summary.missing, 0);
+    assert.equal(toolCardFieldProvenance.summary.covered_by_manual_review, 0);
+    assert.equal(toolCardFieldProvenance.summary.missing, summary.toolCount * 3);
 
     const toolCardUrlValidation = JSON.parse(await readFile(join(outputDir, "data", "tool_card_url_validation.json"), "utf8"));
     assert.equal(toolCardUrlValidation.schema_version, "tool_card_url_validation.v1");
@@ -150,7 +173,8 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.deepEqual(mcpSmokeChecklist.summary, { total: 4, required: 4 });
 
     const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
-    assert.ok(searchIndex.documents.length >= 20);
+    assert.equal(searchIndex.documents.length, 1);
+    assert.equal(searchIndex.documents[0]?.tool_id, "mcp-example-public-mcp");
 
     const evalSummary = JSON.parse(await readFile(join(outputDir, "data", "eval_summary.json"), "utf8")) as EvalSummaryFile;
     assert.equal(evalSummary.results[0].failure_category, "blocked_no_key");

@@ -159,14 +159,14 @@ function renderPromotionPlan(result: RunIngestionResult): string[] {
     "",
     "## Promotion Plan",
     ...result.promotionPlan.items.map((item) => {
-      return `- ${item.tool_id} target=${item.target_file} action=${item.recommended_action} candidate_artifact=${item.candidate_artifact_path} seed_candidate_artifact=${item.seed_candidate_artifact_path}`;
+      return `- ${item.tool_id} target=${item.target_artifact} action=${item.recommended_action} candidate_artifact=${item.candidate_artifact_path}`;
     })
   ];
 }
 
 function formatPromotionPlanSummary(summary: RunIngestionResult["promotionPlan"]["summary"]): string {
-  const mergeStatus = summary.manual_merge_required ? "manual merge required" : "no manual merge required";
-  return `${summary.candidates} candidates, ${mergeStatus}`;
+  const publishStatus = summary.reliable_publish_ready ? "ready for reliable publish" : "no reliable publish candidates";
+  return `${summary.candidates} candidates, ${publishStatus}`;
 }
 
 function renderSourceRegistryReviewRequirements(requirements: SourceRegistryReviewRequirementSummary[]): string[] {
