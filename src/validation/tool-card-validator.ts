@@ -57,6 +57,7 @@ export function validateToolCards(cards: ToolCard[], options: ToolCardValidation
     validateRequiredStrings(card, errors);
     validateReleaseQuality(card, errors, warnings);
     validateUrlFieldEvidence(card, errors);
+    validateCriticalFieldEvidence(card, warnings);
     validateOverrideEvidenceRefs(card, overrideIds, errors);
   }
 
@@ -228,6 +229,22 @@ function validateUrlFieldEvidence(card: ToolCard, errors: string[]): void {
   if (card.install_methods.some((method) => method.docs_url && !sourceUrls.has(method.docs_url))) {
     errors.push(`${card.id}: install_methods docs_url must be included in source_urls`);
   }
+}
+
+function validateCriticalFieldEvidence(card: ToolCard, warnings: string[]): void {
+  if (hasManualReviewEvidence(card)) return;
+
+  for (const field of ["permissions", "security", "maintenance"]) {
+    if (!hasFieldEvidence(card, field)) warnings.push(`${card.id}: ${field} lacks field-level evidence ref`);
+  }
+}
+
+function hasManualReviewEvidence(card: ToolCard): boolean {
+  return card.evidence_refs.some((ref) => ref.startsWith("manual-review-"));
+}
+
+function hasFieldEvidence(card: ToolCard, field: string): boolean {
+  return card.evidence_refs.some((ref) => ref === `field:${field}` || ref.startsWith(`field:${field}:`) || ref.endsWith(`#${field}`));
 }
 
 function isIsoUtc(value: string): boolean {

@@ -122,6 +122,21 @@ test("tool card validator requires URL fields to be covered by source URLs", () 
   assert.match(validation.errors.join("\n"), /url-field-evidence-card: install_methods docs_url must be included in source_urls/);
 });
 
+test("tool card validator warns when non-manual evidence lacks critical field coverage", () => {
+  const card: ToolCard = {
+    ...seedToolCards[0],
+    id: "field-provenance-card",
+    evidence_refs: ["source-record-field-provenance-card"]
+  };
+
+  const validation = validateToolCards([card]);
+
+  assert.equal(validation.passed, true);
+  assert.match(validation.warnings.join("\n"), /field-provenance-card: permissions lacks field-level evidence ref/);
+  assert.match(validation.warnings.join("\n"), /field-provenance-card: security lacks field-level evidence ref/);
+  assert.match(validation.warnings.join("\n"), /field-provenance-card: maintenance lacks field-level evidence ref/);
+});
+
 test("tool card URL checker records reachable failed and skipped URLs", async () => {
   const calls: Array<{ url: string; method: string }> = [];
   const fetchImpl: typeof fetch = (url, init) => {

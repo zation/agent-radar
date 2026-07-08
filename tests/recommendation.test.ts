@@ -336,6 +336,44 @@ test("recovers database MCP candidates when LLM avoids high-risk production data
   assert.ok(result.query_understanding.likely_permissions.includes("cloud"));
 });
 
+test("recovers database MCP candidates when LLM asks for human review without candidates", async () => {
+  const client: RecommendationLlmClient = {
+    recommend() {
+      return Promise.resolve({
+        recommended_action: "ask_human",
+        query_understanding: {
+          intent: "production_postgres_schema_change",
+          task_domains: ["database"],
+          required_capabilities: ["schema_change"],
+          likely_permissions: [],
+          tool_type_hints: ["mcp"],
+          risk_flags: ["human_review_required"],
+          confidence: "medium"
+        },
+        candidates: [],
+        rejected_candidates: []
+      });
+    }
+  };
+
+  const result = await recommendTools(
+    {
+      task: "让 agent 直接修改生产 Postgres 数据库 schema",
+      environment: ["production", "database"],
+      risk_tolerance: "low",
+      preferred_tool_types: ["mcp"]
+    },
+    seedToolCards,
+    ratings,
+    { apiKey: "sk-test-secret", model: "deepseek-v4-flash", client }
+  );
+
+  assert.equal(result.recommended_action, "ask_human");
+  assert.ok(result.candidates.some((candidate) => candidate.tags.includes("database")));
+  assert.ok(result.query_understanding.likely_permissions.includes("database"));
+  assert.ok(result.query_understanding.likely_permissions.includes("cloud"));
+});
+
 test("forces no reliable match for low-tolerance payment plus database operations", async () => {
   const client: RecommendationLlmClient = {
     recommend() {

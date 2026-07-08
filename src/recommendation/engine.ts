@@ -111,7 +111,7 @@ export async function recommendTools(
 
   let queryUnderstanding = normalizeQueryUnderstanding(llmOutput.query_understanding, query, candidates);
   const forcedNoMatchReason = getForcedNoMatchReason(query, queryUnderstanding);
-  if (!forcedNoMatchReason && shouldRecoverCatalogCandidates(llmOutput.recommended_action, candidates) && candidates.length === 0) {
+  if (!forcedNoMatchReason && shouldRecoverCatalogCandidates(llmOutput.recommended_action, candidates, queryUnderstanding)) {
     candidates = recoverCatalogCandidates(query, cards, ratingByTool, queryUnderstanding, rejectedCandidates);
     queryUnderstanding = normalizeQueryUnderstanding(llmOutput.query_understanding, query, candidates);
   }
@@ -343,8 +343,10 @@ function normalizeCandidate(
   };
 }
 
-function shouldRecoverCatalogCandidates(action: RecommendedAction, candidates: RecommendationCandidate[]): boolean {
-  return candidates.length === 0 && (action === "no_reliable_match" || action === "avoid");
+function shouldRecoverCatalogCandidates(action: RecommendedAction, candidates: RecommendationCandidate[], understanding: QueryUnderstanding): boolean {
+  if (candidates.length > 0) return false;
+  if (action === "no_reliable_match" || action === "avoid") return true;
+  return action === "ask_human" && understanding.likely_permissions.includes("database");
 }
 
 function recoverCatalogCandidates(

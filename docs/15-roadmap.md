@@ -64,6 +64,7 @@
 - 发布流水线已输出 `tool_card_validation.json` artifact，并在 Tool Card validator 失败时阻断可靠 artifacts 生成。
 - Tool Card validator 已支持 override evidence ref 审计：引用 `override-*` 时必须提供对应 Override Record 上下文。
 - Tool Card validator 已支持最小 URL 字段 evidence coverage：关键 URL 字段必须被 `source_urls` 覆盖，并在 validation artifact 中输出 error/warning summary。
+- Tool Card validator 已对非人工审核来源的 `permissions`、`security` 和 `maintenance` 缺少字段级 evidence refs 输出 warning，先建立关键字段 provenance coverage 信号。
 - 发布流水线已输出 `tool_card_url_validation.json` artifact；默认跳过外网可达性检查，设置 `AGENT_RADAR_CHECK_URLS=true` 时可执行 Tool Card URL HEAD/GET 检查，并把 summary 同步到 preview artifact manifest。
 - 发布流水线已输出 `mcp_tools.json`，Workers API 也提供 `/api/mcp_manifest` 返回只读工具定义。
 - Golden queries 已扩展到 v0.2 下限 10 条，覆盖 coding agent、agent framework、数据库 MCP、GitHub 和监控调试场景。
@@ -76,7 +77,7 @@
 - Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和更细字段级证据质量。
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 promotion candidates 尚未进入可靠发布数据。
-- 更细 Tool Card 字段级 provenance、跨来源 normalizer、跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry 仍需从 review requirements preview 展示继续扩展到完整人工确认状态工作流。
+- schema 级 Tool Card 字段 provenance、跨来源 normalizer、跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry 仍需从 review requirements preview 展示继续扩展到完整人工确认状态工作流。
 - Workers API 当前是 HTTP/JSON 风格实现，并已提供只读 MCP tool manifest；尚未实现完整 MCP server 协议包装。
 - BYOK 模式已经可用，但还缺 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
 
@@ -357,7 +358,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
 - 把 `npm run ingest` 输出的 promotion candidates 接入人工审核 UI 或可靠发布提升流程。
 - 将 Source Registry 字段级 review requirements 接入人工确认状态和审核 UI；preview markdown 已展示 requirements。
-- 扩展 Tool Card validator，覆盖更细字段级 provenance，并决定是否在 CI 默认启用 URL 可达性检查。
+- 将 Tool Card 关键字段 provenance warning 扩展为 schema 级字段 provenance，并决定是否在 CI 默认启用 URL 可达性检查。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。
 - 使用真实 provider key 重跑 10 条 golden queries，并审查新增 case 的推荐质量。
 

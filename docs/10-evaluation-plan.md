@@ -216,7 +216,8 @@ severity: critical
 当前最小自动校验：
 
 - Tool Card release validator 要求 URL 字段被 `source_urls` 覆盖，包括 `docs_url`、`repo_url`、`homepage_url`、`package_urls` 和 `install_methods.docs_url`。
-- 更细的字段级 provenance 仍保留为后续增强，例如为 `permissions`、`security` 和 `maintenance` 绑定具体 Source Record 字段。
+- Tool Card release validator 已对非人工审核来源缺少 `permissions`、`security` 和 `maintenance` 字段级 evidence refs 的记录输出 warning；人工 `manual-review-*` evidence refs 暂视为人工覆盖这些关键字段。
+- 更细的 schema 级字段 provenance 仍保留为后续增强，例如为 `permissions`、`security` 和 `maintenance` 绑定具体 Source Record 字段和值。
 
 关键字段：
 
