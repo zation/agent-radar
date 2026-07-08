@@ -28,7 +28,7 @@
 截至当前分支，Agent Radar 已完成 MVP baseline：
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
-- 首批 6 张人工审核 Tool Cards 已进入 JSON artifacts、评分、搜索索引和 D1 seed。
+- 首批 20 张人工审核 Tool Cards 已进入 JSON artifacts、评分、搜索索引和 D1 seed。
 - React/Vite Web UI 已包含 `Tools` 和 `Recommend` 两个主页面，支持工具浏览、详情、评分解释、风险展示、推荐结果列表和 eval 状态弹层。
 - Workers 风格只读 API 已实现 `search_tools`、`get_tool_card`、`recommend_tools`、`explain_rating`。
 - 本地 Vite dev server 已挂载 `/api/*`，避免本地开发时前端请求 API 404。
@@ -49,7 +49,7 @@
 
 当前主要缺口：
 
-- Tool Card 覆盖仍是 MVP 小样本，尚未达到 v0.2 的 20-50 张。
+- Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和字段级证据质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 review queue 尚未进入人工批准记录、normalizer、deduper 和发布数据。
 - 完整 Source Registry validator、完整 Tool Card validator、完整 deduper、normalizer 和人工 override 尚未完成。
 - Workers API 当前是 HTTP/JSON 风格实现，并已提供只读 MCP tool manifest；尚未实现完整 MCP server 协议包装。
@@ -134,7 +134,7 @@ MVP baseline 已完成。当前完成标准为：
 - Critical cases 不出现高风险误推荐，release gate 要求 golden eval 全部通过。
 - Cloudflare Pages preview build 可生成网站、本体数据、eval report、ingestion review 和 artifact manifest。
 - 生产发布遵循 build once、review preview、promote same deployment，不在 main release 重新运行 pipeline/eval。
-- 当前 6 张 Tool Cards 的字段完整、评分解释和 UI 展示一致。
+- 当前 20 张 Tool Cards 的字段完整、评分解释和 UI 展示一致。
 
 ## v0.2
 
@@ -329,7 +329,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 
 ### P0：v0.2 数据接入
 
-- 增加 14-44 张高价值 Tool Cards，达到 20-50 张覆盖。
+- 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
 - 把 `npm run ingest` 输出的 review queue 接入人工批准记录和标准化入口。
 - 扩展 Source Registry validator，覆盖来源变更 diff、parser 覆盖检查和审核记录。
 - 扩展 Tool Card validator，覆盖字段级 evidence、URL 可达性和人工 override 审计。

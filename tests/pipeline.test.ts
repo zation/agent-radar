@@ -22,7 +22,7 @@ test("builds MVP data artifacts and an eval report", async () => {
 
     const summary = await buildArtifacts({ outputDir });
 
-    assert.equal(summary.toolCount >= 5, true);
+    assert.equal(summary.toolCount >= 20, true);
     assert.equal(summary.goldenQueriesPassed, 0);
     assert.equal(summary.goldenQueriesTotal > 0, true);
 
@@ -50,7 +50,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(mcpTools.tools.length, 4);
 
     const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
-    assert.ok(searchIndex.documents.length >= 5);
+    assert.ok(searchIndex.documents.length >= 20);
 
     const evalSummary = JSON.parse(await readFile(join(outputDir, "data", "eval_summary.json"), "utf8")) as EvalSummaryFile;
     assert.match(evalSummary.results[0].failures[0], /AGENT_RADAR_LLM_API_KEY/);
