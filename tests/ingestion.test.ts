@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { formatIngestionCliSummary } from "../src/cli/ingest-summary.js";
 import { seedToolCards } from "../src/data/seed-tool-cards.js";
 import { crawlEnabledSources } from "../src/ingestion/crawler.js";
+import { parseSnapshot } from "../src/ingestion/parser.js";
 import { runIngestion } from "../src/ingestion/run.js";
 import { buildSourceRegistryReviewArtifact, buildSourceRegistryReviewRequests } from "../src/ingestion/source-review.js";
 import { buildSourceRegistryDiff, getEnabledSources, sourceRegistry, validateSourceRegistry } from "../src/ingestion/source-registry.js";
@@ -83,11 +84,76 @@ test("source registry validator rejects enabled sources without parser coverage"
     {
       ...sourceRegistry[1],
       enabled: true,
-      parser: "github_topic_parser"
+      parser: "unknown_parser"
     }
   ]);
 
-  assert.match(errors.join("\n"), /github-topic-mcp: parser github_topic_parser is not implemented/);
+  assert.match(errors.join("\n"), /github-topic-mcp: parser unknown_parser is not implemented/);
+});
+
+test("github topic parser creates repository source records from API payloads", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
+  const contentPath = "data/raw/github-topic-mcp/2026-07-08/topic.json";
+
+  try {
+    await mkdir(join(outputDir, "data", "raw", "github-topic-mcp", "2026-07-08"), { recursive: true });
+    await writeFile(
+      join(outputDir, contentPath),
+      JSON.stringify({
+        items: [
+          {
+            full_name: "modelcontextprotocol/servers",
+            name: "servers",
+            html_url: "https://github.com/modelcontextprotocol/servers",
+            description: "Model Context Protocol servers",
+            stargazers_count: 51000,
+            license: { spdx_id: "MIT" },
+            pushed_at: "2026-07-07T12:00:00Z",
+            topics: ["mcp", "model-context-protocol"]
+          }
+        ]
+      }),
+      "utf8"
+    );
+
+    const records = await parseSnapshot(
+      {
+        id: "github-topic-mcp-20260708-topic",
+        schema_version: "raw_snapshot.v1",
+        source_id: "github-topic-mcp",
+        source_url: "https://github.com/topics/mcp",
+        fetched_at: "2026-07-08T00:00:00Z",
+        fetch_method: "api",
+        status: "success",
+        content_type: "application/json",
+        content_hash: "sha256:test",
+        content_path: contentPath
+      },
+      sourceRegistry[1],
+      outputDir,
+      "2026-07-08T00:00:00Z"
+    );
+
+    assert.equal(records.length, 1);
+    assert.equal(records[0]?.schema_version, "source_record.v1");
+    assert.equal(records[0]?.source_id, "github-topic-mcp");
+    assert.equal(records[0]?.record_type, "repository");
+    assert.equal(records[0]?.name, "modelcontextprotocol/servers");
+    assert.equal(records[0]?.description, "Model Context Protocol servers");
+    assert.deepEqual(records[0]?.urls, ["https://github.com/modelcontextprotocol/servers"]);
+    assert.deepEqual(records[0]?.parsed_fields, {
+      repo_url: "https://github.com/modelcontextprotocol/servers",
+      stars: 51000,
+      license: "MIT",
+      last_commit_at: "2026-07-07T12:00:00Z",
+      topics: ["mcp", "model-context-protocol"]
+    });
+    assert.equal(records[0]?.source_confidence, "medium");
+    assert.equal(records[0]?.parser_version, "github_topic_parser.v1");
+    assert.deepEqual(records[0]?.warnings, []);
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
 });
 
 test("source registry validator rejects enabled sources without review owner", () => {

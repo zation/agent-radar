@@ -78,13 +78,14 @@
 - Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
 - `npm run ingest` 已输出最小 crawl plan artifact，记录 Source Registry sources 的抓取方法、频率、parser 和 ready/disabled/blocked 状态。
 - `npm run ingest` 已输出最小 crawl audit artifact，记录本轮 Raw Snapshot 的来源、抓取状态、HTTP 状态、内容 hash、保存路径和 request metadata。
+- 已实现基础 `github_topic_parser` fixture，可把 GitHub topic/API repository payload 解析成 Source Records；对应 source 仍保持 disabled，只作为后续噪声评估和人工审核前的发现信号准备。
 
 当前主要缺口：
 
 - Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和更细字段级证据质量。
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 promotion candidates 只进入人工 promotion plan，尚未自动进入可靠发布数据。
-- 更细的 Tool Card 字段 provenance 已绑定具体 Source Record 字段和值，并会为已应用的 Override Record 输出 `override_record` 字段值 provenance；最小 incoming draft duplicate gates 已接入 dedup report、review queue、approval requests 和 release admission，但完整跨来源 normalizer、完整跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry review confirmation 已有 request 模板，仍缺真正的可操作审核 UI。
+- 更细的 Tool Card 字段 provenance 已绑定具体 Source Record 字段和值，并会为已应用的 Override Record 输出 `override_record` 字段值 provenance；最小 incoming draft duplicate gates 已接入 dedup report、review queue、approval requests 和 release admission，基础 GitHub topic parser 已具备但 source 仍 disabled；完整跨来源 normalizer、完整跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry review confirmation 已有 request 模板，仍缺真正的可操作审核 UI。
 - Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact、MCP deployment smoke checklist 和可配置的部署后 smoke 命令；后续仍需配置真实 MCP/Workers base URL 并把 Worker 部署证据纳入发布审核。
 - BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；还缺更完整的 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
 
