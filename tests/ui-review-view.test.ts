@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import type { SourceRegistryReviewRequests } from "../src/ingestion/source-review.js";
-import { createSourceReviewRows } from "../src/ui/review-view.js";
+import { buildSourceReviewRecordDraft, createSourceReviewRows } from "../src/ui/review-view.js";
 
 const reviewRequests: SourceRegistryReviewRequests = {
   schema_version: "source_registry_review_requests.v1",
@@ -59,4 +59,52 @@ test("creates source review rows for the UI audit surface", () => {
     requiredFields: "decision, reason, reviewer, reviewed_at"
   });
   assert.equal(rows[1]?.priority, "review requested");
+});
+
+test("builds source review record drafts from pending request rows", () => {
+  const row = createSourceReviewRows(reviewRequests)[0];
+  assert.ok(row);
+
+  const draft = buildSourceReviewRecordDraft(row, {
+    decision: "confirmed",
+    reason: "Confirmed GitHub topic source remains disabled and reviewed for discovery only.",
+    reviewer: "maintainer",
+    reviewedAt: "2026-07-08T12:00:00Z"
+  });
+
+  assert.deepEqual(draft.record, {
+    id: "source-review-github-topic-mcp-enabled",
+    schema_version: "source_registry_review_record.v1",
+    source_id: "github-topic-mcp",
+    field: "enabled",
+    decision: "confirmed",
+    reason: "Confirmed GitHub topic source remains disabled and reviewed for discovery only.",
+    reviewer: "maintainer",
+    reviewed_at: "2026-07-08T12:00:00Z"
+  });
+  assert.equal(
+    draft.json,
+    `${JSON.stringify(draft.record, null, 2)}\n`
+  );
+  assert.equal(draft.isValid, true);
+  assert.deepEqual(draft.errors, []);
+});
+
+test("reports missing source review record draft fields", () => {
+  const row = createSourceReviewRows(reviewRequests)[0];
+  assert.ok(row);
+
+  const draft = buildSourceReviewRecordDraft(row, {
+    decision: "confirmed",
+    reason: "",
+    reviewer: "",
+    reviewedAt: "2026-07-08 12:00:00"
+  });
+
+  assert.equal(draft.isValid, false);
+  assert.deepEqual(draft.errors, [
+    "reason is required",
+    "reviewer is required",
+    "reviewed_at must be ISO 8601 UTC"
+  ]);
 });

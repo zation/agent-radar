@@ -80,7 +80,7 @@ manual seed Tool Cards
   -> Vite Web UI / Workers-style API reads artifacts
 ```
 
-当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、最小 normalizer、最小 deduper、人工 override artifact、Approval Request、review queue、release admission、promotion candidates、seed candidate snippet、promotion plan 和 promotion check dry-run，用于验证采集契约。Web UI 已可只读展示 Source Registry review confirmation requests。尚未实现的是完整跨来源 normalizer、完整跨来源 deduper、人工 override 审核 UI，以及 discovery/promotion candidates 到可靠发布 artifacts 的人工提升执行流程。
+当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、最小 normalizer、最小 deduper、人工 override artifact、Approval Request、review queue、release admission、promotion candidates、seed candidate snippet、promotion plan 和 promotion check dry-run，用于验证采集契约。Web UI 已可展示 Source Registry review confirmation requests，并生成可复制的 review record JSON 草稿。尚未实现的是完整跨来源 normalizer、完整跨来源 deduper、人工 override 审核 UI，以及 discovery/promotion candidates 到可靠发布 artifacts 的人工提升执行流程。
 
 ### 目标形态
 
@@ -196,7 +196,7 @@ Browser UI
 - provider 401/403、429、模型不可用和 JSON 输出异常会映射为稳定 API error code，并由 Recommend UI 展示 provider/status 上下文。
 - 本地 dev API 和 Workers API 都必须保持只读，不安装、不授权、不执行推荐工具。
 
-Web UI 的 Review 页面读取 `data/source_registry_review_requests.json`，只展示 pending Source Registry confirmation request、decision options 和 required fields。该页面不写入 review record，不自动确认来源，也不改变发布数据。
+Web UI 的 Review 页面读取 `data/source_registry_review_requests.json`，展示 pending Source Registry confirmation request、decision options 和 required fields，并在浏览器本地生成可复制的 `source_registry_review_record.v1` JSON 草稿。该页面不写入 review record，不自动确认来源，也不改变发布数据。
 
 当前 D1 相关文件：
 
