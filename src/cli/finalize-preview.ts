@@ -1,10 +1,13 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { config } from "dotenv";
 import { runIngestion } from "../ingestion/run.js";
 import { createPreviewBundle } from "../preview/bundle.js";
 import { DEFAULT_RECOMMENDATION_MODEL } from "../recommendation/provider-registry.js";
 
 const execFileAsync = promisify(execFile);
+
+config({ override: false, quiet: true });
 
 const distDir = process.env.AGENT_RADAR_PREVIEW_DIST_DIR ?? "dist-pages";
 const reviewDir = process.env.AGENT_RADAR_REVIEW_DIR ?? "artifacts/review";

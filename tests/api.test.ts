@@ -106,17 +106,74 @@ test("recommend_tools returns recommendation result", async () => {
 });
 
 test("recommend_tools requires BYOK credentials", async () => {
-  const response = await handler(
-    new Request("https://agent-radar.test/api/recommend_tools", {
-      method: "POST",
-      body: JSON.stringify({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low" })
-    })
-  );
+  const originalApiKey = process.env.AGENT_RADAR_LLM_API_KEY;
+  const originalModel = process.env.AGENT_RADAR_LLM_MODEL;
 
-  assert.equal(response.status, 400);
-  const body = (await response.json()) as { error: string; message: string };
-  assert.equal(body.error, "bad_request");
-  assert.match(body.message, /api_key/);
+  try {
+    delete process.env.AGENT_RADAR_LLM_API_KEY;
+    delete process.env.AGENT_RADAR_LLM_MODEL;
+    const response = await handler(
+      new Request("https://agent-radar.test/api/recommend_tools", {
+        method: "POST",
+        body: JSON.stringify({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low" })
+      })
+    );
+
+    assert.equal(response.status, 400);
+    const body = (await response.json()) as { error: string; message: string };
+    assert.equal(body.error, "bad_request");
+    assert.match(body.message, /api_key/);
+  } finally {
+    if (originalApiKey === undefined) delete process.env.AGENT_RADAR_LLM_API_KEY;
+    else process.env.AGENT_RADAR_LLM_API_KEY = originalApiKey;
+    if (originalModel === undefined) delete process.env.AGENT_RADAR_LLM_MODEL;
+    else process.env.AGENT_RADAR_LLM_MODEL = originalModel;
+  }
+});
+
+test("recommend_tools falls back to local environment credentials when api_key is omitted", async () => {
+  const originalApiKey = process.env.AGENT_RADAR_LLM_API_KEY;
+  const originalModel = process.env.AGENT_RADAR_LLM_MODEL;
+  const calls: Array<{ apiKey: string; model: string }> = [];
+
+  try {
+    process.env.AGENT_RADAR_LLM_API_KEY = "env-secret";
+    process.env.AGENT_RADAR_LLM_MODEL = "MiniMax M3";
+    const envHandler = createApiHandler(repository, {
+      recommendationClient: {
+        recommend(input) {
+          calls.push({ apiKey: input.apiKey, model: input.model });
+          return Promise.resolve({
+            recommended_action: "compare",
+            candidates: [
+              {
+                tool_id: "skill-gmail-triage",
+                fit_score: 82,
+                why: ["Matches communication task."],
+                risks: ["Requires email access."],
+                next_steps: ["Ask the user to confirm Gmail scope."]
+              }
+            ]
+          });
+        }
+      }
+    });
+
+    const response = await envHandler(
+      new Request("https://example.com/api/recommend_tools", {
+        method: "POST",
+        body: JSON.stringify({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low" })
+      })
+    );
+
+    assert.equal(response.status, 200);
+    assert.deepEqual(calls, [{ apiKey: "env-secret", model: "MiniMax M3" }]);
+  } finally {
+    if (originalApiKey === undefined) delete process.env.AGENT_RADAR_LLM_API_KEY;
+    else process.env.AGENT_RADAR_LLM_API_KEY = originalApiKey;
+    if (originalModel === undefined) delete process.env.AGENT_RADAR_LLM_MODEL;
+    else process.env.AGENT_RADAR_LLM_MODEL = originalModel;
+  }
 });
 
 test("recommend_tools maps provider failures to stable API errors", async () => {

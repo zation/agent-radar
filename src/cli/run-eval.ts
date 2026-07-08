@@ -3,6 +3,9 @@ import { goldenQueries } from "../eval/golden-queries.js";
 import { createBlockedEvalSummary, runGoldenQueries } from "../eval/runner.js";
 import { rateAllToolCards } from "../rating/engine.js";
 import { DEFAULT_RECOMMENDATION_MODEL } from "../recommendation/provider-registry.js";
+import { config } from "dotenv";
+
+config({ override: false, quiet: true });
 
 const ratings = rateAllToolCards(seedToolCards);
 const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";

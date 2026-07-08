@@ -50,8 +50,8 @@
 | `budget` | 否 | 成本偏好 |
 | `output_format` | 否 | `json`、`markdown` |
 | `top_k` | 否 | 返回数量 |
-| `api_key` | API 调用必填 | BYOK LLM API key，只用于当前请求 |
-| `model` | API 调用必填 | LLM 模型名称 |
+| `api_key` | 条件必填 | BYOK LLM API key，只用于当前请求；本地或服务端配置 `AGENT_RADAR_LLM_API_KEY` 时可省略 |
+| `model` | 否 | LLM 模型名称；未提供时使用 `AGENT_RADAR_LLM_MODEL` 或 provider registry 默认模型 |
 
 ## LLM 推荐流程
 
@@ -65,6 +65,7 @@
 - 对 unknown `tool_id` 返回 `no_reliable_match` 或加入 `rejected_candidates`。
 - 对 `high`、`critical`、`unknown` 风险候选保持保守，不能把高风险结果降级成可直接 `use`。
 - API key 只用于当前请求，不写入 artifacts、日志或响应体。
+- 本地开发可通过仓库根目录 `.env` 提供 `AGENT_RADAR_LLM_API_KEY` 和 `AGENT_RADAR_LLM_MODEL`；系统环境变量优先于 `.env`。
 
 ## 查询理解
 

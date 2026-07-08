@@ -180,6 +180,17 @@ LLM 推荐相关环境变量：
 | `AGENT_RADAR_CHECK_URLS` | 否 | `false` | 设置为 `true` 时，`npm run pipeline` 会对 Tool Card URL 执行 HEAD/GET 可达性检查；默认只输出 skipped artifact，避免本地/CI 偶发外网失败 |
 | `AGENT_RADAR_MCP_BASE_URL` | MCP smoke 必填 | 无 | `npm run mcp:smoke` 使用的已部署 MCP/Workers base URL，例如 `https://agent-radar-api.example.workers.dev`；命令会请求 `${base}/api/mcp` |
 
+本地开发可以在仓库根目录创建 `.env`，该文件必须保持 git ignored：
+
+```dotenv
+AGENT_RADAR_LLM_API_KEY=your-provider-key
+AGENT_RADAR_LLM_MODEL=MiniMax M3
+```
+
+Node CLI 入口会在运行时加载 `.env`，包括 `npm run eval`、`npm run pipeline`、`npm run dev:with-data`、`npm run release:build` 和 `npm run preview:build`。系统环境变量优先级高于 `.env`，因此 CI secret 或 shell 中显式导出的变量不会被本地 `.env` 覆盖。
+
+本地/API 推荐调用中，如果请求体没有传 `api_key` 或 `model`，后端会回退到 `AGENT_RADAR_LLM_API_KEY`、`AGENT_RADAR_LLM_MODEL` 和 provider registry 默认模型。浏览器页面不会读取或显示 `.env` 内容，secret 只留在本地 Node/API 进程中。
+
 当前 Web UI 支持用户在 Recommend 表单中输入一次性 API key 和模型。请求路径为：
 
 ```text
@@ -192,6 +203,7 @@ Browser UI
 安全约束：
 
 - API key 不写入 artifacts、eval report 或响应体。
+- `.env` 不进入 git；不要把 provider key 粘贴到文档、issue、PR 或 Actions Summary。
 - server 日志只记录 provider、endpoint、model、状态码和脱敏错误体。
 - provider 401/403、429、模型不可用和 JSON 输出异常会映射为稳定 API error code，并由 Recommend UI 展示 provider/status 上下文。
 - 本地 dev API 和 Workers API 都必须保持只读，不安装、不授权、不执行推荐工具。

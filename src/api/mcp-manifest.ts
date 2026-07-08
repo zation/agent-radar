@@ -57,10 +57,16 @@ export function buildMcpToolManifest(): McpToolManifest {
             risk_tolerance: { type: "string", enum: ["low", "medium", "high"] },
             preferred_tool_types: { type: "array", items: { type: "string" } },
             allowed_permissions: { type: "array", items: { type: "string" } },
-            api_key: { type: "string" },
-            model: { type: "string" }
+            api_key: {
+              type: "string",
+              description: "Optional when AGENT_RADAR_LLM_API_KEY is configured in the local or server environment."
+            },
+            model: {
+              type: "string",
+              description: "Optional; defaults to AGENT_RADAR_LLM_MODEL or the provider registry default model."
+            }
           },
-          ["task", "api_key", "model"]
+          ["task"]
         )
       },
       {

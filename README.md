@@ -48,6 +48,15 @@ npm run dev -- --port 4173
 
 `npm run ingest` 运行 v0.2 数据采集 MVP 的本地草稿链路：读取 enabled Source Registry、保存 Raw Snapshot 到 `data/raw/`，并输出 Source Records 到 `data/source_records/`。这些文件是可再生成的采集产物，不进入 git；当前不会自动进入可靠推荐发布数据。
 
+本地 LLM eval 或推荐可以使用仓库根目录 `.env`，该文件应保持 git ignored：
+
+```dotenv
+AGENT_RADAR_LLM_API_KEY=your-provider-key
+AGENT_RADAR_LLM_MODEL=MiniMax M3
+```
+
+`npm run eval`、`npm run pipeline` 和依赖 pipeline 的本地命令会自动加载 `.env`。显式 shell 环境变量或 CI secret 优先于 `.env`。
+
 `npm run preview:build` 在 `release:build` 后生成 `dist-pages/artifact-manifest.json`，并把审核材料写入 `artifacts/review/ingestion.md`。Cloudflare Pages preview 应部署 `dist-pages`；GitHub Actions 应把 `artifacts/review/ingestion.md` 追加到 step summary 供审核。生产发布应 promote 已审核的 preview deployment，而不是重新生成产物。
 
 Tag 触发的 preview 构建由 `.github/workflows/pages-preview.yml` 处理。推送正常 SemVer tag，例如 `v0.2.0-preview.1`，会运行 `preview:build`、部署 Cloudflare Pages preview、把 ingestion review 和 manifest 摘要写入 GitHub Actions Summary，并上传 `dist-pages` 与 `artifacts/review`。

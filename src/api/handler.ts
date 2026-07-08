@@ -1,4 +1,5 @@
 import { RecommendationProviderError, recommendTools, type RecommendationLlmClient } from "../recommendation/engine.js";
+import { DEFAULT_RECOMMENDATION_MODEL } from "../recommendation/provider-registry.js";
 import type { RecommendationQuery, SearchDocument } from "../schema.js";
 import { buildMcpToolManifest } from "./mcp-manifest.js";
 import type { ToolRepository } from "./repository.js";
@@ -182,14 +183,19 @@ function getToolCard(repository: ToolRepository, toolId: string) {
 
 async function recommend(repository: ToolRepository, input: RecommendToolsInput, options: ApiHandlerOptions) {
   if (!input.task) throw new Error("recommend_tools requires task");
-  if (!input.api_key) throw new Error("recommend_tools requires api_key");
-  if (!input.model) throw new Error("recommend_tools requires model");
-  const { api_key: apiKey, model, ...query } = input;
+  const apiKey = input.api_key ?? readEnv("AGENT_RADAR_LLM_API_KEY");
+  const model = input.model ?? readEnv("AGENT_RADAR_LLM_MODEL") ?? DEFAULT_RECOMMENDATION_MODEL;
+  if (!apiKey) throw new Error("recommend_tools requires api_key");
+  const { api_key: _apiKey, model: _model, ...query } = input;
   return recommendTools(query, repository.listToolCards(), repository.listRatings(), {
     apiKey,
     model,
     client: options.recommendationClient
   });
+}
+
+function readEnv(name: string): string | undefined {
+  return typeof process === "undefined" ? undefined : process.env[name];
 }
 
 function explainRating(repository: ToolRepository, toolId: string) {

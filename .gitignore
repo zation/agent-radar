@@ -8,5 +8,6 @@ data/source_records/
 data/tool_card_drafts/
 data/review_queue/
 artifacts/
+.env
 .DS_Store
 *.log
