@@ -33,6 +33,7 @@ npm run ingest
   -> parse Source Records
   -> data/source_records/<source_id>.jsonl
   -> data/tool_card_drafts/<source_id>.jsonl
+  -> data/approvals/approval_records.json
   -> data/dedup/tool_card_duplicates.json
   -> data/review_queue/tool_card_drafts.json
 ```
@@ -40,6 +41,8 @@ npm run ingest
 当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Raw Snapshot、Source Record、Tool Card draft、dedup report 和 review queue 契约。完整且无 parser warnings 的 manual Source Records 会经过最小 normalizer 生成待审核 Tool Card drafts，并输出最小 duplicate report；review queue 也会标注与已发布 Tool Cards 的最小重复信号，但不会自动合并。这些草稿仍不进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
 
 `npm run ingest` 已支持最小 Override Record artifact：人工修正只作用于待审核 draft normalization，不覆盖 Raw Snapshot 或 Source Record，也不会自动发布到可靠 Tool Cards。Override Record 必须包含 `reason`、`created_by` 和至少一个 `evidence_urls`。
+
+`npm run ingest` 也已支持最小 Approval Record artifact：人工审核决定会记录为 `approved`、`rejected` 或 `needs_changes`，并要求 `reviewer`、`reason`、`source_record_id` 和 `reviewed_at`。Approval Record 只作为审核证据和发布准入输入，不会自动把 draft 发布为可靠 Tool Card。
 
 发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 preview/release 审核源配置。
 
@@ -52,7 +55,7 @@ npm run ingest
 - 更多来源专属 parser。
 - 完整跨来源 deduper、跨来源 normalizer 和人工 override 审核 UI。
 - 完整 Source Registry validator，包括来源变更 diff、robots/terms 审核记录和 parser 覆盖检查。
-- 完整的人工审核 UI、人工批准记录和 Tool Card drafts 发布准入流程。
+- 完整的人工审核 UI 和 Tool Card drafts 发布准入流程。
 - 更完整的 Tool Card validator，包括 URL 可达性、字段级 evidence coverage 和 override 审计。
 
 因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。

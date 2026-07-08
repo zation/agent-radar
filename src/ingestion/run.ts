@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { buildApprovalArtifact, type ApprovalArtifact, type ApprovalRecord } from "./approval.js";
 import { crawlEnabledSources } from "./crawler.js";
 import { buildToolCardDuplicateReport, type ToolCardDuplicateReport } from "./deduper.js";
 import { normalizeToolCardDrafts, type OverrideRecord } from "./normalizer.js";
@@ -15,6 +16,7 @@ export interface RunIngestionOptions {
   fetchImpl?: typeof fetch;
   existingToolCards?: ToolCard[];
   overrideRecords?: OverrideRecord[];
+  approvalRecords?: ApprovalRecord[];
 }
 
 export interface RunIngestionResult {
@@ -22,6 +24,7 @@ export interface RunIngestionResult {
   sourceRecords: SourceRecord[];
   toolCardDrafts: ToolCard[];
   overrideRecords: OverrideRecord[];
+  approvalArtifact: ApprovalArtifact;
   duplicateReport: ToolCardDuplicateReport;
   reviewQueue: ToolCardReviewQueue;
 }
@@ -47,6 +50,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeSourceRecords(options.outputDir, recordsBySource);
   const overrideRecords = options.overrideRecords ?? [];
   await writeOverrideRecords(options.outputDir, overrideRecords);
+  const approvalArtifact = buildApprovalArtifact(options.approvalRecords ?? [], now);
+  await writeApprovalArtifact(options.outputDir, approvalArtifact);
   const draftsBySource = buildToolCardDrafts(recordsBySource, overrideRecords);
   await writeToolCardDrafts(options.outputDir, draftsBySource);
   const sourceRecords = [...recordsBySource.values()].flat();
@@ -62,6 +67,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     sourceRecords,
     toolCardDrafts,
     overrideRecords,
+    approvalArtifact,
     duplicateReport,
     reviewQueue
   };
@@ -119,6 +125,12 @@ async function writeReviewQueue(outputDir: string, reviewQueue: ToolCardReviewQu
   const reviewQueueDir = join(outputDir, "data", "review_queue");
   await mkdir(reviewQueueDir, { recursive: true });
   await writeFile(join(reviewQueueDir, "tool_card_drafts.json"), JSON.stringify(reviewQueue, null, 2), "utf8");
+}
+
+async function writeApprovalArtifact(outputDir: string, approvalArtifact: ApprovalArtifact): Promise<void> {
+  const approvalsDir = join(outputDir, "data", "approvals");
+  await mkdir(approvalsDir, { recursive: true });
+  await writeFile(join(approvalsDir, "approval_records.json"), JSON.stringify(approvalArtifact, null, 2), "utf8");
 }
 
 async function writeDuplicateReport(outputDir: string, duplicateReport: ToolCardDuplicateReport): Promise<void> {

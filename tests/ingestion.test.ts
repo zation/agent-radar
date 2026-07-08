@@ -205,6 +205,19 @@ test("ingestion applies override records to draft normalization artifacts", asyn
           created_at: "2026-07-08T12:00:00Z"
         }
       ],
+      approvalRecords: [
+        {
+          id: "approval-agent-codex-20260708",
+          schema_version: "approval_record.v1",
+          target_type: "tool_card_draft",
+          target_id: "agent-codex",
+          source_record_id: "manual-agent-radar-seed-agent-codex-20260708",
+          decision: "approved",
+          reason: "Reviewed draft and override evidence.",
+          reviewer: "maintainer",
+          reviewed_at: "2026-07-08T13:00:00Z"
+        }
+      ],
       fetchImpl: () =>
         Promise.resolve(new Response(
           JSON.stringify({
@@ -252,9 +265,12 @@ test("ingestion applies override records to draft normalization artifacts", asyn
 
     assert.equal(result.toolCardDrafts[0]?.summary, "Override summary for review queue.");
     assert.equal(result.overrideRecords.length, 1);
+    assert.equal(result.approvalArtifact.summary.approved, 1);
 
     const overrides = JSON.parse(await readFile(join(outputDir, "data", "overrides", "override_records.json"), "utf8")) as { records: Array<{ id: string }> };
     assert.equal(overrides.records[0]?.id, "override-agent-codex-summary-20260708");
+    const approvals = JSON.parse(await readFile(join(outputDir, "data", "approvals", "approval_records.json"), "utf8")) as { summary: { approved: number } };
+    assert.equal(approvals.summary.approved, 1);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

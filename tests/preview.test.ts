@@ -44,6 +44,29 @@ const ingestionResult: RunIngestionResult = {
   ],
   toolCardDrafts: [],
   overrideRecords: [],
+  approvalArtifact: {
+    schema_version: "approval_records.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    summary: {
+      total: 1,
+      approved: 1,
+      rejected: 0,
+      needs_changes: 0
+    },
+    records: [
+      {
+        id: "approval-agent-codex-20260707",
+        schema_version: "approval_record.v1",
+        target_type: "tool_card_draft",
+        target_id: "agent-codex",
+        source_record_id: "manual-agent-radar-seed-agent-codex-20260707",
+        decision: "approved",
+        reason: "Reviewed for preview.",
+        reviewer: "maintainer",
+        reviewed_at: "2026-07-07T12:00:00Z"
+      }
+    ]
+  },
   duplicateReport: {
     schema_version: "tool_card_duplicate_report.v1",
     generated_at: "2026-07-07T00:00:00Z",
@@ -73,6 +96,7 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /Codex/);
   assert.match(markdown, /https:\/\/developers.openai.com\/codex/);
   assert.match(markdown, /Review ready: 0/);
+  assert.match(markdown, /Approvals: 1 approved, 0 rejected, 0 needs changes/);
 });
 
 test("builds artifact manifest with checksums and eval summary", async () => {
