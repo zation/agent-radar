@@ -50,6 +50,15 @@ jobs:
           command: pages deploy dist-pages --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=${{ github.ref_name }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Smoke test MCP endpoint
+        if: ${{ vars.AGENT_RADAR_MCP_BASE_URL != '' }}
+        env:
+          AGENT_RADAR_MCP_BASE_URL: ${{ vars.AGENT_RADAR_MCP_BASE_URL }}
+        run: |
+          set -o pipefail
+          npm run build
+          node dist/src/cli/run-mcp-smoke.js | tee mcp-smoke-result.json
+
       - name: Write review summary
         env:
           DEPLOY_OUTPUT: ${{ steps.deploy.outputs.command-output }}
@@ -70,6 +79,14 @@ jobs:
             echo
             node -e 'const manifest = require("./dist-pages/artifact-manifest.json"); console.log(`- Schema: \`${manifest.schema_version}\``); console.log(`- Git SHA: \`${manifest.git_sha}\``); console.log(`- Data version: \`${manifest.data_version}\``); console.log(`- Eval: ${manifest.eval.passed}/${manifest.eval.total} using \`${manifest.eval.model}\``); console.log(`- Checksums: ${Object.keys(manifest.checksums).length} files`);'
             echo
+            echo "### MCP Smoke"
+            echo
+            if [ -f mcp-smoke-result.json ]; then
+              node -e 'const fs = require("fs"); const lines = fs.readFileSync("mcp-smoke-result.json", "utf8").split(/\n/); const start = lines.findIndex((line) => line.trim().startsWith("{")); const smoke = JSON.parse(lines.slice(start).join("\n")); console.log(`- Endpoint: \`${smoke.endpoint}\``); console.log(`- Result: ${smoke.summary.passed}/${smoke.summary.total} checks passed`);'
+            else
+              echo "- Skipped: \`AGENT_RADAR_MCP_BASE_URL\` repository variable is not configured."
+            fi
+            echo
             cat artifacts/review/ingestion.md
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -80,4 +97,5 @@ jobs:
           path: |
             dist-pages
             artifacts/review
+            mcp-smoke-result.json
           if-no-files-found: error

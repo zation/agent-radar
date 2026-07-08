@@ -152,6 +152,7 @@ npm run eval
 npm run pages:build
 npm run dev:with-data
 npm run release:build
+npm run mcp:smoke
 npm run preview:build
 npm run dev -- --port 4173
 ```
@@ -164,6 +165,7 @@ npm run dev -- --port 4173
 - `npm run pages:build`：构建 Cloudflare Pages 风格静态 UI，输出到本地 `dist-pages/`。
 - `npm run dev:with-data`：先运行 pipeline 生成本地发布产物，再启动 Vite dev server。
 - `npm run release:build`：运行测试、生成发布产物并构建 Pages 输出，适合 CI 或手动发布前使用。
+- `npm run mcp:smoke`：对 `AGENT_RADAR_MCP_BASE_URL` 指向的真实 MCP/Workers base URL 执行 JSON-RPC smoke test，覆盖 initialize、tools/list、只读 tools/call 和只读边界。
 - `npm run preview:build`：在 release build 后运行 ingest，把 artifact manifest 写入 `dist-pages/`，把审核报告写入 `artifacts/review/`，用于 Cloudflare Pages preview 和 GitHub Actions summary 审核。
 - `npm run dev -- --port 4173`：本地预览 Pages UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler。
 
@@ -174,6 +176,7 @@ LLM 推荐相关环境变量：
 | `AGENT_RADAR_LLM_API_KEY` | eval 必填 | 无 | BYOK provider key，仅用于当前 eval/provider 请求 |
 | `AGENT_RADAR_LLM_MODEL` | 否 | `deepseek-v4-flash` | eval 使用的模型 ID 或已支持的 provider model label；本地 CLI 和 CI 使用同一默认值 |
 | `AGENT_RADAR_CHECK_URLS` | 否 | `false` | 设置为 `true` 时，`npm run pipeline` 会对 Tool Card URL 执行 HEAD/GET 可达性检查；默认只输出 skipped artifact，避免本地/CI 偶发外网失败 |
+| `AGENT_RADAR_MCP_BASE_URL` | MCP smoke 必填 | 无 | `npm run mcp:smoke` 使用的已部署 MCP/Workers base URL，例如 `https://agent-radar-api.example.workers.dev`；命令会请求 `${base}/api/mcp` |
 
 当前 Web UI 支持用户在 Recommend 表单中输入一次性 API key 和模型。请求路径为：
 
@@ -220,6 +223,7 @@ checkout
   -> install dependencies
   -> npm run preview:build
   -> deploy dist-pages to Cloudflare Pages preview
+  -> if AGENT_RADAR_MCP_BASE_URL is configured, npm run mcp:smoke against deployed MCP base URL
   -> append artifacts/review/ingestion.md to GitHub Actions summary
 ```
 
@@ -236,6 +240,7 @@ GitHub Actions summary 应包含：
 
 - `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选；如果 Source Registry diff 包含字段级 review requirements，summary 会列出 source、field 和 review reason。
 - Cloudflare Pages preview URL。
+- MCP smoke 结果；如果未配置 `AGENT_RADAR_MCP_BASE_URL`，summary 会明确标注 skipped。
 - `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、source registry diff summary、source registry review summary、Tool Card URL validation summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary 和 checksum 数量。
 
 GitHub 配置要求：
@@ -247,11 +252,13 @@ GitHub 配置要求：
 | `CLOUDFLARE_API_TOKEN` | secret | Wrangler Direct Upload 认证。 |
 | `CLOUDFLARE_ACCOUNT_ID` | secret | Cloudflare account id。 |
 | `CLOUDFLARE_PAGES_PROJECT_NAME` | repository variable | Cloudflare Pages project name；不要放 secret，否则 GitHub 会把 preview URL 中的项目名 mask 成 `***`。 |
+| `AGENT_RADAR_MCP_BASE_URL` | repository variable | 已部署 MCP/Workers base URL；配置后 preview workflow 会自动执行 MCP smoke test。 |
 
 Preview workflow 上传的 artifact 包含：
 
 - `dist-pages`：可部署网站和 `artifact-manifest.json`。
 - `artifacts/review`：给 GitHub Actions Summary 和人工审核使用的 Markdown review。
+- `mcp-smoke-result.json`：配置 `AGENT_RADAR_MCP_BASE_URL` 时生成的 MCP smoke 结果。
 
 ### Production Promote 流程
 
@@ -311,6 +318,7 @@ MCP API 部署在 Cloudflare Workers，读取 Cloudflare D1 SQLite 和静态 JSO
 - `/api/mcp`：MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和 `tools/call`。
 - `data/mcp_examples.json`：部署产物中的 JSON-RPC 请求示例，可用于 agent/client smoke test。
 - `data/mcp_smoke_checklist.json`：部署验收清单；reviewer 应按 checklist 验证 endpoint 初始化、工具列表、只读工具调用和只读边界。
+- `npm run mcp:smoke`：部署后的自动 smoke test；读取 `AGENT_RADAR_MCP_BASE_URL` 并请求 `${base}/api/mcp`。
 
 支持工具：
 

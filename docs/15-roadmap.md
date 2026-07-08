@@ -79,7 +79,7 @@
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 promotion candidates 尚未进入可靠发布数据。
 - schema 级 Tool Card 字段 provenance、跨来源 normalizer、跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry 仍需把 review confirmation artifact 接入可操作审核 UI。
-- Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact 和 MCP deployment smoke checklist；后续仍需在真实部署环境跑 smoke 自动化。
+- Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact、MCP deployment smoke checklist 和可配置的部署后 smoke 命令；后续仍需配置真实 MCP/Workers base URL 并把 Worker 部署证据纳入发布审核。
 - BYOK 模式已经可用，但还缺 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
 
 ## MVP
@@ -371,7 +371,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
   - 记录 production deployment id、manifest checksum 和 D1 seed checksum。
 - 增加 1-2 个官方来源的 crawler/parser，保持 GitHub topics disabled 直到噪声评估完成。
 - 为 provider registry 增加版本号和运行时配置导出能力。
-- 将 MCP smoke checklist 接入真实部署环境自动化；最小 MCP JSON-RPC endpoint、agent-facing examples artifact 和 deployment checklist 已实现。
+- 配置真实 MCP/Workers base URL，并把 `npm run mcp:smoke` 结果和 Worker deployment id 纳入发布审核；最小 MCP JSON-RPC endpoint、agent-facing examples artifact、deployment checklist 和可配置 smoke 命令已实现。
 - 将 eval failure category 汇总同步展示到 GitHub Actions 审核摘要中。
 
 ### P2：可信度增强

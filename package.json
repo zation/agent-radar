@@ -18,6 +18,7 @@
     "pipeline": "npm run build && node dist/src/cli/build-artifacts.js",
     "ingest": "npm run build && node dist/src/cli/run-ingest.js",
     "release:check": "npm run build && node dist/src/cli/check-eval-summary.js",
+    "mcp:smoke": "npm run build && node dist/src/cli/run-mcp-smoke.js",
     "eval": "npm run build && node dist/src/cli/run-eval.js"
   },
   "devDependencies": {
