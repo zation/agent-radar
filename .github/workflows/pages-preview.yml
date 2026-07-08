@@ -91,6 +91,14 @@ jobs:
           name: agent-radar-preview-${{ github.run_id }}
           path: reviewed-preview
 
+      - name: Deploy Cloudflare Pages production
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy reviewed-preview/dist-pages --project-name=${{ vars.CLOUDFLARE_PAGES_PROJECT_NAME }} --branch=main
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Record production approval
         run: |
           {
@@ -99,6 +107,7 @@ jobs:
             echo "- Approved run: \`${GITHUB_RUN_ID}\`"
             echo "- SHA: \`${GITHUB_SHA}\`"
             echo "- Bundle: \`agent-radar-preview-${GITHUB_RUN_ID}\`"
+            echo "- Production branch: \`main\`"
             echo
-            echo "Production deployment wiring is intentionally separate; this job establishes the GitHub Environment approval gate for the reviewed preview bundle."
+            echo "Production deployment used the reviewed preview bundle artifact instead of rebuilding from source."
           } >> "$GITHUB_STEP_SUMMARY"

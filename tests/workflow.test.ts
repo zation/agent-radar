@@ -24,4 +24,7 @@ test("pages preview workflow uses environment approval before production promoti
   assert.match(workflow, /promote-production:[\s\S]*needs:\s*preview/);
   assert.match(workflow, /promote-production:[\s\S]*environment:\s*\n\s*name:\s*production/);
   assert.match(workflow, /promote-production:[\s\S]*Download reviewed preview bundle/);
+  assert.match(workflow, /promote-production:[\s\S]*Deploy Cloudflare Pages production/);
+  assert.match(workflow, /promote-production:[\s\S]*pages deploy reviewed-preview\/dist-pages --project-name=\$\{\{ vars\.CLOUDFLARE_PAGES_PROJECT_NAME \}\} --branch=main/);
+  assert.equal(workflow.indexOf("- name: Download reviewed preview bundle") < workflow.indexOf("- name: Deploy Cloudflare Pages production"), true);
 });
