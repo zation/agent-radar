@@ -52,6 +52,7 @@
 - 采集草稿链路已支持最小 Approval Record artifact，可记录 draft 的 `approved`、`rejected` 和 `needs_changes` 审核决定，但不会自动发布。
 - 采集草稿链路已输出最小 dedup report，按 draft id 和 canonical URL 标注可能重复项，供人工审核参考。
 - review queue 已包含最小重复信号和 approval decision，可标注 draft 可能对应的已发布 `tool_id` 及人工审核决定，但不会自动合并或发布。
+- 采集草稿链路已输出 release admission artifact，只有 ready、approved 且无重复信号的 draft 会标为 `eligible_for_publish`，但不会自动发布。
 - 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
 - Source Registry validator 已检查 enabled source 是否声明已实现 parser，避免 registry 启用未接入解析器的来源。
 - Source Registry validator 已检查 enabled source 是否包含审核 owner 和合法 `last_reviewed_at`。
@@ -345,7 +346,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 ### P0：v0.2 数据接入
 
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
-- 把 `npm run ingest` 输出的 review queue 接入 Tool Card drafts 发布准入。
+- 把 `npm run ingest` 输出的 release admission 接入人工审核 UI 或可靠发布提升流程。
 - 扩展 Source Registry validator，覆盖来源变更 diff 和 robots/terms 审核记录。
 - 扩展 Tool Card validator，覆盖字段级 evidence 和 URL 可达性。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。

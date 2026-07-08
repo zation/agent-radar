@@ -5,6 +5,7 @@ import { crawlEnabledSources } from "./crawler.js";
 import { buildToolCardDuplicateReport, type ToolCardDuplicateReport } from "./deduper.js";
 import { normalizeToolCardDrafts, type OverrideRecord } from "./normalizer.js";
 import { parseSnapshot } from "./parser.js";
+import { buildToolCardReleaseAdmission, type ToolCardReleaseAdmission } from "./release-admission.js";
 import { buildToolCardReviewQueue, type ToolCardReviewQueue } from "./review-queue.js";
 import { getEnabledSources, sourceRegistry } from "./source-registry.js";
 import { seedToolCards } from "../data/seed-tool-cards.js";
@@ -27,6 +28,7 @@ export interface RunIngestionResult {
   approvalArtifact: ApprovalArtifact;
   duplicateReport: ToolCardDuplicateReport;
   reviewQueue: ToolCardReviewQueue;
+  releaseAdmission: ToolCardReleaseAdmission;
 }
 
 export async function runIngestion(options: RunIngestionOptions): Promise<RunIngestionResult> {
@@ -62,6 +64,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeDuplicateReport(options.outputDir, duplicateReport);
   const reviewQueue = buildToolCardReviewQueue(toolCardDrafts, sourceRecords, existingToolCards, now, approvalRecords);
   await writeReviewQueue(options.outputDir, reviewQueue);
+  const releaseAdmission = buildToolCardReleaseAdmission(reviewQueue, now);
+  await writeReleaseAdmission(options.outputDir, releaseAdmission);
 
   return {
     snapshots,
@@ -70,7 +74,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     overrideRecords,
     approvalArtifact,
     duplicateReport,
-    reviewQueue
+    reviewQueue,
+    releaseAdmission
   };
 }
 
@@ -126,6 +131,12 @@ async function writeReviewQueue(outputDir: string, reviewQueue: ToolCardReviewQu
   const reviewQueueDir = join(outputDir, "data", "review_queue");
   await mkdir(reviewQueueDir, { recursive: true });
   await writeFile(join(reviewQueueDir, "tool_card_drafts.json"), JSON.stringify(reviewQueue, null, 2), "utf8");
+}
+
+async function writeReleaseAdmission(outputDir: string, releaseAdmission: ToolCardReleaseAdmission): Promise<void> {
+  const releaseAdmissionDir = join(outputDir, "data", "release_admission");
+  await mkdir(releaseAdmissionDir, { recursive: true });
+  await writeFile(join(releaseAdmissionDir, "tool_card_drafts.json"), JSON.stringify(releaseAdmission, null, 2), "utf8");
 }
 
 async function writeApprovalArtifact(outputDir: string, approvalArtifact: ApprovalArtifact): Promise<void> {

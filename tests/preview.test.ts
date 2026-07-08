@@ -85,6 +85,16 @@ const ingestionResult: RunIngestionResult = {
       blocked_validation: 0
     },
     items: []
+  },
+  releaseAdmission: {
+    schema_version: "tool_card_release_admission.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    summary: {
+      total: 0,
+      eligible_for_publish: 0,
+      blocked: 0
+    },
+    items: []
   }
 };
 

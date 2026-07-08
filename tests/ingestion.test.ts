@@ -308,3 +308,85 @@ test("ingestion applies override records to draft normalization artifacts", asyn
     await rm(outputDir, { recursive: true, force: true });
   }
 });
+
+test("ingestion writes release admission for approved non-duplicate drafts", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
+
+  try {
+    const result = await runIngestion({
+      outputDir,
+      now: "2026-07-08T00:00:00Z",
+      existingToolCards: [],
+      approvalRecords: [
+        {
+          id: "approval-agent-new-tool-20260708",
+          schema_version: "approval_record.v1",
+          target_type: "tool_card_draft",
+          target_id: "agent-new-tool",
+          source_record_id: "manual-agent-radar-seed-agent-new-tool-20260708",
+          decision: "approved",
+          reason: "Reviewed new draft for release admission.",
+          reviewer: "maintainer",
+          reviewed_at: "2026-07-08T13:00:00Z"
+        }
+      ],
+      fetchImpl: () =>
+        Promise.resolve(new Response(
+          JSON.stringify({
+            tools: [
+              {
+                id: "agent-new-tool",
+                schema_version: "tool_card.v1",
+                name: "New Tool",
+                type: "agent",
+                summary: "A newly reviewed coding agent draft.",
+                source_urls: ["https://example.com/new-tool"],
+                docs_url: "https://example.com/new-tool/docs",
+                primary_purpose: "coding_agent",
+                use_cases: ["modify code", "run tests"],
+                not_for: ["unreviewed destructive commands"],
+                tags: ["coding", "agent"],
+                install_methods: [{ method: "hosted", command: "", docs_url: "https://example.com/new-tool/docs", confidence: "high" }],
+                auth_required: "account",
+                permissions: [{ scope: "filesystem", access: "read_write", required: true, notes: "Works in the user's workspace." }],
+                maintenance: {
+                  status: "active",
+                  issue_activity: "active",
+                  maintainer_type: "official",
+                  signals: ["official_product"]
+                },
+                security: {
+                  risk_level: "high",
+                  trust_level: "official",
+                  known_risks: ["filesystem_write"],
+                  requires_human_approval: true,
+                  security_notes: "Review diffs before accepting changes."
+                },
+                maturity: "stable",
+                evidence_refs: ["manual-review-new-tool"],
+                last_checked_at: "2026-07-08T00:00:00Z",
+                confidence: "high",
+                created_at: "2026-07-08T00:00:00Z",
+                updated_at: "2026-07-08T00:00:00Z"
+              }
+            ]
+          }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        ))
+    });
+
+    assert.equal(result.releaseAdmission.summary.eligible_for_publish, 1);
+    assert.equal(result.releaseAdmission.items[0]?.status, "eligible_for_publish");
+    assert.deepEqual(result.releaseAdmission.items[0]?.blocking_reasons, []);
+
+    const admission = JSON.parse(await readFile(join(outputDir, "data", "release_admission", "tool_card_drafts.json"), "utf8")) as {
+      schema_version: string;
+      items: Array<{ tool_id: string; status: string }>;
+    };
+    assert.equal(admission.schema_version, "tool_card_release_admission.v1");
+    assert.equal(admission.items[0]?.tool_id, "agent-new-tool");
+    assert.equal(admission.items[0]?.status, "eligible_for_publish");
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
