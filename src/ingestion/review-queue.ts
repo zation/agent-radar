@@ -1,7 +1,7 @@
 import type { SourceRecord, ToolCard } from "../schema.js";
 import { validateToolCards } from "../validation/tool-card-validator.js";
 import type { ApprovalRecord } from "./approval.js";
-import { findDuplicateToolIds } from "./deduper.js";
+import { findDuplicateDraftToolIds, findDuplicateToolIds } from "./deduper.js";
 
 export type ToolCardReviewStatus = "ready_for_review" | "blocked_validation";
 
@@ -11,6 +11,7 @@ export interface ToolCardReviewQueueItem {
   source_id: string;
   source_record_id: string;
   duplicate_of_tool_ids: string[];
+  duplicate_of_draft_tool_ids: string[];
   approval?: {
     decision: ApprovalRecord["decision"];
     reviewer: string;
@@ -42,7 +43,7 @@ export function buildToolCardReviewQueue(
 ): ToolCardReviewQueue {
   const recordsById = new Map(sourceRecords.map((record) => [record.id, record]));
   const approvalsByDraft = new Map(approvalRecords.map((record) => [approvalKey(record.target_id, record.source_record_id), record]));
-  const items = drafts.map((draft) => buildReviewQueueItem(draft, recordsById, existingToolCards, approvalsByDraft));
+  const items = drafts.map((draft) => buildReviewQueueItem(draft, drafts, recordsById, existingToolCards, approvalsByDraft));
 
   return {
     schema_version: "tool_card_review_queue.v1",
@@ -58,6 +59,7 @@ export function buildToolCardReviewQueue(
 
 function buildReviewQueueItem(
   draft: ToolCard,
+  drafts: ToolCard[],
   recordsById: Map<string, SourceRecord>,
   existingToolCards: ToolCard[],
   approvalsByDraft: Map<string, ApprovalRecord>
@@ -73,6 +75,7 @@ function buildReviewQueueItem(
     source_id: sourceRecord?.source_id ?? "unknown",
     source_record_id: sourceRecordId,
     duplicate_of_tool_ids: findDuplicateToolIds(draft, existingToolCards),
+    duplicate_of_draft_tool_ids: findDuplicateDraftToolIds(draft, drafts),
     approval: approval
       ? {
           decision: approval.decision,

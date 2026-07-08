@@ -61,8 +61,9 @@ function renderApprovalRequests(result: RunIngestionResult): string[] {
     "",
     "## Approval Requests",
     ...result.approvalRequests.items.map((item) => {
-      const duplicates = item.duplicate_of_tool_ids.length > 0 ? item.duplicate_of_tool_ids.join(",") : "none";
-      return `- ${item.tool_id} (${item.name}) source_record=${item.source_record_id} review_status=${item.review_status} duplicates=${duplicates} template_id=${item.approval_record_template.id} decision_options=${item.decision_options.join(",")} required_fields=${item.approval_record_template.required_fields.join(",")}`;
+      const publishedDuplicates = item.duplicate_of_tool_ids.length > 0 ? item.duplicate_of_tool_ids.join(",") : "none";
+      const draftDuplicates = item.duplicate_of_draft_tool_ids.length > 0 ? item.duplicate_of_draft_tool_ids.join(",") : "none";
+      return `- ${item.tool_id} (${item.name}) source_record=${item.source_record_id} review_status=${item.review_status} published_duplicates=${publishedDuplicates} draft_duplicates=${draftDuplicates} template_id=${item.approval_record_template.id} decision_options=${item.decision_options.join(",")} required_fields=${item.approval_record_template.required_fields.join(",")}`;
     })
   ];
 }

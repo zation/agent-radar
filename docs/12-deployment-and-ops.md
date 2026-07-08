@@ -80,7 +80,7 @@ manual seed Tool Cards
   -> Vite Web UI / Workers-style API reads artifacts
 ```
 
-当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存和 Source Record 输出，用于验证采集契约。尚未实现的是发布用 `source_registry.json` artifact、独立 validator、deduper、normalizer、人工 override，以及 Source Record 到 Tool Card 草稿/审核队列的接入。
+当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、发布用 `source_registry.json` artifact、基础 validator、最小 normalizer、最小 deduper、人工 override artifact、Approval Request、review queue、release admission 和 promotion candidates，用于验证采集契约。尚未实现的是完整跨来源 normalizer、完整跨来源 deduper、人工 override 审核 UI，以及 promotion candidates 到可靠发布 artifacts 的人工提升流程。
 
 ### 目标形态
 

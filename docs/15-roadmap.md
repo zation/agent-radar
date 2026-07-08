@@ -55,9 +55,9 @@
 - 采集草稿链路已支持最小 Override Record artifact，可对待审核 draft 应用有证据的人工修正，同时保留 override 审计记录。
 - 采集草稿链路已支持最小 Approval Record artifact，可记录 draft 的 `approved`、`rejected` 和 `needs_changes` 审核决定，但不会自动发布。
 - 采集草稿链路已支持 Approval Request artifact，为缺少 approval 的 draft 输出 approval record template、decision options、duplicate review 背景和 validation 背景，但模板本身不会解除发布阻断。
-- 采集草稿链路已输出最小 dedup report，按 draft id 和 canonical URL 标注可能重复项，供人工审核参考。
-- review queue 已包含最小重复信号和 approval decision，可标注 draft 可能对应的已发布 `tool_id` 及人工审核决定，但不会自动合并或发布。
-- 采集草稿链路已输出 release admission artifact，只有 ready、approved 且无重复信号的 draft 会标为 `eligible_for_publish`，但不会自动发布。
+- 采集草稿链路已输出最小 dedup report，按 draft id 和 canonical URL 标注对已发布 Tool Cards 以及同批 incoming drafts 的可能重复项，供人工审核参考。
+- review queue 已包含最小重复信号和 approval decision，可标注 draft 可能对应的已发布 `tool_id`、同批重复 draft id 及人工审核决定，但不会自动合并或发布。
+- 采集草稿链路已输出 release admission artifact，只有 ready、approved 且无已发布/同批 draft 重复信号的 draft 会标为 `eligible_for_publish`，但不会自动发布。
 - 采集草稿链路已输出 promotion candidates artifact，把 eligible drafts 和 approval evidence 汇总为待人工提升候选，但仍不会自动发布到可靠 Tool Cards。
 - 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
 - 发布流水线已输出 `source_registry_diff.json` artifact，记录 Source Registry 来源配置 added、removed 和 changed 摘要，并为高影响 changed fields 输出 review requirements；摘要已同步到 preview artifact manifest。
@@ -83,7 +83,7 @@
 - Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和更细字段级证据质量。
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 promotion candidates 尚未进入可靠发布数据。
-- 更细的 Tool Card 字段 provenance 已开始绑定具体 Source Record 字段和值；跨来源 normalizer、跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry 仍需把 review confirmation artifact 接入可操作审核 UI。
+- 更细的 Tool Card 字段 provenance 已开始绑定具体 Source Record 字段和值；最小 incoming draft duplicate gates 已接入 dedup report、review queue、approval requests 和 release admission，但完整跨来源 normalizer、完整跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry 仍需把 review confirmation artifact 接入可操作审核 UI。
 - Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact、MCP deployment smoke checklist 和可配置的部署后 smoke 命令；后续仍需配置真实 MCP/Workers base URL 并把 Worker 部署证据纳入发布审核。
 - BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；还缺更完整的 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
 

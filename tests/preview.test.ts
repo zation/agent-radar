@@ -129,6 +129,7 @@ const ingestionResult: RunIngestionResult = {
         source_record_id: "manual-agent-radar-seed-agent-blocked-20260707",
         review_status: "ready_for_review",
         duplicate_of_tool_ids: ["agent-codex"],
+        duplicate_of_draft_tool_ids: ["agent-draft-twin"],
         validation_errors: [],
         validation_warnings: [],
         decision_options: ["approved", "rejected", "needs_changes"],
@@ -273,7 +274,7 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /## Field Value Provenance/);
   assert.match(markdown, /agent-codex summary source=raw_fields\.summary source_record=manual-agent-radar-seed-agent-codex-20260707 value=Cloud coding agent for software development tasks\./);
   assert.match(markdown, /## Approval Requests/);
-  assert.match(markdown, /agent-blocked \(Blocked Agent\) source_record=manual-agent-radar-seed-agent-blocked-20260707 review_status=ready_for_review duplicates=agent-codex template_id=approval-agent-blocked-manual-agent-radar-seed-agent-blocked-20260707/);
+  assert.match(markdown, /agent-blocked \(Blocked Agent\) source_record=manual-agent-radar-seed-agent-blocked-20260707 review_status=ready_for_review published_duplicates=agent-codex draft_duplicates=agent-draft-twin template_id=approval-agent-blocked-manual-agent-radar-seed-agent-blocked-20260707/);
   assert.match(markdown, /decision_options=approved,rejected,needs_changes required_fields=decision,reason,reviewer,reviewed_at/);
   assert.match(markdown, /Release admission: 1 eligible, 1 blocked/);
   assert.match(markdown, /## Release Admission/);

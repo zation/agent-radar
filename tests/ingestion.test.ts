@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { formatIngestionCliSummary } from "../src/cli/ingest-summary.js";
+import { seedToolCards } from "../src/data/seed-tool-cards.js";
 import { crawlEnabledSources } from "../src/ingestion/crawler.js";
 import { runIngestion } from "../src/ingestion/run.js";
 import { buildSourceRegistryReviewArtifact } from "../src/ingestion/source-review.js";
@@ -638,6 +639,66 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.equal(promotionCandidates.schema_version, "tool_card_promotion_candidates.v1");
     assert.equal(promotionCandidates.summary.candidates, 1);
     assert.equal(promotionCandidates.items[0]?.draft.id, "agent-new-tool");
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test("release admission blocks approved drafts that duplicate other incoming drafts", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
+  const base = seedToolCards.find((card) => card.id === "agent-codex");
+  assert.ok(base);
+
+  try {
+    const alpha = {
+      ...base,
+      id: "agent-alpha",
+      name: "Agent Alpha",
+      evidence_refs: ["manual-review-alpha"]
+    };
+    const beta = {
+      ...base,
+      id: "agent-beta",
+      name: "Agent Beta",
+      evidence_refs: ["manual-review-beta"]
+    };
+
+    const result = await runIngestion({
+      outputDir,
+      now: "2026-07-08T00:00:00Z",
+      existingToolCards: [],
+      approvalRecords: [
+        {
+          id: "approval-agent-alpha-20260708",
+          schema_version: "approval_record.v1",
+          target_type: "tool_card_draft",
+          target_id: "agent-alpha",
+          source_record_id: "manual-agent-radar-seed-agent-alpha-20260708",
+          decision: "approved",
+          reason: "Reviewed alpha.",
+          reviewer: "maintainer",
+          reviewed_at: "2026-07-08T13:00:00Z"
+        },
+        {
+          id: "approval-agent-beta-20260708",
+          schema_version: "approval_record.v1",
+          target_type: "tool_card_draft",
+          target_id: "agent-beta",
+          source_record_id: "manual-agent-radar-seed-agent-beta-20260708",
+          decision: "approved",
+          reason: "Reviewed beta.",
+          reviewer: "maintainer",
+          reviewed_at: "2026-07-08T13:05:00Z"
+        }
+      ],
+      fetchImpl: () => Promise.resolve(new Response(JSON.stringify({ tools: [alpha, beta] }), { status: 200, headers: { "content-type": "application/json" } }))
+    });
+
+    assert.deepEqual(result.reviewQueue.items.map((item) => item.duplicate_of_draft_tool_ids), [["agent-beta"], ["agent-alpha"]]);
+    assert.equal(result.releaseAdmission.summary.eligible_for_publish, 0);
+    assert.equal(result.releaseAdmission.summary.blocked, 2);
+    assert.deepEqual(result.releaseAdmission.items.map((item) => item.blocking_reasons), [["possible_duplicate"], ["possible_duplicate"]]);
+    assert.equal(result.promotionCandidates.summary.candidates, 0);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

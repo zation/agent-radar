@@ -17,6 +17,7 @@ export interface ToolCardApprovalRequestItem {
   source_record_id: string;
   review_status: string;
   duplicate_of_tool_ids: string[];
+  duplicate_of_draft_tool_ids: string[];
   validation_errors: string[];
   validation_warnings: string[];
   decision_options: ApprovalDecision[];
@@ -44,6 +45,7 @@ export function buildToolCardApprovalRequests(reviewQueue: ToolCardReviewQueue, 
       source_record_id: item.source_record_id,
       review_status: item.status,
       duplicate_of_tool_ids: item.duplicate_of_tool_ids,
+      duplicate_of_draft_tool_ids: item.duplicate_of_draft_tool_ids,
       validation_errors: item.validation_errors,
       validation_warnings: item.validation_warnings,
       decision_options: ["approved", "rejected", "needs_changes"] satisfies ApprovalDecision[],
@@ -62,7 +64,7 @@ export function buildToolCardApprovalRequests(reviewQueue: ToolCardReviewQueue, 
     generated_at: generatedAt,
     summary: {
       pending_approval: items.length,
-      duplicate_review_required: items.filter((item) => item.duplicate_of_tool_ids.length > 0).length,
+      duplicate_review_required: items.filter((item) => item.duplicate_of_tool_ids.length > 0 || item.duplicate_of_draft_tool_ids.length > 0).length,
       blocked_validation: items.filter((item) => item.review_status === "blocked_validation").length
     },
     items

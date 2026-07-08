@@ -25,7 +25,7 @@ export function buildToolCardReleaseAdmission(reviewQueue: ToolCardReviewQueue, 
     const blockingReasons: string[] = [];
     if (item.status !== "ready_for_review") blockingReasons.push("validation_not_ready");
     if (item.approval?.decision !== "approved") blockingReasons.push("approval_not_approved");
-    if (item.duplicate_of_tool_ids.length > 0) blockingReasons.push("possible_duplicate");
+    if (item.duplicate_of_tool_ids.length > 0 || item.duplicate_of_draft_tool_ids.length > 0) blockingReasons.push("possible_duplicate");
 
     return {
       tool_id: item.tool_id,
