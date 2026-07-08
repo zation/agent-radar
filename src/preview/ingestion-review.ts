@@ -11,6 +11,7 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult): strin
     `- Review ready: ${result.reviewQueue.summary.ready_for_review}`,
     `- Review blocked: ${result.reviewQueue.summary.blocked_validation}`,
     `- Approvals: ${result.approvalArtifact.summary.approved} approved, ${result.approvalArtifact.summary.rejected} rejected, ${result.approvalArtifact.summary.needs_changes} needs changes`,
+    `- Release admission: ${result.releaseAdmission.summary.eligible_for_publish} eligible, ${result.releaseAdmission.summary.blocked} blocked`,
     `- Failed snapshots: ${result.snapshots.filter((snapshot) => snapshot.status === "failed").length}`,
     "",
     "## Sources",

@@ -30,5 +30,9 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
       needs_changes: options.ingestion.approvalArtifact.summary.needs_changes
     }
   };
+  manifest.release_admission = {
+    eligible_for_publish: options.ingestion.releaseAdmission.summary.eligible_for_publish,
+    blocked: options.ingestion.releaseAdmission.summary.blocked
+  };
   await writeFile(join(options.distDir, "artifact-manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
 }

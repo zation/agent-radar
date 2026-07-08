@@ -45,6 +45,7 @@
 - Eval summary 和 markdown eval report 已输出 `failure_category`，可区分 `blocked_no_key`、`provider_error`、`schema_error` 和 `quality_failure`。
 - Preview artifact manifest 已汇总 eval failure categories，便于发布审核快速判断失败类型。
 - Preview artifact manifest 已汇总 ingestion approval summary，便于发布审核快速确认 draft 审核状态。
+- Preview artifact manifest 和 ingestion review 已汇总 release admission summary，便于发布审核快速确认草稿发布准入状态。
 - 无 `AGENT_RADAR_LLM_API_KEY` 时，pipeline/eval 会生成 blocked eval summary，而不是运行旧本地推荐引擎。
 - 已用真实 provider key 跑通 5 个 MVP golden queries，并通过 release gate。
 - `npm run ingest` 已提供 v0.2 最小采集草稿链路：读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records，并为完整且无 parser warnings 的 manual 记录经 normalizer 生成待审核 Tool Card drafts 和 review queue。

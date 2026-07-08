@@ -90,11 +90,18 @@ const ingestionResult: RunIngestionResult = {
     schema_version: "tool_card_release_admission.v1",
     generated_at: "2026-07-07T00:00:00Z",
     summary: {
-      total: 0,
-      eligible_for_publish: 0,
+      total: 1,
+      eligible_for_publish: 1,
       blocked: 0
     },
-    items: []
+    items: [
+      {
+        tool_id: "agent-codex",
+        source_record_id: "manual-agent-radar-seed-agent-codex-20260707",
+        status: "eligible_for_publish",
+        blocking_reasons: []
+      }
+    ]
   }
 };
 
@@ -107,6 +114,7 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /https:\/\/developers.openai.com\/codex/);
   assert.match(markdown, /Review ready: 0/);
   assert.match(markdown, /Approvals: 1 approved, 0 rejected, 0 needs changes/);
+  assert.match(markdown, /Release admission: 1 eligible, 0 blocked/);
 });
 
 test("builds artifact manifest with checksums and eval summary", async () => {
@@ -173,11 +181,13 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     const artifactManifest = JSON.parse(await readFile(join(outputDir, "artifact-manifest.json"), "utf8")) as {
       git_sha: string;
       ingestion_review: { approvals: { approved: number; rejected: number; needs_changes: number } };
+      release_admission: { eligible_for_publish: number; blocked: number };
     };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
     assert.equal(artifactManifest.git_sha, "abc123");
     assert.deepEqual(artifactManifest.ingestion_review.approvals, { approved: 1, rejected: 0, needs_changes: 0 });
+    assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 0 });
     await assert.rejects(() => stat(join(outputDir, "review", "ingestion.md")));
   } finally {
     await rm(outputDir, { recursive: true, force: true });

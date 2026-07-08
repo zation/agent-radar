@@ -21,6 +21,10 @@ export interface ArtifactManifest {
       needs_changes: number;
     };
   };
+  release_admission?: {
+    eligible_for_publish: number;
+    blocked: number;
+  };
   checksums: Record<string, string>;
 }
 
