@@ -167,7 +167,7 @@ npm run dev -- --port 4173
 - `npm run dev:with-data`：先运行 pipeline 生成本地发布产物，再启动 Vite dev server。
 - `npm run release:build`：运行测试、生成发布产物并构建 Pages 输出，适合 CI 或手动发布前使用。
 - `npm run promotion:check`：读取 `data/promotion_candidates/promotion_check.json`，如果 promotion candidate 与现有 seed 重复或未通过 Tool Card validator dry-run，则非 0 退出；preview workflow 会在部署前执行该 gate。
-- `npm run mcp:smoke`：对 `AGENT_RADAR_MCP_BASE_URL` 指向的真实 MCP/Workers base URL 执行 JSON-RPC smoke test，覆盖 initialize、tools/list、只读 tools/call 和只读边界。
+- `npm run mcp:smoke`：当前对 `AGENT_RADAR_MCP_BASE_URL` 指向的已单独部署 MCP/Workers base URL 执行 JSON-RPC smoke test，覆盖 initialize、tools/list、只读 tools/call 和只读边界；完成 MCP server 部署后应优先使用 deploy output 自动传入的 base URL。
 - `npm run preview:build`：在 release build 后运行 ingest，把 artifact manifest 写入 `dist-pages/`，把审核报告写入 `artifacts/review/`，用于 Cloudflare Pages preview 和 GitHub Actions summary 审核。
 - `npm run dev -- --port 4173`：本地预览 Pages UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler。
 
@@ -179,7 +179,7 @@ LLM 推荐相关环境变量：
 | `AGENT_RADAR_LLM_MODEL` | 否 | `deepseek-v4-flash` | eval 使用的模型 ID 或已支持的 provider model label；本地 CLI 和 CI 使用同一默认值 |
 | `AGENT_RADAR_LLM_BASE_URL` | 否 | provider 默认值 | 覆盖当前 LLM provider 的 OpenAI-compatible base URL，不包含具体 path；例如国内 MiniMax 使用 `https://api.minimaxi.com` |
 | `AGENT_RADAR_CHECK_URLS` | 否 | `false` | 设置为 `true` 时，`npm run pipeline` 会对 Tool Card URL 执行 HEAD/GET 可达性检查；默认只输出 skipped artifact，避免本地/CI 偶发外网失败 |
-| `AGENT_RADAR_MCP_BASE_URL` | MCP smoke 必填 | 无 | `npm run mcp:smoke` 使用的已部署 MCP/Workers base URL，例如 `https://agent-radar-api.example.workers.dev`；命令会请求 `${base}/api/mcp` |
+| `AGENT_RADAR_MCP_BASE_URL` | MCP smoke 必填 | 无 | 当前供 `npm run mcp:smoke` 测试已单独部署 MCP/Workers base URL，例如 `https://agent-radar-api.example.workers.dev`；命令会请求 `${base}/api/mcp`。后续 MCP server 部署完成后，该值应作为 override，而不是 preview workflow 的主要 URL 来源。 |
 
 本地开发可以在仓库根目录创建 `.env`，该文件必须保持 git ignored：
 
@@ -242,9 +242,11 @@ checkout
   -> npm run preview:build
   -> npm run promotion:check
   -> deploy dist-pages to Cloudflare Pages preview
-  -> if AGENT_RADAR_MCP_BASE_URL is configured, npm run mcp:smoke against deployed MCP base URL
+  -> if AGENT_RADAR_MCP_BASE_URL is configured, npm run mcp:smoke against that existing MCP base URL
   -> append artifacts/review/ingestion.md to GitHub Actions summary
 ```
+
+当前 Pages preview 部署的是静态 `dist-pages` bundle，不包含 Pages Functions 或 Workers API；因此 workflow 不能把刚部署的 Pages URL 直接当作 MCP endpoint。`AGENT_RADAR_MCP_BASE_URL` 目前只用于测试已单独部署的 MCP/Workers base URL。完成 MCP server 的 Cloudflare Workers 或 Pages Functions 部署后，应把 smoke test 改为从部署成功输出中自动提取刚部署的 API/Pages URL，并请求 `${deployedBaseUrl}/api/mcp`，避免人工维护 `AGENT_RADAR_MCP_BASE_URL`。
 
 Preview deployment 应包含：
 
@@ -273,13 +275,13 @@ GitHub 配置要求：
 | `CLOUDFLARE_API_TOKEN` | secret | Wrangler Direct Upload 认证。 |
 | `CLOUDFLARE_ACCOUNT_ID` | secret | Cloudflare account id。 |
 | `CLOUDFLARE_PAGES_PROJECT_NAME` | repository variable | Cloudflare Pages project name；不要放 secret，否则 GitHub 会把 preview URL 中的项目名 mask 成 `***`。 |
-| `AGENT_RADAR_MCP_BASE_URL` | repository variable | 已部署 MCP/Workers base URL；配置后 preview workflow 会自动执行 MCP smoke test。 |
+| `AGENT_RADAR_MCP_BASE_URL` | repository variable | 已单独部署的 MCP/Workers base URL；配置后 preview workflow 会自动执行 MCP smoke test。完成 MCP server 部署后应由 deploy output 自动提供，不再依赖手工配置。 |
 
 Preview workflow 上传的 artifact 包含：
 
 - `dist-pages`：可部署网站和 `artifact-manifest.json`。
 - `artifacts/review`：给 GitHub Actions Summary 和人工审核使用的 Markdown review。
-- `mcp-smoke-result.json`：配置 `AGENT_RADAR_MCP_BASE_URL` 时生成的 MCP smoke 结果。
+- `mcp-smoke-result.json`：配置 `AGENT_RADAR_MCP_BASE_URL` 或后续从 MCP deploy output 自动提取 base URL 时生成的 MCP smoke 结果。
 
 ### Production Promote 流程
 
@@ -340,7 +342,7 @@ MCP API 部署在 Cloudflare Workers，读取 Cloudflare D1 SQLite 和静态 JSO
 - `data/mcp_examples.json`：部署产物中的 JSON-RPC 请求示例，可用于 agent/client smoke test。
 - `data/mcp_smoke_checklist.json`：部署验收清单；reviewer 应按 checklist 验证 endpoint 初始化、工具列表、只读工具调用和只读边界。
 - `data/provider_registry.json`：部署产物中的 provider registry artifact；reviewer 应确认 `registry_version`、默认模型和 UI 可选模型与发布预期一致。
-- `npm run mcp:smoke`：部署后的自动 smoke test；读取 `AGENT_RADAR_MCP_BASE_URL` 并请求 `${base}/api/mcp`。
+- `npm run mcp:smoke`：部署后的自动 smoke test；当前读取 `AGENT_RADAR_MCP_BASE_URL` 并请求 `${base}/api/mcp`，后续应由 MCP deploy step 自动传入刚部署的 base URL。
 
 支持工具：
 

@@ -88,7 +88,7 @@
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 promotion candidates 只进入人工 promotion plan，尚未自动进入可靠发布数据。
 - 更细的 Tool Card 字段 provenance 已绑定具体 Source Record 字段和值，并会为已应用的 Override Record 输出 `override_record` 字段值 provenance；最小 incoming draft duplicate gates 已接入 dedup report、review queue、approval requests、auto review 和 release admission；GitHub topic source 已启用为受控公共 metadata 来源，repository drafts 会进入 preview 审核材料和 promotion candidate gate；完整跨来源 normalizer、完整跨来源 deduper 和人工 override/发现候选审核 UI 尚未完成；Source Registry review confirmation 已有 request 模板和 Review 页面草稿生成流程，仍缺写入真实 review record artifact 的持久化流程。
-- Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact、MCP deployment smoke checklist 和可配置的部署后 smoke 命令；后续仍需配置真实 MCP/Workers base URL 并把 Worker 部署证据纳入发布审核。
+- Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact、MCP deployment smoke checklist 和可配置的部署后 smoke 命令；后续仍需完成 MCP server 的 Cloudflare Workers 或 Pages Functions 部署，并把 smoke test 改为从部署成功输出自动获取刚部署的 MCP/API base URL。
 - BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；还缺更完整的 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
 
 ## MVP
@@ -380,9 +380,9 @@ v0.2 建议拆成 5 条并行但有优先级的工作线：
   - Reviewer 审核 preview URL、Actions Summary、artifact manifest 和 ingestion review。
   - Production 只 promote 已审核的 preview deployment 或同一个 immutable bundle，不重新运行 pipeline/eval。
   - 记录 production deployment id、manifest checksum 和 D1 seed checksum。
-- 增加 1-2 个官方来源的 crawler/parser，保持 GitHub topics disabled 直到噪声评估完成。
+- 增加 1-2 个官方来源的 crawler/parser，并继续评估已启用 GitHub topic metadata 来源的噪声与发布 gate 效果。
 - 将 `provider_registry.json` 接入更完整的 provider 配置 UI；provider registry 版本号和 runtime config artifact 已实现。
-- 配置真实 MCP/Workers base URL，并把 `npm run mcp:smoke` 结果和 Worker deployment id 纳入发布审核；最小 MCP JSON-RPC endpoint、agent-facing examples artifact、deployment checklist 和可配置 smoke 命令已实现。
+- 完成 MCP server 的 Cloudflare Workers 或 Pages Functions 部署，并把 `npm run mcp:smoke` 改为优先使用 deploy output 中刚部署的 API/Pages URL；`AGENT_RADAR_MCP_BASE_URL` 仅保留为本地或外部 endpoint override。最小 MCP JSON-RPC endpoint、agent-facing examples artifact、deployment checklist 和可配置 smoke 命令已实现。
 - 继续扩展 GitHub Actions 审核摘要中的发布证据；eval failure category 汇总已展示。
 
 ### P2：可信度增强
