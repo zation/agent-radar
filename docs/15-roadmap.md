@@ -30,6 +30,7 @@
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 首批 20 张人工审核 Tool Cards 已进入 JSON artifacts、评分、搜索索引和 D1 seed。
 - React/Vite Web UI 已包含 `Tools` 和 `Recommend` 两个主页面，支持工具浏览、详情、评分解释、风险展示、推荐结果列表和 eval 状态弹层。
+- Web UI 已增加 `Compare` 页面，支持最多 4 个 Tool Cards 横向比较评分、风险、证据、权限和适用/不适用场景。
 - Workers 风格只读 API 已实现 `search_tools`、`get_tool_card`、`recommend_tools`、`explain_rating`。
 - 本地 Vite dev server 已挂载 `/api/*`，避免本地开发时前端请求 API 404。
 - 推荐路径已从本地关键词/规则排序改为 BYOK LLM-backed 推荐；本地代码负责组装 Tool Card/Rating 上下文、调用 provider、校验已知 `tool_id`、保留风险边界并归一化输出。

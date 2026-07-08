@@ -216,6 +216,46 @@ textarea {
   color: var(--risk-text);
 }
 
+.compare-grid {
+  display: grid;
+  font-size: 0.8125rem;
+}
+
+.compare-cell {
+  min-height: 3.25rem;
+  padding: 0.75rem;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+  line-height: 1.45;
+}
+
+.compare-cell:nth-child(n) {
+  overflow-wrap: anywhere;
+}
+
+.compare-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  gap: 0.35rem;
+  background: oklch(97.8% 0.008 170deg);
+  color: var(--foreground);
+}
+
+.compare-head span {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.compare-label {
+  background: oklch(98.7% 0.006 170deg);
+  color: var(--muted-foreground);
+  font-weight: 600;
+}
+
 .info-block-card {
   border-color: oklch(91% 0.014 170deg);
   background: oklch(98.7% 0.006 170deg);

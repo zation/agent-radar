@@ -29,6 +29,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { RecommendationResult } from "../schema.js";
 import { loadUiArtifacts, type ToolViewModel, type UiArtifacts } from "./data.js";
 import { createEvalPopoverRows } from "./eval-popover.js";
+import { buildCompareColumns } from "./compare-view.js";
 import { buildCollapsedRecommendationSummary, getRecommendationSubmitLabel } from "./recommendation-form.js";
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
 import { createRecommendationItems, formatRecommendationApiError, type RecommendationApiErrorBody, type RecommendationItem } from "./recommendation-view.js";
@@ -36,7 +37,7 @@ import "./styles.css";
 
 const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
 
-type Page = "tools" | "recommend";
+type Page = "tools" | "recommend" | "compare";
 type RiskTolerance = "low" | "medium" | "high";
 
 const modelOptions = [
@@ -55,6 +56,7 @@ export default function App() {
   const [activePage, setActivePage] = useState<Page>("tools");
   const [selectedId, setSelectedId] = useState("");
   const [selectedRecommendationToolId, setSelectedRecommendationToolId] = useState("");
+  const [compareIds, setCompareIds] = useState<string[]>([]);
   const [query, setQuery] = useState(fallbackQuery);
   const [apiKey, setApiKey] = useState("");
   const [modelName, setModelName] = useState(modelOptions[0]);
@@ -72,6 +74,7 @@ export default function App() {
       setArtifacts(loaded);
       setSelectedId(loaded.tools[0]?.card.id ?? "");
       setSelectedRecommendationToolId(loaded.tools[0]?.card.id ?? "");
+      setCompareIds(loaded.tools.slice(0, 4).map((tool) => tool.card.id));
     });
   }, []);
 
@@ -95,6 +98,11 @@ export default function App() {
     if (!recommendation || !artifacts) return [];
     return createRecommendationItems(recommendation, artifacts.tools);
   }, [artifacts, recommendation]);
+
+  const compareColumns = useMemo(() => {
+    if (!artifacts) return [];
+    return buildCompareColumns(artifacts.tools, compareIds);
+  }, [artifacts, compareIds]);
 
   const selectedTool = filteredTools.find((tool) => tool.card.id === selectedId) ?? filteredTools[0] ?? artifacts?.tools[0];
   const selectedRecommendationTool =
@@ -166,6 +174,7 @@ export default function App() {
             <TabsList>
               <TabsTrigger value="tools">Tools</TabsTrigger>
               <TabsTrigger value="recommend">Recommend</TabsTrigger>
+              <TabsTrigger value="compare">Compare</TabsTrigger>
             </TabsList>
           </Tabs>
           <EvalStatusPopover summary={artifacts.evalSummary} />
@@ -217,6 +226,21 @@ export default function App() {
             <ToolDetail tool={selectedRecommendationTool} />
           </section>
         </section>
+      )}
+
+      {activePage === "compare" && (
+        <ComparePage
+          tools={artifacts.tools}
+          columns={compareColumns}
+          selectedIds={compareIds}
+          onSelectCompareId={(index, toolId) =>
+            setCompareIds((current) => {
+              const nextIds = [...current];
+              nextIds[index] = toolId;
+              return nextIds;
+            })
+          }
+        />
       )}
     </main>
   );
@@ -609,6 +633,94 @@ function CompareStrip({ tools }: { tools: ToolViewModel[] }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ComparePage({
+  tools,
+  columns,
+  selectedIds,
+  onSelectCompareId
+}: {
+  tools: ToolViewModel[];
+  columns: ToolViewModel[];
+  selectedIds: string[];
+  onSelectCompareId: (index: number, toolId: string) => void;
+}) {
+  const rows = [
+    { label: "Type", value: (tool: ToolViewModel) => tool.card.type },
+    { label: "Score", value: (tool: ToolViewModel) => String(tool.rating.overall_score) },
+    { label: "Recommendation", value: (tool: ToolViewModel) => tool.rating.recommendation_level },
+    { label: "Risk", value: (tool: ToolViewModel) => tool.rating.risk_level },
+    { label: "Evidence", value: (tool: ToolViewModel) => tool.rating.evidence_quality },
+    { label: "Purpose", value: (tool: ToolViewModel) => tool.card.primary_purpose },
+    { label: "Permissions", value: (tool: ToolViewModel) => tool.card.permissions.map((permission) => `${permission.scope}:${permission.access}`).join(", ") || "none" },
+    { label: "Best for", value: (tool: ToolViewModel) => tool.card.use_cases.slice(0, 2).join("; ") },
+    { label: "Avoid when", value: (tool: ToolViewModel) => tool.card.not_for.slice(0, 2).join("; ") }
+  ];
+
+  return (
+    <section className="mx-auto grid max-w-[1500px] gap-4 p-3 md:p-5">
+      <Card className="app-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <GitCompare />
+            Compare Tool Cards
+          </CardTitle>
+          <CardDescription>Review fit, risk, evidence, permissions, and limits side by side.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => (
+            <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium" key={index}>
+              Slot {index + 1}
+              <Select
+                items={tools.map((tool) => ({ label: tool.card.name, value: tool.card.id }))}
+                value={selectedIds[index] ?? columns[index]?.card.id ?? tools[index]?.card.id}
+                onValueChange={(value) => {
+                  if (value) onSelectCompareId(index, value);
+                }}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent alignItemWithTrigger={false} sideOffset={6} className="recommend-model-menu">
+                  <SelectGroup>
+                    {tools.map((tool) => (
+                      <SelectItem key={tool.card.id} value={tool.card.id}>
+                        {tool.card.name}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </label>
+          ))}
+        </CardContent>
+      </Card>
+      <Card className="app-card">
+        <CardContent className="overflow-x-auto p-0">
+          <div className="compare-grid min-w-[920px]" style={{ gridTemplateColumns: `160px repeat(${columns.length}, minmax(180px, 1fr))` }}>
+            <div className="compare-cell compare-head">Field</div>
+            {columns.map((tool) => (
+              <div className="compare-cell compare-head" key={tool.card.id}>
+                <strong>{tool.card.name}</strong>
+                <span>{tool.card.summary}</span>
+              </div>
+            ))}
+            {rows.map((row) => (
+              <div className="contents" key={row.label}>
+                <div className="compare-cell compare-label">{row.label}</div>
+                {columns.map((tool) => (
+                  <div className="compare-cell" key={`${row.label}-${tool.card.id}`}>
+                    {row.value(tool)}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </section>
   );
 }
 
