@@ -40,6 +40,7 @@
   - DeepSeek：`DeepSeek V4 Pro`、`DeepSeek V4 Flash`
 - 推荐 provider endpoint、model label、API model 和 instruction role 已集中到 provider registry，避免推荐引擎内散落常量。
 - Recommend UI 的模型下拉选项已从同一份 provider registry 派生，避免前后端 provider label 分叉。
+- Provider registry 已增加 `provider_registry.v0.2` 版本号，并由发布流水线输出 `provider_registry.json` runtime config artifact，记录默认模型、BYOK key handling 和可选 provider/model。
 - LLM provider 请求会记录 provider、endpoint、model、状态码和脱敏错误体，不记录 API key。
 - Provider 401/403、429、模型不可用和 JSON 输出异常已映射为稳定 API error code，并在 Recommend UI 中展示 provider/status 上下文。
 - Eval summary 和 markdown eval report 已输出 `failure_category`，可区分 `blocked_no_key`、`provider_error`、`schema_error` 和 `quality_failure`。
@@ -80,7 +81,7 @@
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 promotion candidates 尚未进入可靠发布数据。
 - schema 级 Tool Card 字段 provenance、跨来源 normalizer、跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry 仍需把 review confirmation artifact 接入可操作审核 UI。
 - Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact、MCP deployment smoke checklist 和可配置的部署后 smoke 命令；后续仍需配置真实 MCP/Workers base URL 并把 Worker 部署证据纳入发布审核。
-- BYOK 模式已经可用，但还缺 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
+- BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；还缺更完整的 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
 
 ## MVP
 
@@ -370,7 +371,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
   - Production 只 promote 已审核的 preview deployment 或同一个 immutable bundle，不重新运行 pipeline/eval。
   - 记录 production deployment id、manifest checksum 和 D1 seed checksum。
 - 增加 1-2 个官方来源的 crawler/parser，保持 GitHub topics disabled 直到噪声评估完成。
-- 为 provider registry 增加版本号和运行时配置导出能力。
+- 将 `provider_registry.json` 接入更完整的 provider 配置 UI；provider registry 版本号和 runtime config artifact 已实现。
 - 配置真实 MCP/Workers base URL，并把 `npm run mcp:smoke` 结果和 Worker deployment id 纳入发布审核；最小 MCP JSON-RPC endpoint、agent-facing examples artifact、deployment checklist 和可配置 smoke 命令已实现。
 - 将 eval failure category 汇总同步展示到 GitHub Actions 审核摘要中。
 

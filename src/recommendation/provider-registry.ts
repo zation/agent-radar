@@ -1,6 +1,7 @@
 export type RecommendationProvider = "openai" | "minimax" | "deepseek";
 
 export const DEFAULT_RECOMMENDATION_MODEL = "deepseek-v4-flash";
+export const PROVIDER_REGISTRY_VERSION = "provider_registry.v0.2";
 
 export interface RecommendationProviderModel {
   apiModel: string;
@@ -8,6 +9,21 @@ export interface RecommendationProviderModel {
   instructionRole: "developer" | "system";
   label: string;
   provider: RecommendationProvider;
+}
+
+export interface ProviderRegistryArtifact {
+  schema_version: "provider_registry.v1";
+  registry_version: typeof PROVIDER_REGISTRY_VERSION;
+  default_model: typeof DEFAULT_RECOMMENDATION_MODEL;
+  key_handling: "byok_request_only";
+  models: Array<{
+    label: string;
+    provider: RecommendationProvider;
+    api_model: string;
+    endpoint: string;
+    instruction_role: "developer" | "system";
+    runtime_selectable: true;
+  }>;
 }
 
 const providerModels: RecommendationProviderModel[] = [
@@ -50,6 +66,23 @@ const providerModels: RecommendationProviderModel[] = [
 
 export function listRecommendationProviderModels(): RecommendationProviderModel[] {
   return providerModels.map((model) => ({ ...model }));
+}
+
+export function buildProviderRegistryArtifact(): ProviderRegistryArtifact {
+  return {
+    schema_version: "provider_registry.v1",
+    registry_version: PROVIDER_REGISTRY_VERSION,
+    default_model: DEFAULT_RECOMMENDATION_MODEL,
+    key_handling: "byok_request_only",
+    models: providerModels.map((model) => ({
+      label: model.label,
+      provider: model.provider,
+      api_model: model.apiModel,
+      endpoint: model.endpoint,
+      instruction_role: model.instructionRole,
+      runtime_selectable: true
+    }))
+  };
 }
 
 export function resolveRecommendationProviderModel(model: string): RecommendationProviderModel {

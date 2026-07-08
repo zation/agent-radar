@@ -20,6 +20,7 @@ interface ManifestFile {
   source_registry_review: string;
   tool_card_validation: string;
   tool_card_url_validation: string;
+  provider_registry: string;
   mcp_tools: string;
   mcp_examples: string;
   mcp_smoke_checklist: string;
@@ -49,6 +50,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.source_registry_review, "data/source_registry_review.json");
     assert.equal(manifest.tool_card_validation, "data/tool_card_validation.json");
     assert.equal(manifest.tool_card_url_validation, "data/tool_card_url_validation.json");
+    assert.equal(manifest.provider_registry, "data/provider_registry.json");
     assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
     assert.equal(manifest.mcp_examples, "data/mcp_examples.json");
     assert.equal(manifest.mcp_smoke_checklist, "data/mcp_smoke_checklist.json");
@@ -76,6 +78,26 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(toolCardUrlValidation.schema_version, "tool_card_url_validation.v1");
     assert.equal(toolCardUrlValidation.summary.checked, 0);
     assert.equal(toolCardUrlValidation.summary.skipped > 0, true);
+
+    const providerRegistry = JSON.parse(await readFile(join(outputDir, "data", "provider_registry.json"), "utf8")) as {
+      schema_version: string;
+      registry_version: string;
+      default_model: string;
+      models: Array<{ label: string; provider: string }>;
+    };
+    assert.equal(providerRegistry.schema_version, "provider_registry.v1");
+    assert.equal(providerRegistry.registry_version, "provider_registry.v0.2");
+    assert.equal(providerRegistry.default_model, "deepseek-v4-flash");
+    assert.deepEqual(
+      providerRegistry.models.map((model) => [model.label, model.provider]),
+      [
+        ["OpenAI GPT-4.1", "openai"],
+        ["OpenAI GPT-4.1 mini", "openai"],
+        ["MiniMax M3", "minimax"],
+        ["DeepSeek V4 Pro", "deepseek"],
+        ["DeepSeek V4 Flash", "deepseek"]
+      ]
+    );
 
     const mcpTools = JSON.parse(await readFile(join(outputDir, "data", "mcp_tools.json"), "utf8"));
     assert.equal(mcpTools.schema_version, "mcp_tool_manifest.v1");

@@ -231,10 +231,11 @@ Preview deployment 应包含：
 
 - 产品网站本体。
 - `data/*`：Tool Cards、ratings、search index、eval summary、D1 seed。
+- `data/provider_registry.json`：版本化 provider runtime config，供 UI、API 和发布审核确认 BYOK model/provider 选项一致。
 - `data/mcp_examples.json`：MCP JSON-RPC 请求示例，供 agent/client 集成验证。
 - `data/mcp_smoke_checklist.json`：MCP deployment review checklist，列出 initialize、tools/list、只读 tools/call 和只读边界的必检项。
 - `reports/*`：eval report。
-- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary、构建时间和关键文件 checksum；checksum 覆盖 `mcp_examples.json` 和 `mcp_smoke_checklist.json`。
+- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、crawl audit summary、ingestion approval summary、release admission summary、promotion candidates summary、构建时间和关键文件 checksum；checksum 覆盖 `provider_registry.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`。
 
 GitHub Actions summary 应包含：
 
@@ -318,6 +319,7 @@ MCP API 部署在 Cloudflare Workers，读取 Cloudflare D1 SQLite 和静态 JSO
 - `/api/mcp`：MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和 `tools/call`。
 - `data/mcp_examples.json`：部署产物中的 JSON-RPC 请求示例，可用于 agent/client smoke test。
 - `data/mcp_smoke_checklist.json`：部署验收清单；reviewer 应按 checklist 验证 endpoint 初始化、工具列表、只读工具调用和只读边界。
+- `data/provider_registry.json`：部署产物中的 provider registry artifact；reviewer 应确认 `registry_version`、默认模型和 UI 可选模型与发布预期一致。
 - `npm run mcp:smoke`：部署后的自动 smoke test；读取 `AGENT_RADAR_MCP_BASE_URL` 并请求 `${base}/api/mcp`。
 
 支持工具：

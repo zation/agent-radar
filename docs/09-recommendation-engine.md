@@ -303,6 +303,7 @@ Workers API 同时提供两种 agent-facing 入口：
 
 - `/api/mcp_manifest`：返回只读工具定义，供简单 HTTP JSON client 消费。
 - `/api/mcp`：最小 MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和 `tools/call`。`tools/call` 只包装下列只读工具，返回 text content 中的 JSON 字符串。
+- `data/provider_registry.json`：发布流水线输出的版本化 provider runtime config，包含可选 model、provider、endpoint、API model、instruction role 和 BYOK key handling，不包含 API key。
 - `data/mcp_examples.json`：发布流水线输出的 agent-facing JSON-RPC 示例，覆盖 initialize、tools/list、get_tool_card 和 search_tools。
 - `data/mcp_smoke_checklist.json`：发布流水线输出的部署验收清单，覆盖 initialize、tools/list、只读 tools/call 和只读边界。
 - `npm run mcp:smoke`：读取 `AGENT_RADAR_MCP_BASE_URL`，对已部署 `/api/mcp` 执行同一组只读 smoke checks。

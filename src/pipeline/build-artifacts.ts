@@ -9,7 +9,7 @@ import { createBlockedEvalSummary, runGoldenQueries, type EvalSummary } from "..
 import { buildSourceRegistryReviewArtifact } from "../ingestion/source-review.js";
 import { buildSourceRegistryArtifact, buildSourceRegistryDiff, sourceRegistry } from "../ingestion/source-registry.js";
 import { rateAllToolCards } from "../rating/engine.js";
-import { DEFAULT_RECOMMENDATION_MODEL } from "../recommendation/provider-registry.js";
+import { DEFAULT_RECOMMENDATION_MODEL, buildProviderRegistryArtifact } from "../recommendation/provider-registry.js";
 import { buildSearchIndex } from "../search/index-builder.js";
 import { buildSkippedToolCardUrlValidation, checkToolCardUrls, validateToolCards } from "../validation/tool-card-validator.js";
 
@@ -54,6 +54,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   const toolCardUrlValidation = shouldCheckUrls
     ? await checkToolCardUrls(toolCards, { fetchImpl: options.fetchImpl, checkedAt: "2026-07-06T00:00:00Z" })
     : buildSkippedToolCardUrlValidation(toolCards, "2026-07-06T00:00:00Z", "url_reachability_check_not_enabled");
+  const providerRegistry = buildProviderRegistryArtifact();
   const mcpToolManifest = buildMcpToolManifest();
   const mcpExamples = buildMcpExamplesArtifact();
   const mcpSmokeChecklist = buildMcpSmokeChecklistArtifact();
@@ -66,6 +67,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await writeFile(join(publicDataDir, "source_registry_review.json"), JSON.stringify(sourceRegistryReview, null, 2), "utf8");
   await writeFile(join(publicDataDir, "tool_card_validation.json"), JSON.stringify(toolCardValidation, null, 2), "utf8");
   await writeFile(join(publicDataDir, "tool_card_url_validation.json"), JSON.stringify(toolCardUrlValidation, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "provider_registry.json"), JSON.stringify(providerRegistry, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_tools.json"), JSON.stringify(mcpToolManifest, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_examples.json"), JSON.stringify(mcpExamples, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_smoke_checklist.json"), JSON.stringify(mcpSmokeChecklist, null, 2), "utf8");
@@ -94,6 +96,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         source_registry_review: "data/source_registry_review.json",
         tool_card_validation: "data/tool_card_validation.json",
         tool_card_url_validation: "data/tool_card_url_validation.json",
+        provider_registry: "data/provider_registry.json",
         mcp_tools: "data/mcp_tools.json",
         mcp_examples: "data/mcp_examples.json",
         mcp_smoke_checklist: "data/mcp_smoke_checklist.json",

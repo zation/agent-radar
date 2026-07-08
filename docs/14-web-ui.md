@@ -107,6 +107,7 @@ Tools 页面不显示推荐输入，也不显示推荐结果。
 - 对高风险场景显示 `ask_human` 或 `no_reliable_match`。
 
 当前 Recommend 页面通过 `/api/recommend_tools` 调用后端 LLM 推荐引擎。API key 是 BYOK 请求参数，只用于本次 LLM 调用，不写入持久化存储、不进入响应体。
+发布流水线同时输出 `data/provider_registry.json`，作为版本化 provider runtime config；它可用于校验 Recommend UI 的模型下拉、默认模型和后端 provider routing 是否一致，不包含任何用户 API key。
 
 布局：
 
