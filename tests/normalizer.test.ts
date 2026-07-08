@@ -81,6 +81,65 @@ test("normalizer applies auditable override records to matching draft fields", (
   assert.deepEqual(drafts[0]?.evidence_refs, ["manual-agent-radar-seed-agent-example-20260708", "override-agent-example-summary-20260708"]);
 });
 
+test("normalizer merges cross-source repository and package records into one draft", () => {
+  const records: SourceRecord[] = [
+    {
+      id: "github-topic-mcp-modelcontextprotocol-typescript-sdk-20260708",
+      schema_version: "source_record.v1",
+      snapshot_id: "snapshot-github",
+      source_id: "github-topic-mcp",
+      record_type: "repository",
+      name: "modelcontextprotocol/typescript-sdk",
+      description: "Model Context Protocol TypeScript SDK.",
+      urls: ["https://github.com/modelcontextprotocol/typescript-sdk"],
+      raw_fields: {},
+      parsed_fields: {
+        repo_url: "https://github.com/modelcontextprotocol/typescript-sdk",
+        stars: 9000,
+        license: "MIT",
+        last_commit_at: "2026-07-07T12:00:00Z",
+        topics: ["mcp", "model-context-protocol", "typescript"]
+      },
+      source_confidence: "medium",
+      parsed_at: "2026-07-08T00:00:00Z",
+      parser_version: "github_topic_parser.v1",
+      warnings: []
+    },
+    {
+      id: "npm-modelcontextprotocol-sdk-modelcontextprotocol-sdk-20260708",
+      schema_version: "source_record.v1",
+      snapshot_id: "snapshot-npm",
+      source_id: "npm-modelcontextprotocol-sdk",
+      record_type: "package",
+      name: "@modelcontextprotocol/sdk",
+      description: "Model Context Protocol SDK package.",
+      urls: ["https://www.npmjs.com/package/@modelcontextprotocol/sdk", "https://github.com/modelcontextprotocol/typescript-sdk"],
+      raw_fields: {},
+      parsed_fields: {
+        package_name: "@modelcontextprotocol/sdk",
+        package_url: "https://www.npmjs.com/package/@modelcontextprotocol/sdk",
+        repo_url: "https://github.com/modelcontextprotocol/typescript-sdk",
+        latest_version: "1.2.3",
+        last_release_at: "2026-07-07T12:00:00.000Z",
+        keywords: ["mcp", "typescript"]
+      },
+      source_confidence: "medium",
+      parsed_at: "2026-07-08T00:00:00Z",
+      parser_version: "npm_package_parser.v1",
+      warnings: []
+    }
+  ];
+
+  const drafts = normalizeToolCardDrafts(records);
+
+  assert.equal(drafts.length, 1);
+  assert.equal(drafts[0]?.id, "mcp-modelcontextprotocol-typescript-sdk");
+  assert.equal(drafts[0]?.repo_url, "https://github.com/modelcontextprotocol/typescript-sdk");
+  assert.deepEqual(drafts[0]?.package_urls, ["https://www.npmjs.com/package/@modelcontextprotocol/sdk"]);
+  assert.deepEqual(drafts[0]?.evidence_refs, records.map((record) => record.id));
+  assert.equal(drafts[0]?.maintenance.last_release_at, "2026-07-07T12:00:00.000Z");
+});
+
 test("normalizer rejects override records without evidence", () => {
   const override: OverrideRecord = {
     id: "override-agent-example-summary-20260708",

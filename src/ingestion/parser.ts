@@ -25,7 +25,22 @@ interface GitHubTopicRepository {
   topics?: string[];
 }
 
-export const supportedSourceParsers = ["manual_seed_parser", "github_topic_parser"] as const;
+interface NpmPackagePayload {
+  name?: string;
+  description?: string;
+  license?: string;
+  repository?: string | { type?: string; url?: string };
+  homepage?: string;
+  keywords?: string[];
+  "dist-tags"?: {
+    latest?: string;
+  };
+  time?: {
+    modified?: string;
+  } & Record<string, string | undefined>;
+}
+
+export const supportedSourceParsers = ["manual_seed_parser", "github_topic_parser", "npm_package_parser"] as const;
 
 export type SupportedSourceParser = (typeof supportedSourceParsers)[number];
 
@@ -37,6 +52,7 @@ export async function parseSnapshot(snapshot: RawSourceSnapshot, source: SourceD
   if (snapshot.status !== "success") return [];
   if (source.parser === "manual_seed_parser") return parseManualSeedSnapshot(snapshot, source, outputDir, now);
   if (source.parser === "github_topic_parser") return parseGitHubTopicSnapshot(snapshot, source, outputDir, now);
+  if (source.parser === "npm_package_parser") return parseNpmPackageSnapshot(snapshot, source, outputDir, now);
   return [];
 }
 
@@ -107,6 +123,45 @@ async function parseGitHubTopicSnapshot(snapshot: RawSourceSnapshot, source: Sou
     });
 }
 
+async function parseNpmPackageSnapshot(snapshot: RawSourceSnapshot, source: SourceDefinition, outputDir: string, now: string): Promise<SourceRecord[]> {
+  const raw = await readFile(join(outputDir, snapshot.content_path), "utf8");
+  const payload = JSON.parse(raw) as NpmPackagePayload;
+  if (!payload.name) return [];
+
+  const packageUrl = `https://www.npmjs.com/package/${payload.name}`;
+  const repoUrl = normalizeRepositoryUrl(typeof payload.repository === "string" ? payload.repository : payload.repository?.url);
+  const keywords = Array.isArray(payload.keywords) ? payload.keywords.filter((keyword): keyword is string => typeof keyword === "string" && keyword.trim().length > 0) : [];
+  const parsedFields: Record<string, unknown> = {
+    package_name: payload.name,
+    package_url: packageUrl,
+    repo_url: repoUrl,
+    homepage_url: payload.homepage,
+    license: payload.license,
+    latest_version: payload["dist-tags"]?.latest,
+    last_release_at: payload.time?.modified,
+    keywords
+  };
+
+  return [
+    {
+      id: `${source.id}-${slugify(payload.name)}-${now.slice(0, 10).replaceAll("-", "")}`,
+      schema_version: "source_record.v1",
+      snapshot_id: snapshot.id,
+      source_id: source.id,
+      record_type: "package",
+      name: payload.name,
+      description: payload.description,
+      urls: [packageUrl, repoUrl, payload.homepage].filter((url): url is string => Boolean(url)),
+      raw_fields: payload as Record<string, unknown>,
+      parsed_fields: dropUndefined(parsedFields),
+      source_confidence: confidenceFromSource(source),
+      parsed_at: now,
+      parser_version: "npm_package_parser.v1",
+      warnings: buildNpmPackageWarnings(payload, repoUrl)
+    }
+  ];
+}
+
 function confidenceFromSource(source: SourceDefinition): Confidence {
   if (source.trust_level === "official" || source.trust_level === "well_known_org") return "high";
   if (source.trust_level === "active_open_source" || source.trust_level === "commercial") return "medium";
@@ -131,10 +186,29 @@ function buildGitHubTopicWarnings(repo: GitHubTopicRepository): string[] {
   return warnings;
 }
 
+function buildNpmPackageWarnings(payload: NpmPackagePayload, repoUrl: string | undefined): string[] {
+  const warnings: string[] = [];
+  if (!payload.description?.trim()) warnings.push("missing_description");
+  if (!payload.license?.trim()) warnings.push("missing_license");
+  if (!repoUrl) warnings.push("missing_repo_url");
+  if (!payload["dist-tags"]?.latest) warnings.push("missing_latest_version");
+  if (!payload.time?.modified) warnings.push("missing_last_release_at");
+  return warnings;
+}
+
 function dropUndefined(fields: Record<string, unknown>): Record<string, unknown> {
   return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
 }
 
 function slugify(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function normalizeRepositoryUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  return value
+    .replace(/^git\+/, "")
+    .replace(/^git:\/\//, "https://")
+    .replace(/\.git$/, "")
+    .trim();
 }

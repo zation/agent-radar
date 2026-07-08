@@ -12,3 +12,16 @@ test("pages preview workflow gates promotion candidates before deployment", asyn
   assert.equal(promotionCheckStepIndex < deployStepIndex, true);
   assert.match(workflow, /run:\s*npm run promotion:check/);
 });
+
+test("pages preview workflow uses environment approval before production promotion", async () => {
+  const workflow = await readFile(".github/workflows/pages-preview.yml", "utf8");
+  const previewJobIndex = workflow.indexOf("preview:");
+  const promoteJobIndex = workflow.indexOf("promote-production:");
+
+  assert.notEqual(previewJobIndex, -1);
+  assert.notEqual(promoteJobIndex, -1);
+  assert.equal(previewJobIndex < promoteJobIndex, true);
+  assert.match(workflow, /promote-production:[\s\S]*needs:\s*preview/);
+  assert.match(workflow, /promote-production:[\s\S]*environment:\s*\n\s*name:\s*production/);
+  assert.match(workflow, /promote-production:[\s\S]*Download reviewed preview bundle/);
+});

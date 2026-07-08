@@ -99,3 +99,28 @@ jobs:
             artifacts/review
             mcp-smoke-result.json
           if-no-files-found: error
+
+  promote-production:
+    name: Approve production publish
+    needs: preview
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Download reviewed preview bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-radar-preview-${{ github.run_id }}
+          path: reviewed-preview
+
+      - name: Record production approval
+        run: |
+          {
+            echo "## Agent Radar Production Approval"
+            echo
+            echo "- Approved run: \`${GITHUB_RUN_ID}\`"
+            echo "- SHA: \`${GITHUB_SHA}\`"
+            echo "- Bundle: \`agent-radar-preview-${GITHUB_RUN_ID}\`"
+            echo
+            echo "Production deployment wiring is intentionally separate; this job establishes the GitHub Environment approval gate for the reviewed preview bundle."
+          } >> "$GITHUB_STEP_SUMMARY"

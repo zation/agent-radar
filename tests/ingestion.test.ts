@@ -15,6 +15,8 @@ import type { SourceDefinition } from "../src/schema.js";
 
 const githubTopicSource = sourceRegistry.find((source) => source.id === "github-topic-mcp");
 assert.ok(githubTopicSource);
+const npmPackageSource = sourceRegistry.find((source) => source.id === "npm-modelcontextprotocol-sdk");
+assert.ok(npmPackageSource);
 
 const manualTestSource: SourceDefinition = {
   id: "manual-agent-radar-seed",
@@ -45,9 +47,11 @@ const manualTestSource: SourceDefinition = {
 test("source registry exposes only enabled MVP sources", () => {
   const enabled = getEnabledSources(sourceRegistry);
 
-  assert.deepEqual(enabled.map((source) => source.id), ["github-topic-mcp"]);
+  assert.deepEqual(enabled.map((source) => source.id), ["github-topic-mcp", "npm-modelcontextprotocol-sdk"]);
   assert.equal(enabled[0]?.collection_method, "api");
   assert.equal(enabled[0]?.parser, "github_topic_parser");
+  assert.equal(enabled[1]?.source_type, "package_registry");
+  assert.equal(enabled[1]?.parser, "npm_package_parser");
 });
 
 test("ingestion CLI summary includes approval and release gates", () => {
@@ -194,6 +198,66 @@ test("github topic parser creates repository source records from API payloads", 
     });
     assert.equal(records[0]?.source_confidence, "medium");
     assert.equal(records[0]?.parser_version, "github_topic_parser.v1");
+    assert.deepEqual(records[0]?.warnings, []);
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test("npm package parser creates package source records from registry payloads", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
+  const contentPath = "data/raw/npm-modelcontextprotocol-sdk/2026-07-08/package.json";
+
+  try {
+    await mkdir(join(outputDir, "data", "raw", "npm-modelcontextprotocol-sdk", "2026-07-08"), { recursive: true });
+    await writeFile(
+      join(outputDir, contentPath),
+      JSON.stringify({
+        name: "@modelcontextprotocol/sdk",
+        description: "Model Context Protocol SDK",
+        license: "MIT",
+        repository: { type: "git", url: "git+https://github.com/modelcontextprotocol/typescript-sdk.git" },
+        homepage: "https://modelcontextprotocol.io",
+        keywords: ["mcp", "model-context-protocol", "typescript"],
+        "dist-tags": { latest: "1.2.3" },
+        time: { modified: "2026-07-07T12:00:00.000Z" }
+      }),
+      "utf8"
+    );
+
+    const records = await parseSnapshot(
+      {
+        id: "npm-modelcontextprotocol-sdk-20260708-package",
+        schema_version: "raw_snapshot.v1",
+        source_id: "npm-modelcontextprotocol-sdk",
+        source_url: "https://registry.npmjs.org/@modelcontextprotocol/sdk",
+        fetched_at: "2026-07-08T00:00:00Z",
+        fetch_method: "api",
+        status: "success",
+        content_type: "application/json",
+        content_hash: "sha256:test",
+        content_path: contentPath
+      },
+      npmPackageSource,
+      outputDir,
+      "2026-07-08T00:00:00Z"
+    );
+
+    assert.equal(records.length, 1);
+    assert.equal(records[0]?.record_type, "package");
+    assert.equal(records[0]?.name, "@modelcontextprotocol/sdk");
+    assert.deepEqual(records[0]?.urls, ["https://www.npmjs.com/package/@modelcontextprotocol/sdk", "https://github.com/modelcontextprotocol/typescript-sdk", "https://modelcontextprotocol.io"]);
+    assert.deepEqual(records[0]?.parsed_fields, {
+      package_name: "@modelcontextprotocol/sdk",
+      package_url: "https://www.npmjs.com/package/@modelcontextprotocol/sdk",
+      repo_url: "https://github.com/modelcontextprotocol/typescript-sdk",
+      homepage_url: "https://modelcontextprotocol.io",
+      license: "MIT",
+      latest_version: "1.2.3",
+      last_release_at: "2026-07-07T12:00:00.000Z",
+      keywords: ["mcp", "model-context-protocol", "typescript"]
+    });
+    assert.equal(records[0]?.parser_version, "npm_package_parser.v1");
     assert.deepEqual(records[0]?.warnings, []);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
@@ -492,19 +556,26 @@ test("ingestion writes a crawl plan for enabled sources", async () => {
     });
 
     assert.equal(result.crawlPlan.schema_version, "source_crawl_plan.v1");
-    assert.equal(result.crawlPlan.summary.total, 1);
+    assert.equal(result.crawlPlan.summary.total, 2);
     assert.equal(result.crawlPlan.summary.disabled, 0);
     assert.equal(result.crawlPlan.items[0]?.source_id, "github-topic-mcp");
     assert.equal(result.crawlPlan.items[0]?.status, "ready");
     assert.equal(result.crawlPlan.items[0]?.parser, "github_topic_parser");
+    assert.equal(result.crawlPlan.items[1]?.source_id, "npm-modelcontextprotocol-sdk");
+    assert.equal(result.crawlPlan.items[1]?.parser, "npm_package_parser");
 
     const crawlPlan = JSON.parse(await readFile(join(outputDir, "data", "crawl_plan", "source_crawl_plan.json"), "utf8")) as {
       schema_version: string;
       items: Array<{ source_id: string; status: string }>;
     };
     assert.equal(crawlPlan.schema_version, "source_crawl_plan.v1");
-    assert.equal(crawlPlan.items[0]?.source_id, "github-topic-mcp");
-    assert.equal(crawlPlan.items[0]?.status, "ready");
+    assert.deepEqual(
+      crawlPlan.items.map((item) => [item.source_id, item.status]),
+      [
+        ["github-topic-mcp", "ready"],
+        ["npm-modelcontextprotocol-sdk", "ready"]
+      ]
+    );
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
@@ -522,7 +593,7 @@ test("ingestion writes crawl audit log from snapshots", async () => {
     });
 
     assert.equal(result.crawlAudit.schema_version, "crawl_audit.v1");
-    assert.equal(result.crawlAudit.summary.success, 1);
+    assert.equal(result.crawlAudit.summary.success, 2);
     assert.equal(result.crawlAudit.items[0]?.source_id, "github-topic-mcp");
     assert.equal(result.crawlAudit.items[0]?.status, "success");
     assert.equal(result.crawlAudit.items[0]?.fetch_method, "api");
@@ -535,8 +606,14 @@ test("ingestion writes crawl audit log from snapshots", async () => {
       items: Array<{ source_id: string; status: string }>;
     };
     assert.equal(audit.schema_version, "crawl_audit.v1");
-    assert.equal(audit.summary.success, 1);
-    assert.equal(audit.items[0]?.source_id, "github-topic-mcp");
+    assert.equal(audit.summary.success, 2);
+    assert.deepEqual(
+      audit.items.map((item) => [item.source_id, item.status]),
+      [
+        ["github-topic-mcp", "success"],
+        ["npm-modelcontextprotocol-sdk", "success"]
+      ]
+    );
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

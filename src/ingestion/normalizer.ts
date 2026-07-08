@@ -16,14 +16,16 @@ export interface OverrideRecord {
 export function normalizeToolCardDrafts(sourceRecords: SourceRecord[], overrideRecords: OverrideRecord[] = []): ToolCard[] {
   validateOverrideRecords(overrideRecords);
   const overridesByToolId = groupOverridesByToolId(overrideRecords);
+  const manualDrafts = sourceRecords.flatMap((record) => {
+    if (record.record_type === "manual" && !record.warnings?.length) return [normalizeManualToolCardDraft(record, overridesByToolId.get(readToolId(record)))];
+    return [];
+  });
+  const sourceBackedDrafts = groupSourceBackedRecords(sourceRecords).flatMap((records) => {
+    const draft = normalizeSourceBackedToolCardDraft(records, overridesByToolId);
+    return draft ? [draft] : [];
+  });
 
-  return sourceRecords
-    .flatMap((record) => {
-      if (record.record_type === "manual" && !record.warnings?.length) return [normalizeManualToolCardDraft(record, overridesByToolId.get(readToolId(record)))];
-      if (record.record_type === "repository") return [normalizeRepositoryToolCardDraft(record, overridesByToolId)];
-      return [];
-    })
-    .filter((draft): draft is ToolCard => Boolean(draft));
+  return [...manualDrafts, ...sourceBackedDrafts].filter((draft): draft is ToolCard => Boolean(draft));
 }
 
 function normalizeManualToolCardDraft(record: SourceRecord, overrideRecords: OverrideRecord[] | undefined): ToolCard | undefined {
@@ -44,40 +46,50 @@ function normalizeManualToolCardDraft(record: SourceRecord, overrideRecords: Ove
   return draft;
 }
 
-function normalizeRepositoryToolCardDraft(record: SourceRecord, overridesByToolId: Map<string, OverrideRecord[]>): ToolCard | undefined {
-  const repoUrl = readString(record.parsed_fields.repo_url) ?? record.urls.find((url) => url.includes("github.com"));
-  const summary = record.description?.trim();
+function normalizeSourceBackedToolCardDraft(records: SourceRecord[], overridesByToolId: Map<string, OverrideRecord[]>): ToolCard | undefined {
+  const primaryRecord = choosePrimaryRecord(records);
+  const mergedFields = mergeParsedFields(records);
+  const repoUrl = readString(mergedFields.repo_url) ?? records.flatMap((record) => record.urls).find((url) => url.includes("github.com"));
+  const summary = records.find((record) => record.description?.trim())?.description?.trim();
+  const packageUrl = readString(mergedFields.package_url);
+  const homepageUrl = readString(mergedFields.homepage_url);
   if (!repoUrl || !summary) return undefined;
 
-  const topics = readStringArray(record.parsed_fields.topics);
-  const toolType = inferToolType(record, topics);
-  const toolId = `${toolType}-${slugify(record.name)}`;
-  const license = readString(record.parsed_fields.license);
-  const lastCommitAt = readString(record.parsed_fields.last_commit_at);
+  const topics = [...new Set([...readStringArray(mergedFields.topics), ...readStringArray(mergedFields.keywords)])];
+  const toolType = inferToolType(primaryRecord, topics);
+  const toolId = `${toolType}-${slugify(primaryRecord.name)}`;
+  const license = readString(mergedFields.license);
+  const lastCommitAt = readString(mergedFields.last_commit_at);
+  const lastReleaseAt = readString(mergedFields.last_release_at);
+  const packageName = readString(mergedFields.package_name);
+  const sourceUrls = [...new Set([repoUrl, packageUrl, homepageUrl, ...records.flatMap((record) => record.urls)].filter((url): url is string => Boolean(url)))];
 
   const draft: ToolCard = {
     id: toolId,
     schema_version: "tool_card.v1",
-    name: record.name,
+    name: primaryRecord.name,
     type: toolType,
     secondary_types: inferSecondaryTypes(topics, toolType),
     summary,
-    source_urls: [repoUrl],
+    source_urls: sourceUrls,
     repo_url: repoUrl,
+    homepage_url: homepageUrl,
+    package_urls: packageUrl ? [packageUrl] : undefined,
     license,
     primary_purpose: inferPrimaryPurpose(toolType, topics),
-    use_cases: [`Evaluate ${record.name} for ${toolType} workflows.`],
+    use_cases: [`Evaluate ${primaryRecord.name} for ${toolType} workflows.`],
     not_for: ["Production use before reviewing the repository, license, permissions, and install instructions."],
     tags: [...new Set([toolType, ...topics])].slice(0, 12),
-    install_methods: [{ method: "source", command: "", docs_url: repoUrl, confidence: record.source_confidence }],
+    install_methods: buildInstallMethods(repoUrl, packageUrl, packageName, primaryRecord.source_confidence),
     auth_required: "none",
     permissions: [{ scope: "network", access: "read", required: false, notes: "Reviewing or cloning the public repository requires network access." }],
     maintenance: {
-      status: lastCommitAt ? "active" : "unknown",
+      status: lastCommitAt || lastReleaseAt ? "active" : "unknown",
+      last_release_at: lastReleaseAt,
       last_commit_at: lastCommitAt,
       issue_activity: "unknown",
       maintainer_type: "community",
-      signals: buildMaintenanceSignals(record)
+      signals: buildMaintenanceSignals(mergedFields)
     },
     security: {
       risk_level: "medium",
@@ -87,11 +99,11 @@ function normalizeRepositoryToolCardDraft(record: SourceRecord, overridesByToolI
       security_notes: "Generated from public GitHub metadata only; review code, permissions, and install path before use."
     },
     maturity: "unknown",
-    evidence_refs: [record.id],
-    last_checked_at: record.parsed_at,
-    confidence: record.source_confidence === "high" ? "high" : "medium",
-    created_at: record.parsed_at,
-    updated_at: record.parsed_at,
+    evidence_refs: records.map((record) => record.id),
+    last_checked_at: primaryRecord.parsed_at,
+    confidence: records.some((record) => record.source_confidence === "high") ? "high" : "medium",
+    created_at: primaryRecord.parsed_at,
+    updated_at: primaryRecord.parsed_at,
     ai_decision_notes: {
       when_to_use: [`Use as a discovery candidate when evaluating ${toolType} tooling.`],
       when_to_avoid: ["Avoid recommending as reliable until docs, permissions, and install method are reviewed."],
@@ -106,6 +118,57 @@ function normalizeRepositoryToolCardDraft(record: SourceRecord, overridesByToolI
   }
 
   return draft;
+}
+
+function groupSourceBackedRecords(sourceRecords: SourceRecord[]): SourceRecord[][] {
+  const groups = new Map<string, SourceRecord[]>();
+  const ungrouped: SourceRecord[][] = [];
+
+  for (const record of sourceRecords) {
+    if (record.record_type !== "repository" && record.record_type !== "package") continue;
+    const key = canonicalRecordKey(record);
+    if (!key) {
+      ungrouped.push([record]);
+      continue;
+    }
+    groups.set(key, [...(groups.get(key) ?? []), record]);
+  }
+
+  return [...groups.values(), ...ungrouped];
+}
+
+function canonicalRecordKey(record: SourceRecord): string | undefined {
+  const repoUrl = readString(record.parsed_fields.repo_url) ?? record.urls.find((url) => url.includes("github.com"));
+  if (repoUrl) return `repo:${canonicalUrl(repoUrl)}`;
+  const packageUrl = readString(record.parsed_fields.package_url);
+  if (packageUrl) return `package:${canonicalPackageUrl(packageUrl)}`;
+  return undefined;
+}
+
+function choosePrimaryRecord(records: SourceRecord[]): SourceRecord {
+  return records.find((record) => record.record_type === "repository" && record.name.includes("/")) ?? records[0];
+}
+
+function mergeParsedFields(records: SourceRecord[]): Record<string, unknown> {
+  const merged: Record<string, unknown> = {};
+  for (const record of records) {
+    for (const [key, value] of Object.entries(record.parsed_fields)) {
+      if (value === undefined) continue;
+      if (Array.isArray(value)) {
+        merged[key] = [...new Set([...(Array.isArray(merged[key]) ? (merged[key] as unknown[]) : []), ...value])];
+      } else if (merged[key] === undefined) {
+        merged[key] = value;
+      }
+    }
+  }
+  return merged;
+}
+
+function buildInstallMethods(repoUrl: string, packageUrl: string | undefined, packageName: string | undefined, confidence: SourceRecord["source_confidence"]): ToolCard["install_methods"] {
+  const methods: ToolCard["install_methods"] = [];
+  if (packageUrl && packageName) methods.push({ method: "npm", command: `npm install ${packageName}`, docs_url: packageUrl, confidence });
+  methods.push({ method: "source", command: "", docs_url: repoUrl, confidence });
+  return methods;
 }
 
 function validateOverrideRecords(overrideRecords: OverrideRecord[]): void {
@@ -165,16 +228,26 @@ function inferPrimaryPurpose(toolType: ToolType, topics: string[]): string {
   return firstTopic ? `${firstTopic}_tooling` : "ai_agent_tooling";
 }
 
-function buildMaintenanceSignals(record: SourceRecord): string[] {
+function buildMaintenanceSignals(fields: Record<string, unknown>): string[] {
   const signals = ["github_repository_metadata"];
-  if (typeof record.parsed_fields.stars === "number") signals.push(`stars:${record.parsed_fields.stars}`);
-  if (typeof record.parsed_fields.last_commit_at === "string") signals.push("recent_commit_metadata_present");
-  if (typeof record.parsed_fields.license === "string") signals.push("license_metadata_present");
+  if (typeof fields.package_name === "string") signals.push("package_registry_metadata");
+  if (typeof fields.stars === "number") signals.push(`stars:${fields.stars}`);
+  if (typeof fields.last_commit_at === "string") signals.push("recent_commit_metadata_present");
+  if (typeof fields.last_release_at === "string") signals.push("package_release_metadata_present");
+  if (typeof fields.license === "string") signals.push("license_metadata_present");
   return signals;
 }
 
 function slugify(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function canonicalUrl(value: string): string {
+  return value.toLowerCase().replace(/^git\+/, "").replace(/\.git$/, "").replace(/\/$/, "");
+}
+
+function canonicalPackageUrl(value: string): string {
+  return canonicalUrl(value).replace("https://www.npmjs.com/package/", "npm:");
 }
 
 function isToolCard(value: unknown): value is ToolCard {

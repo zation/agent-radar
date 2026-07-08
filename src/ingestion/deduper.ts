@@ -1,7 +1,7 @@
 import type { ToolCard } from "../schema.js";
 
 export interface ToolCardDuplicateSignal {
-  kind: "id" | "canonical_url" | "draft_id" | "draft_canonical_url";
+  kind: "id" | "canonical_url" | "package_url" | "draft_id" | "draft_canonical_url" | "draft_package_url";
   value: string;
 }
 
@@ -40,15 +40,15 @@ export function buildToolCardDuplicateReport(drafts: ToolCard[], existingToolCar
 }
 
 export function findDuplicateToolIds(draft: ToolCard, existingToolCards: ToolCard[]): string[] {
-  const draftKeys = canonicalToolKeys(draft);
-  return existingToolCards.filter((card) => card.id === draft.id || canonicalToolKeys(card).some((key) => draftKeys.includes(key))).map((card) => card.id);
+  const draftKeys = canonicalAllKeys(draft);
+  return existingToolCards.filter((card) => card.id === draft.id || canonicalAllKeys(card).some((key) => draftKeys.includes(key))).map((card) => card.id);
 }
 
 export function findDuplicateDraftToolIds(draft: ToolCard, drafts: ToolCard[]): string[] {
-  const draftKeys = canonicalToolKeys(draft);
+  const draftKeys = canonicalAllKeys(draft);
   return drafts
     .filter((candidate) => candidate !== draft)
-    .filter((candidate) => candidate.id === draft.id || canonicalToolKeys(candidate).some((key) => draftKeys.includes(key)))
+    .filter((candidate) => candidate.id === draft.id || canonicalAllKeys(candidate).some((key) => draftKeys.includes(key)))
     .map((candidate) => candidate.id);
 }
 
@@ -68,22 +68,43 @@ function findDuplicateSignals(draft: ToolCard, drafts: ToolCard[], existingToolC
   if (existingToolCards.some((card) => card.id === draft.id)) signals.push({ kind: "id", value: draft.id });
 
   const existingKeys = new Set(existingToolCards.flatMap((card) => canonicalToolKeys(card)));
+  const existingPackageKeys = new Set(existingToolCards.flatMap((card) => canonicalPackageKeys(card)));
   for (const key of canonicalToolKeys(draft)) {
     if (existingKeys.has(key)) signals.push({ kind: "canonical_url", value: key });
+  }
+  for (const key of canonicalPackageKeys(draft)) {
+    if (existingPackageKeys.has(key)) signals.push({ kind: "package_url", value: key });
   }
 
   if (drafts.some((candidate) => candidate !== draft && candidate.id === draft.id)) signals.push({ kind: "draft_id", value: draft.id });
 
   const draftKeys = new Set(drafts.filter((candidate) => candidate !== draft).flatMap((candidate) => canonicalToolKeys(candidate)));
+  const draftPackageKeys = new Set(drafts.filter((candidate) => candidate !== draft).flatMap((candidate) => canonicalPackageKeys(candidate)));
   for (const key of canonicalToolKeys(draft)) {
     if (draftKeys.has(key)) signals.push({ kind: "draft_canonical_url", value: key });
+  }
+  for (const key of canonicalPackageKeys(draft)) {
+    if (draftPackageKeys.has(key)) signals.push({ kind: "draft_package_url", value: key });
   }
 
   return signals;
 }
 
 function canonicalToolKeys(card: ToolCard): string[] {
-  return [card.repo_url, card.homepage_url, card.docs_url, ...(card.package_urls ?? [])]
+  return [card.repo_url, card.homepage_url, card.docs_url]
     .filter((value): value is string => Boolean(value))
     .map((value) => value.toLowerCase().replace(/\.git$/, "").replace(/\/$/, ""));
+}
+
+function canonicalAllKeys(card: ToolCard): string[] {
+  return [...canonicalToolKeys(card), ...canonicalPackageKeys(card)];
+}
+
+function canonicalPackageKeys(card: ToolCard): string[] {
+  return (card.package_urls ?? []).map(canonicalPackageUrl);
+}
+
+function canonicalPackageUrl(value: string): string {
+  const normalized = value.toLowerCase().replace(/\/$/, "");
+  return normalized.replace("https://www.npmjs.com/package/", "npm:");
 }

@@ -155,10 +155,18 @@ async function writeSourceRecords(outputDir: string, recordsBySource: Map<string
 
 function buildToolCardDrafts(recordsBySource: Map<string, SourceRecord[]>, overrideRecords: OverrideRecord[]): Map<string, ToolCard[]> {
   const draftsBySource = new Map<string, ToolCard[]>();
+  const sourceRecords = [...recordsBySource.values()].flat();
+  const sourceIdByRecordId = new Map(sourceRecords.map((record) => [record.id, record.source_id]));
+  const drafts = normalizeToolCardDrafts(sourceRecords, overrideRecords);
 
-  for (const [sourceId, records] of recordsBySource) {
-    const drafts = normalizeToolCardDrafts(records, overrideRecords);
-    draftsBySource.set(sourceId, drafts);
+  for (const sourceId of recordsBySource.keys()) {
+    draftsBySource.set(sourceId, []);
+  }
+
+  for (const draft of drafts) {
+    const sourceId = draft.evidence_refs.map((ref) => sourceIdByRecordId.get(ref)).find((candidate): candidate is string => Boolean(candidate));
+    if (!sourceId) continue;
+    draftsBySource.set(sourceId, [...(draftsBySource.get(sourceId) ?? []), draft]);
   }
 
   return draftsBySource;

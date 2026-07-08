@@ -53,6 +53,21 @@ test("builds MVP data artifacts and an eval report", async () => {
         { status: 200, headers: { "content-type": "application/json" } }
       );
     }
+    if (requestUrl === "https://registry.npmjs.org/@modelcontextprotocol/sdk") {
+      return new Response(
+        JSON.stringify({
+          name: "@modelcontextprotocol/sdk",
+          description: "Model Context Protocol SDK package for test fixtures.",
+          license: "MIT",
+          repository: { type: "git", url: "git+https://github.com/modelcontextprotocol/typescript-sdk.git" },
+          homepage: "https://modelcontextprotocol.io",
+          keywords: ["mcp", "model-context-protocol", "typescript"],
+          "dist-tags": { latest: "1.2.3" },
+          time: { modified: "2026-07-07T12:00:00.000Z" }
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    }
     return new Response("not found", { status: 404 });
   };
 
@@ -62,7 +77,7 @@ test("builds MVP data artifacts and an eval report", async () => {
 
     const summary = await buildArtifacts({ outputDir, fetchImpl });
 
-    assert.equal(summary.toolCount, 1);
+    assert.equal(summary.toolCount, 2);
     assert.equal(summary.goldenQueriesPassed, 0);
     assert.equal(summary.goldenQueriesTotal >= 10, true);
 
@@ -84,13 +99,13 @@ test("builds MVP data artifacts and an eval report", async () => {
 
     const sourceRegistry = JSON.parse(await readFile(join(outputDir, "data", "source_registry.json"), "utf8"));
     assert.equal(sourceRegistry.schema_version, "source_registry.v1");
-    assert.equal(sourceRegistry.sources.length, 1);
+    assert.equal(sourceRegistry.sources.length, 2);
     assert.equal(sourceRegistry.validation.passed, true);
     assert.deepEqual(sourceRegistry.validation.errors, []);
 
     const sourceRegistryDiff = JSON.parse(await readFile(join(outputDir, "data", "source_registry_diff.json"), "utf8"));
     assert.equal(sourceRegistryDiff.schema_version, "source_registry_diff.v1");
-    assert.deepEqual(sourceRegistryDiff.summary, { added: 1, removed: 0, changed: 0 });
+    assert.deepEqual(sourceRegistryDiff.summary, { added: 2, removed: 0, changed: 0 });
 
     const sourceRegistryReview = JSON.parse(await readFile(join(outputDir, "data", "source_registry_review.json"), "utf8"));
     assert.equal(sourceRegistryReview.schema_version, "source_registry_review.v1");
@@ -173,8 +188,11 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.deepEqual(mcpSmokeChecklist.summary, { total: 4, required: 4 });
 
     const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
-    assert.equal(searchIndex.documents.length, 1);
-    assert.equal(searchIndex.documents[0]?.tool_id, "mcp-example-public-mcp");
+    assert.equal(searchIndex.documents.length, 2);
+    assert.deepEqual(
+      searchIndex.documents.map((document: { tool_id: string }) => document.tool_id).sort(),
+      ["mcp-example-public-mcp", "mcp-modelcontextprotocol-sdk"]
+    );
 
     const evalSummary = JSON.parse(await readFile(join(outputDir, "data", "eval_summary.json"), "utf8")) as EvalSummaryFile;
     assert.equal(evalSummary.results[0].failure_category, "blocked_no_key");

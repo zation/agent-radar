@@ -26,6 +26,31 @@ export const sourceRegistry: SourceDefinition[] = [
     enabled: true,
     owner: "agent-radar",
     last_reviewed_at: "2026-07-08T00:00:00Z"
+  },
+  {
+    id: "npm-modelcontextprotocol-sdk",
+    name: "npm @modelcontextprotocol/sdk",
+    url: "https://registry.npmjs.org/@modelcontextprotocol/sdk",
+    source_type: "package_registry",
+    covered_tool_types: ["mcp", "framework", "cli"],
+    collection_method: "api",
+    recommended_frequency: "weekly",
+    trust_level: "active_open_source",
+    field_coverage: ["name", "description", "repo_url", "homepage_url", "package_url", "license", "latest_version", "last_release_at"],
+    rate_limits: "npm registry public API rate limits",
+    terms_notes: "Public npm registry package metadata only; package evidence enters normalizer, deduper, and promotion gates before release.",
+    access_review: {
+      robots_txt: "reviewed",
+      terms: "reviewed",
+      reviewed_by: "agent-radar",
+      reviewed_at: "2026-07-08T00:00:00Z",
+      notes: "Enabled for controlled public package metadata discovery; no Authorization header, cookies, private package scopes, or install execution."
+    },
+    parser: "npm_package_parser",
+    failure_policy: "skip this source and preserve previous stable data",
+    enabled: true,
+    owner: "agent-radar",
+    last_reviewed_at: "2026-07-08T00:00:00Z"
   }
 ];
 

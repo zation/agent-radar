@@ -82,7 +82,7 @@ enabled Source Registry
   -> Vite Web UI / Workers-style API reads artifacts
 ```
 
-当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、最小 normalizer、最小 deduper、人工 override artifact、Approval Request、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 已可展示 Source Registry review confirmation requests，并生成可复制的 review record JSON 草稿。尚未实现的是完整跨来源 normalizer、完整跨来源 deduper 和人工 override 审核 UI。
+当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、repo/package 跨来源 normalizer、最小 deduper、人工 override artifact、Approval Request、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 已可展示 Source Registry review confirmation requests，并生成可复制的 review record JSON 草稿。尚未实现的是更完整的跨来源冲突处理和人工 override 审核记录导入。
 
 ### 目标形态
 
@@ -246,6 +246,9 @@ checkout
   -> deploy dist-pages to Cloudflare Pages preview
   -> if AGENT_RADAR_MCP_BASE_URL is configured, npm run mcp:smoke against that existing MCP base URL
   -> append artifacts/review/ingestion.md to GitHub Actions summary
+  -> upload immutable preview bundle
+  -> promote-production job waits on GitHub Environment: production
+  -> after approval, download the same preview bundle and record production approval evidence
 ```
 
 当前 Pages preview 部署的是静态 `dist-pages` bundle，不包含 Pages Functions 或 Workers API；因此 workflow 不能把刚部署的 Pages URL 直接当作 MCP endpoint。`AGENT_RADAR_MCP_BASE_URL` 目前只用于测试已单独部署的 MCP/Workers base URL。完成 MCP server 的 Cloudflare Workers 或 Pages Functions 部署后，应把 smoke test 改为从部署成功输出中自动提取刚部署的 API/Pages URL，并请求 `${deployedBaseUrl}/api/mcp`，避免人工维护 `AGENT_RADAR_MCP_BASE_URL`。
@@ -304,6 +307,8 @@ Production promote 不重新运行：
 - `npm run eval`
 
 如果 Cloudflare API 无法直接 promote existing preview deployment，fallback 是下载 preview build 对应的 immutable bundle 并部署同一个 bundle 到 production；仍然不能重新 build。
+
+当前 workflow 已建立 `production` environment approval gate，并在审批后下载同一个 preview artifact 记录 approval evidence；实际生产部署步骤仍需在该 job 后续接入 Cloudflare production promote 或同 bundle redeploy。
 
 ### 发布门槛
 

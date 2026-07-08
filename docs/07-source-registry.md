@@ -297,7 +297,7 @@ enabled: true
 last_reviewed_at: 2026-07-08T00:00:00Z
 ```
 
-用途：用于发现开源 MCP 工具。crawler 会把 `https://github.com/topics/<topic>` 映射到 GitHub Search API，并保留 rate-limit response metadata 供审核。该来源生成的 repository drafts 只能进入自动审核和 promotion candidate，不会直接进入可靠发布数据。
+用途：用于发现开源 MCP 工具。crawler 会把 `https://github.com/topics/<topic>` 映射到 GitHub Search API，并保留 rate-limit response metadata 供审核。该来源生成的 repository drafts 会进入跨来源 normalizer、自动审核和 promotion candidate gate，通过 gate 后进入可靠发布数据。
 
 ### GitHub Topics: AI Agent
 
@@ -319,24 +319,24 @@ enabled: false
 last_reviewed_at: 2026-07-06T00:00:00Z
 ```
 
-### npm Registry
+### npm Registry: Model Context Protocol SDK
 
 ```yaml
-id: npm-ai-tools
-name: npm packages for AI tools
-url: https://registry.npmjs.org/
+id: npm-modelcontextprotocol-sdk
+name: npm @modelcontextprotocol/sdk
+url: https://registry.npmjs.org/@modelcontextprotocol/sdk
 source_type: package_registry
 covered_tool_types: [cli, framework, mcp]
 collection_method: api
 recommended_frequency: weekly
 trust_level: active_open_source
-field_coverage: [package_name, version, release_time, install_method, repo_url, license]
+field_coverage: [name, description, repo_url, homepage_url, package_url, license, latest_version, last_release_at]
 rate_limits: "遵守 npm registry 公共 API 限制"
-terms_notes: "只查询已发现包名，不做高频全量扫描"
+terms_notes: "只查询已确认包名，不做高频全量扫描；结果进入 normalizer、deduper 和发布 gate"
 parser: npm_package_parser
 failure_policy: "包查询失败时保留旧版本并标记 stale"
-enabled: false
-last_reviewed_at: 2026-07-06T00:00:00Z
+enabled: true
+last_reviewed_at: 2026-07-08T00:00:00Z
 ```
 
 ### PyPI
