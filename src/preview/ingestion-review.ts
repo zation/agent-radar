@@ -7,7 +7,19 @@ export interface SourceRegistryReviewRequirementSummary {
   confirmation_required: boolean;
 }
 
-export function renderIngestionReviewMarkdown(result: RunIngestionResult, sourceRegistryReviewRequirements: SourceRegistryReviewRequirementSummary[] = []): string {
+export interface SourceRegistryReviewRequestSummary {
+  source_id: string;
+  field: string;
+  template_id: string;
+  decision_options: string[];
+  required_fields: string[];
+}
+
+export function renderIngestionReviewMarkdown(
+  result: RunIngestionResult,
+  sourceRegistryReviewRequirements: SourceRegistryReviewRequirementSummary[] = [],
+  sourceRegistryReviewRequests: SourceRegistryReviewRequestSummary[] = []
+): string {
   const lines = [
     "# Ingestion Review",
     "",
@@ -38,10 +50,23 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult, source
     ...renderReleaseAdmission(result),
     ...renderPromotionCandidates(result),
     ...renderPromotionPlan(result),
-    ...renderSourceRegistryReviewRequirements(sourceRegistryReviewRequirements)
+    ...renderSourceRegistryReviewRequirements(sourceRegistryReviewRequirements),
+    ...renderSourceRegistryReviewRequests(sourceRegistryReviewRequests)
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+export function renderSourceRegistryReviewRequests(requests: SourceRegistryReviewRequestSummary[]): string[] {
+  if (requests.length === 0) return [];
+
+  return [
+    "",
+    "## Source Registry Review Requests",
+    ...requests.map((request) => {
+      return `- ${request.source_id}:${request.field} template_id=${request.template_id} decision_options=${request.decision_options.join(",")} required_fields=${request.required_fields.join(",")}`;
+    })
+  ];
 }
 
 function renderFieldValueProvenance(result: RunIngestionResult): string[] {

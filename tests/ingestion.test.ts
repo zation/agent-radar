@@ -7,7 +7,7 @@ import { formatIngestionCliSummary } from "../src/cli/ingest-summary.js";
 import { seedToolCards } from "../src/data/seed-tool-cards.js";
 import { crawlEnabledSources } from "../src/ingestion/crawler.js";
 import { runIngestion } from "../src/ingestion/run.js";
-import { buildSourceRegistryReviewArtifact } from "../src/ingestion/source-review.js";
+import { buildSourceRegistryReviewArtifact, buildSourceRegistryReviewRequests } from "../src/ingestion/source-review.js";
 import { buildSourceRegistryDiff, getEnabledSources, sourceRegistry, validateSourceRegistry } from "../src/ingestion/source-registry.js";
 
 test("source registry exposes only enabled MVP sources", () => {
@@ -185,6 +185,53 @@ test("source registry review artifact tracks pending and confirmed requirements"
   assert.deepEqual(confirmedReview.summary, { total_requirements: 2, confirmed: 1, rejected: 0, needs_changes: 0, pending: 1 });
   assert.equal(confirmedReview.items.find((item) => item.field === "enabled")?.status, "confirmed");
   assert.equal(confirmedReview.items.find((item) => item.field === "enabled")?.confirmation?.reviewer, "maintainer");
+});
+
+test("source registry review requests provide templates for pending requirements", () => {
+  const diff = buildSourceRegistryDiff(
+    [sourceRegistry[1]],
+    [
+      {
+        ...sourceRegistry[1],
+        enabled: true,
+        parser: "github_topic_parser",
+        trust_level: "official",
+        last_reviewed_at: "2026-07-08T00:00:00Z"
+      }
+    ],
+    "2026-07-08T00:00:00Z"
+  );
+  const review = buildSourceRegistryReviewArtifact(
+    diff,
+    [
+      {
+        id: "source-review-github-topic-mcp-enabled-20260708",
+        schema_version: "source_registry_review_record.v1",
+        source_id: "github-topic-mcp",
+        field: "enabled",
+        decision: "confirmed",
+        reason: "Reviewed crawl scope.",
+        reviewer: "maintainer",
+        reviewed_at: "2026-07-08T01:00:00Z"
+      }
+    ],
+    "2026-07-08T01:00:00Z"
+  );
+
+  const requests = buildSourceRegistryReviewRequests(review, "2026-07-08T01:05:00Z");
+
+  assert.equal(requests.schema_version, "source_registry_review_requests.v1");
+  assert.deepEqual(requests.summary, { pending_review: 1, confirmation_required: 1 });
+  assert.equal(requests.items[0]?.source_id, "github-topic-mcp");
+  assert.equal(requests.items[0]?.field, "trust_level");
+  assert.deepEqual(requests.items[0]?.decision_options, ["confirmed", "rejected", "needs_changes"]);
+  assert.deepEqual(requests.items[0]?.review_record_template, {
+    id: "source-review-github-topic-mcp-trust-level",
+    schema_version: "source_registry_review_record.v1",
+    source_id: "github-topic-mcp",
+    field: "trust_level",
+    required_fields: ["decision", "reason", "reviewer", "reviewed_at"]
+  });
 });
 
 test("crawler saves immutable raw snapshots without request secrets", async () => {

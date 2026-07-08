@@ -32,6 +32,10 @@ export interface ArtifactManifest {
     needs_changes: number;
     pending: number;
   };
+  source_registry_review_requests?: {
+    pending_review: number;
+    confirmation_required: number;
+  };
   tool_card_url_validation?: {
     checked: number;
     reachable: number;
@@ -87,6 +91,7 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
   const evalSummary = JSON.parse(await readFile(join(options.distDir, "data", "eval_summary.json"), "utf8")) as EvalSummary;
   const sourceRegistryDiff = await readSourceRegistryDiffSummary(options.distDir);
   const sourceRegistryReview = await readSourceRegistryReviewSummary(options.distDir);
+  const sourceRegistryReviewRequests = await readSourceRegistryReviewRequestsSummary(options.distDir);
   const toolCardUrlValidation = await readToolCardUrlValidationSummary(options.distDir);
   const toolCardFieldProvenance = await readToolCardFieldProvenanceSummary(options.distDir);
 
@@ -103,6 +108,7 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
     },
     ...(sourceRegistryDiff ? { source_registry_diff: sourceRegistryDiff } : {}),
     ...(sourceRegistryReview ? { source_registry_review: sourceRegistryReview } : {}),
+    ...(sourceRegistryReviewRequests ? { source_registry_review_requests: sourceRegistryReviewRequests } : {}),
     ...(toolCardUrlValidation ? { tool_card_url_validation: toolCardUrlValidation } : {}),
     ...(toolCardFieldProvenance ? { tool_card_field_provenance: toolCardFieldProvenance } : {}),
     checksums: await checksumFiles(options.distDir)
@@ -115,6 +121,18 @@ async function readSourceRegistryDiffSummary(distDir: string): Promise<ArtifactM
       summary?: ArtifactManifest["source_registry_diff"];
     };
     return diff.summary;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+async function readSourceRegistryReviewRequestsSummary(distDir: string): Promise<ArtifactManifest["source_registry_review_requests"] | undefined> {
+  try {
+    const requests = JSON.parse(await readFile(join(distDir, "data", "source_registry_review_requests.json"), "utf8")) as {
+      summary?: ArtifactManifest["source_registry_review_requests"];
+    };
+    return requests.summary;
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
     throw error;

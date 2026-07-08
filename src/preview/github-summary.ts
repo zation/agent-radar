@@ -12,6 +12,7 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     ...(manifest.tool_card_field_provenance ? [`- Tool Card field provenance: ${formatToolCardFieldProvenance(manifest.tool_card_field_provenance)}`] : []),
     ...(manifest.crawl_audit ? [`- Crawl audit: ${formatCrawlAudit(manifest.crawl_audit)}`] : []),
     ...(manifest.source_registry_review ? [`- Source registry review: ${formatSourceRegistryReview(manifest.source_registry_review)}`] : []),
+    ...(manifest.source_registry_review_requests ? [`- Source registry review requests: ${formatSourceRegistryReviewRequests(manifest.source_registry_review_requests)}`] : []),
     ...(manifest.ingestion_review ? [`- Ingestion approvals: ${formatIngestionApprovals(manifest.ingestion_review.approvals)}`] : []),
     ...(manifest.approval_requests ? [`- Approval requests: ${formatApprovalRequests(manifest.approval_requests)}`] : []),
     ...(manifest.field_value_provenance ? [`- Field value provenance: ${formatFieldValueProvenance(manifest.field_value_provenance)}`] : []),
@@ -40,6 +41,10 @@ function formatCrawlAudit(crawlAudit: NonNullable<ArtifactManifest["crawl_audit"
 
 function formatSourceRegistryReview(review: NonNullable<ArtifactManifest["source_registry_review"]>): string {
   return `${review.confirmed}/${review.total_requirements} confirmed, ${review.pending} pending, ${review.rejected} rejected, ${review.needs_changes} needs changes`;
+}
+
+function formatSourceRegistryReviewRequests(requests: NonNullable<ArtifactManifest["source_registry_review_requests"]>): string {
+  return `${requests.pending_review} pending, ${requests.confirmation_required} confirmation required`;
 }
 
 function formatIngestionApprovals(approvals: NonNullable<ArtifactManifest["ingestion_review"]>["approvals"]): string {

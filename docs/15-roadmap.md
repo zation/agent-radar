@@ -63,6 +63,7 @@
 - 发布流水线已输出 `source_registry_diff.json` artifact，记录 Source Registry 来源配置 added、removed 和 changed 摘要，并为高影响 changed fields 输出 review requirements；摘要已同步到 preview artifact manifest。
 - Preview ingestion review 已展示 Source Registry 字段级 review requirements，便于 reviewer 在 Actions Summary 中看到高影响来源变更的确认原因。
 - 发布流水线已输出 `source_registry_review.json` artifact，记录 Source Registry review requirements 的 `pending`、`confirmed`、`rejected` 和 `needs_changes` 状态；summary 已同步到 preview artifact manifest。
+- 发布流水线已输出 `source_registry_review_requests.json` artifact，为 pending Source Registry requirements 生成 confirmation record template、decision options 和 required fields；summary 与模板已同步到 preview/Actions review 材料。
 - Source Registry validator 已检查 enabled source 是否声明已实现 parser，避免 registry 启用未接入解析器的来源。
 - Source Registry validator 已检查 enabled source 是否包含审核 owner 和合法 `last_reviewed_at`。
 - Source Registry validator 已检查 enabled source 是否包含 robots/terms 审核记录。
@@ -83,7 +84,7 @@
 - Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和更细字段级证据质量。
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 promotion candidates 只进入人工 promotion plan，尚未自动进入可靠发布数据。
-- 更细的 Tool Card 字段 provenance 已开始绑定具体 Source Record 字段和值；最小 incoming draft duplicate gates 已接入 dedup report、review queue、approval requests 和 release admission，但完整跨来源 normalizer、完整跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry 仍需把 review confirmation artifact 接入可操作审核 UI。
+- 更细的 Tool Card 字段 provenance 已开始绑定具体 Source Record 字段和值；最小 incoming draft duplicate gates 已接入 dedup report、review queue、approval requests 和 release admission，但完整跨来源 normalizer、完整跨来源 deduper 和人工 override 审核 UI 尚未完成；Source Registry review confirmation 已有 request 模板，仍缺真正的可操作审核 UI。
 - Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact、MCP deployment smoke checklist 和可配置的部署后 smoke 命令；后续仍需配置真实 MCP/Workers base URL 并把 Worker 部署证据纳入发布审核。
 - BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；还缺更完整的 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
 
@@ -363,7 +364,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
 - 把 `npm run ingest` 输出的 approval requests 和 promotion candidates 接入人工审核 UI 或可靠发布提升流程；当前 preview review markdown 已展示 approval record 模板、release admission blocked reasons，以及候选 tool id、Source Record id、reviewer、review time 和 approval reason，可靠发布提升仍待做。
-- 将 Source Registry review confirmation artifact 接入可操作审核 UI；当前 preview markdown 已展示 requirements，artifact manifest 已汇总确认状态。
+- 将 Source Registry review confirmation requests 接入真正的可操作审核 UI；当前 preview markdown 已展示 requirements 和 confirmation record 模板，artifact manifest 已汇总确认状态与 pending request summary。
 - 将 Tool Card 字段 provenance 继续细化到 Source Record 字段和值，并决定是否在 CI 默认启用 URL 可达性检查；schema-level `tool_card_field_provenance.json` 和 ingest-time `tool_card_field_value_provenance.v1` artifact 已实现。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。
 - 使用真实 provider key 重跑 10 条 golden queries，并审查新增 case 的推荐质量。

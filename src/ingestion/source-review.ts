@@ -42,6 +42,33 @@ export interface SourceRegistryReviewArtifact {
   items: SourceRegistryReviewItem[];
 }
 
+export interface SourceRegistryReviewRecordTemplate {
+  id: string;
+  schema_version: "source_registry_review_record.v1";
+  source_id: string;
+  field: string;
+  required_fields: Array<"decision" | "reason" | "reviewer" | "reviewed_at">;
+}
+
+export interface SourceRegistryReviewRequestItem {
+  source_id: string;
+  field: string;
+  reason: string;
+  confirmation_required: boolean;
+  decision_options: SourceRegistryReviewDecision[];
+  review_record_template: SourceRegistryReviewRecordTemplate;
+}
+
+export interface SourceRegistryReviewRequests {
+  schema_version: "source_registry_review_requests.v1";
+  generated_at: string;
+  summary: {
+    pending_review: number;
+    confirmation_required: number;
+  };
+  items: SourceRegistryReviewRequestItem[];
+}
+
 export function buildSourceRegistryReviewArtifact(
   diff: SourceRegistryDiff,
   records: SourceRegistryReviewRecord[],
@@ -88,6 +115,35 @@ export function buildSourceRegistryReviewArtifact(
   };
 }
 
+export function buildSourceRegistryReviewRequests(review: SourceRegistryReviewArtifact, generatedAt: string): SourceRegistryReviewRequests {
+  const items = review.items
+    .filter((item) => item.status === "pending")
+    .map((item) => ({
+      source_id: item.source_id,
+      field: item.field,
+      reason: item.reason,
+      confirmation_required: item.confirmation_required,
+      decision_options: ["confirmed", "rejected", "needs_changes"] satisfies SourceRegistryReviewDecision[],
+      review_record_template: {
+        id: `source-review-${item.source_id}-${slugifyField(item.field)}`,
+        schema_version: "source_registry_review_record.v1" as const,
+        source_id: item.source_id,
+        field: item.field,
+        required_fields: ["decision", "reason", "reviewer", "reviewed_at"] satisfies Array<"decision" | "reason" | "reviewer" | "reviewed_at">
+      }
+    }));
+
+  return {
+    schema_version: "source_registry_review_requests.v1",
+    generated_at: generatedAt,
+    summary: {
+      pending_review: items.length,
+      confirmation_required: items.filter((item) => item.confirmation_required).length
+    },
+    items
+  };
+}
+
 function validateSourceRegistryReviewRecords(records: SourceRegistryReviewRecord[]): void {
   for (const record of records) {
     if (record.schema_version !== "source_registry_review_record.v1") throw new Error(`${record.id}: schema_version must be source_registry_review_record.v1`);
@@ -101,4 +157,8 @@ function validateSourceRegistryReviewRecords(records: SourceRegistryReviewRecord
 
 function isIsoUtc(value: string): boolean {
   return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(value);
+}
+
+function slugifyField(field: string): string {
+  return field.replaceAll("_", "-");
 }

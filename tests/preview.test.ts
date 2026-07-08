@@ -389,6 +389,10 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
       needs_changes: 0,
       pending: 1
     },
+    source_registry_review_requests: {
+      pending_review: 1,
+      confirmation_required: 1
+    },
     ingestion_review: {
       approvals: {
         approved: 2,
@@ -429,6 +433,7 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
   assert.match(markdown, /- Tool Card field provenance: 57\/60 fields covered \(12 field refs, 45 manual review, 3 missing\)/);
   assert.match(markdown, /- Crawl audit: 1 success, 1 partial, 1 failed \(3 total\)/);
   assert.match(markdown, /- Source registry review: 1\/2 confirmed, 1 pending, 0 rejected, 0 needs changes/);
+  assert.match(markdown, /- Source registry review requests: 1 pending, 1 confirmation required/);
   assert.match(markdown, /- Ingestion approvals: 2 approved, 1 rejected, 1 needs changes/);
   assert.match(markdown, /- Approval requests: 18 pending, 12 duplicate review, 1 blocked validation/);
   assert.match(markdown, /- Field value provenance: 240 field values across 20 Tool Cards/);
@@ -489,6 +494,30 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       }),
       "utf8"
     );
+    await writeFile(
+      join(outputDir, "data", "source_registry_review_requests.json"),
+      JSON.stringify({
+        schema_version: "source_registry_review_requests.v1",
+        summary: { pending_review: 1, confirmation_required: 1 },
+        items: [
+          {
+            source_id: "github-topic-mcp",
+            field: "enabled",
+            reason: "Source enablement changes crawl scope and require maintainer confirmation.",
+            confirmation_required: true,
+            decision_options: ["confirmed", "rejected", "needs_changes"],
+            review_record_template: {
+              id: "source-review-github-topic-mcp-enabled",
+              schema_version: "source_registry_review_record.v1",
+              source_id: "github-topic-mcp",
+              field: "enabled",
+              required_fields: ["decision", "reason", "reviewer", "reviewed_at"]
+            }
+          }
+        ]
+      }),
+      "utf8"
+    );
 
     await createPreviewBundle({
       distDir: outputDir,
@@ -505,6 +534,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       crawl_audit: { total: number; success: number; partial: number; failed: number };
       source_registry_diff: { added: number; removed: number; changed: number };
       source_registry_review: { total_requirements: number; confirmed: number; rejected: number; needs_changes: number; pending: number };
+      source_registry_review_requests: { pending_review: number; confirmation_required: number };
       tool_card_url_validation: { checked: number; reachable: number; failed: number; skipped: number };
       tool_card_field_provenance: { cards_checked: number; fields_checked: number; covered: number; covered_by_manual_review: number; missing: number };
       ingestion_review: { approvals: { approved: number; rejected: number; needs_changes: number } };
@@ -518,10 +548,13 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.match(reviewMarkdown, /# Ingestion Review/);
     assert.match(reviewMarkdown, /## Source Registry Review Requirements/);
     assert.match(reviewMarkdown, /github-topic-mcp: enabled - Source enablement changes crawl scope and require maintainer confirmation\./);
+    assert.match(reviewMarkdown, /## Source Registry Review Requests/);
+    assert.match(reviewMarkdown, /github-topic-mcp:enabled template_id=source-review-github-topic-mcp-enabled decision_options=confirmed,rejected,needs_changes required_fields=decision,reason,reviewer,reviewed_at/);
     assert.equal(artifactManifest.git_sha, "abc123");
     assert.deepEqual(artifactManifest.crawl_audit, { total: 1, success: 1, partial: 0, failed: 0 });
     assert.deepEqual(artifactManifest.source_registry_diff, { added: 2, removed: 0, changed: 1 });
     assert.deepEqual(artifactManifest.source_registry_review, { total_requirements: 1, confirmed: 0, rejected: 0, needs_changes: 0, pending: 1 });
+    assert.deepEqual(artifactManifest.source_registry_review_requests, { pending_review: 1, confirmation_required: 1 });
     assert.deepEqual(artifactManifest.tool_card_url_validation, { checked: 0, reachable: 0, failed: 0, skipped: 12 });
     assert.deepEqual(artifactManifest.tool_card_field_provenance, { cards_checked: 20, fields_checked: 60, covered: 0, covered_by_manual_review: 60, missing: 0 });
     assert.deepEqual(artifactManifest.ingestion_review.approvals, { approved: 1, rejected: 0, needs_changes: 0 });

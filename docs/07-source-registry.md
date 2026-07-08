@@ -104,6 +104,29 @@ items:
 
 没有匹配 confirmation record 的 requirement 默认为 `pending`。该 artifact 只表达审核状态，不会自动启用来源或提升来源可信度。
 
+`source_registry_review_requests.json` 会为仍处于 `pending` 的 requirement 输出可操作确认模板：
+
+```yaml
+schema_version: source_registry_review_requests.v1
+summary:
+  pending_review:
+  confirmation_required:
+items:
+  - source_id:
+    field:
+    reason:
+    confirmation_required:
+    decision_options: [confirmed, rejected, needs_changes]
+    review_record_template:
+      id:
+      schema_version: source_registry_review_record.v1
+      source_id:
+      field:
+      required_fields: [decision, reason, reviewer, reviewed_at]
+```
+
+该 artifact 用于让 reviewer 在 preview summary 中看到可填写的 confirmation record 模板；模板本身不是确认记录，不会自动启用来源或改变来源可信度。
+
 ## 来源类型
 
 ### 官方 Registry

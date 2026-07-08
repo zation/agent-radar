@@ -18,6 +18,7 @@ interface ManifestFile {
   source_registry: string;
   source_registry_diff: string;
   source_registry_review: string;
+  source_registry_review_requests: string;
   tool_card_validation: string;
   tool_card_field_provenance: string;
   tool_card_url_validation: string;
@@ -49,6 +50,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.source_registry, "data/source_registry.json");
     assert.equal(manifest.source_registry_diff, "data/source_registry_diff.json");
     assert.equal(manifest.source_registry_review, "data/source_registry_review.json");
+    assert.equal(manifest.source_registry_review_requests, "data/source_registry_review_requests.json");
     assert.equal(manifest.tool_card_validation, "data/tool_card_validation.json");
     assert.equal(manifest.tool_card_field_provenance, "data/tool_card_field_provenance.json");
     assert.equal(manifest.tool_card_url_validation, "data/tool_card_url_validation.json");
@@ -70,6 +72,9 @@ test("builds MVP data artifacts and an eval report", async () => {
     const sourceRegistryReview = JSON.parse(await readFile(join(outputDir, "data", "source_registry_review.json"), "utf8"));
     assert.equal(sourceRegistryReview.schema_version, "source_registry_review.v1");
     assert.deepEqual(sourceRegistryReview.summary, { total_requirements: 0, confirmed: 0, rejected: 0, needs_changes: 0, pending: 0 });
+    const sourceRegistryReviewRequests = JSON.parse(await readFile(join(outputDir, "data", "source_registry_review_requests.json"), "utf8"));
+    assert.equal(sourceRegistryReviewRequests.schema_version, "source_registry_review_requests.v1");
+    assert.deepEqual(sourceRegistryReviewRequests.summary, { pending_review: 0, confirmation_required: 0 });
 
     const toolCardValidation = JSON.parse(await readFile(join(outputDir, "data", "tool_card_validation.json"), "utf8"));
     assert.equal(toolCardValidation.schema_version, "tool_card_validation.v1");

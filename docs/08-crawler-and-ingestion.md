@@ -57,7 +57,7 @@ npm run ingest
 
 `npm run ingest` 的终端 JSON summary 会包含 snapshots、source records、source ids、approval requests、field value provenance、release admission、promotion candidates 和 promotion plan 摘要，便于本地或 CI 快速判断采集审核状态。
 
-发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 preview/release 审核源配置；同时输出 `data/source_registry_diff.json`，记录来源配置 added、removed 和 changed 摘要。changed source 会附带字段级 `review_requirements`，标出启用状态、访问边界、parser、频率、可信度等变更为何需要维护者确认。发布流水线也会输出 `data/source_registry_review.json`，记录这些 requirements 的 pending、confirmed、rejected 和 needs_changes 状态；没有确认记录时保持 pending，不会自动启用来源或提升可信度。
+发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 preview/release 审核源配置；同时输出 `data/source_registry_diff.json`，记录来源配置 added、removed 和 changed 摘要。changed source 会附带字段级 `review_requirements`，标出启用状态、访问边界、parser、频率、可信度等变更为何需要维护者确认。发布流水线也会输出 `data/source_registry_review.json`，记录这些 requirements 的 pending、confirmed、rejected 和 needs_changes 状态；没有确认记录时保持 pending。`data/source_registry_review_requests.json` 会为 pending requirement 输出 confirmation record 模板、decision options 和 required fields，方便 reviewer 生成真实确认记录。上述 artifacts 不会自动启用来源或提升可信度。
 
 发布流水线也会输出 `data/tool_card_validation.json` 和 `data/tool_card_field_provenance.json`，并在 Tool Card validation 失败时阻断 artifacts 生成，避免低置信、缺证据或风险未知的 Tool Card 进入可靠发布数据。字段 provenance artifact 会按 `permissions`、`security` 和 `maintenance` 统计字段级证据、人工审核覆盖和缺失项。
 
@@ -67,7 +67,7 @@ npm run ingest
 - 通用外部 HTTP/API crawler 的限流和重试；当前已输出最小 crawl audit log。
 - 更多来源专属 parser。
 - 完整跨来源 deduper、跨来源 normalizer 和人工 override 审核 UI；当前只实现 draft id、canonical URL 对已发布 Tool Cards 和同批 incoming drafts 的最小重复信号与发布阻断。
-- 更完整的 Source Registry validator；当前已检查 enabled source 的 parser 覆盖、owner、`last_reviewed_at` 和 robots/terms 审核记录，并输出带字段级 review requirements 和确认状态 summary 的来源变更审核 artifacts。
+- 更完整的 Source Registry validator；当前已检查 enabled source 的 parser 覆盖、owner、`last_reviewed_at` 和 robots/terms 审核记录，并输出带字段级 review requirements、确认状态 summary 和 pending confirmation 模板的来源变更审核 artifacts。
 - 完整的人工审核 UI，以及 promotion candidates 到可靠发布 artifacts 的人工提升流程；当前 preview review markdown 已展示 approval request、release admission blocked reasons、promotion candidate 明细和 promotion plan 人工合并提示。
 - 更完整的 Tool Card validator 字段 provenance；当前已输出 schema 级 `tool_card_field_provenance.json` 和 ingest-time `tool_card_field_value_provenance.v1`，支持 override evidence ref 对应 Override Record 的审计检查，要求 `docs_url`、`repo_url`、`homepage_url`、`package_urls` 和 `install_methods.docs_url` 被 `source_urls` 覆盖，并对非人工审核来源缺少 `permissions`、`security`、`maintenance` 字段级 evidence refs 的 Tool Card 输出 warning。可通过 `AGENT_RADAR_CHECK_URLS=true` 运行 URL 可达性检查。
 

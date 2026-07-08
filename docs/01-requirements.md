@@ -252,7 +252,7 @@ MVP 必须实现：
 
 MVP 使用人工补全和手动触发更新，不做自动定时采集。
 
-当前可靠发布路径仍是人工 seed：`npm run pipeline` 从 `src/data/seed-tool-cards.ts` 读取 Tool Cards 并生成 artifacts。`npm run ingest` 已提供 v0.2 最小采集草稿链路，可读取 enabled Source Registry、保存 Raw Snapshot 并输出 Source Records；但这些采集产物尚未进入可靠推荐发布数据，也没有接入 deduper、normalizer 或人工 override。
+当前可靠发布路径仍是人工 seed：`npm run pipeline` 从 `src/data/seed-tool-cards.ts` 读取 Tool Cards 并生成 artifacts。`npm run ingest` 已提供 v0.2 最小采集草稿链路，可读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records，并生成 Tool Card drafts、最小 normalizer/deduper、人工 override artifact、approval/review/release admission、promotion candidates 和 promotion plan；但这些采集产物尚未自动进入可靠推荐发布数据。
 
 ## 延期范围
 

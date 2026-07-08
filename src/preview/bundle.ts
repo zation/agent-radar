@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RunIngestionResult } from "../ingestion/run.js";
-import { renderIngestionReviewMarkdown, type SourceRegistryReviewRequirementSummary } from "./ingestion-review.js";
+import { renderIngestionReviewMarkdown, type SourceRegistryReviewRequestSummary, type SourceRegistryReviewRequirementSummary } from "./ingestion-review.js";
 import { buildArtifactManifest } from "./manifest.js";
 
 export interface CreatePreviewBundleOptions {
@@ -16,7 +16,8 @@ export interface CreatePreviewBundleOptions {
 export async function createPreviewBundle(options: CreatePreviewBundleOptions): Promise<void> {
   await mkdir(options.reviewDir, { recursive: true });
   const sourceRegistryReviewRequirements = await readSourceRegistryReviewRequirements(options.distDir);
-  await writeFile(join(options.reviewDir, "ingestion.md"), renderIngestionReviewMarkdown(options.ingestion, sourceRegistryReviewRequirements), "utf8");
+  const sourceRegistryReviewRequests = await readSourceRegistryReviewRequests(options.distDir);
+  await writeFile(join(options.reviewDir, "ingestion.md"), renderIngestionReviewMarkdown(options.ingestion, sourceRegistryReviewRequirements, sourceRegistryReviewRequests), "utf8");
 
   const manifest = await buildArtifactManifest({
     distDir: options.distDir,
@@ -58,6 +59,38 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     manual_merge_required: options.ingestion.promotionPlan.summary.manual_merge_required
   };
   await writeFile(join(options.distDir, "artifact-manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
+}
+
+async function readSourceRegistryReviewRequests(distDir: string): Promise<SourceRegistryReviewRequestSummary[]> {
+  try {
+    const requests = JSON.parse(await readFile(join(distDir, "data", "source_registry_review_requests.json"), "utf8")) as {
+      items?: Array<{
+        source_id?: string;
+        field?: string;
+        decision_options?: string[];
+        review_record_template?: {
+          id?: string;
+          required_fields?: string[];
+        };
+      }>;
+    };
+
+    return (requests.items ?? []).flatMap((item) => {
+      if (!item.source_id || !item.field || !item.review_record_template?.id) return [];
+      return [
+        {
+          source_id: item.source_id,
+          field: item.field,
+          template_id: item.review_record_template.id,
+          decision_options: item.decision_options ?? [],
+          required_fields: item.review_record_template.required_fields ?? []
+        }
+      ];
+    });
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return [];
+    throw error;
+  }
 }
 
 async function readSourceRegistryReviewRequirements(distDir: string): Promise<SourceRegistryReviewRequirementSummary[]> {
