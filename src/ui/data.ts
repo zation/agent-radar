@@ -10,7 +10,7 @@ export interface UiArtifacts {
   evalSummary: {
     passed: number;
     total: number;
-    results: Array<{ case_id: string; passed: boolean; recommended_action: string; top_tool_ids: string[] }>;
+    results: Array<{ case_id: string; passed: boolean; failure_category?: string; recommended_action: string; top_tool_ids: string[] }>;
   };
 }
 

@@ -10,11 +10,13 @@ test("formats eval results for the topbar popover", () => {
       {
         case_id: "gq-browser-screenshot-validation",
         passed: true,
+        failure_category: "none",
         recommended_action: "use"
       },
       {
         case_id: "gq-no-reliable-match-high-risk",
         passed: false,
+        failure_category: "blocked_no_key",
         recommended_action: "no_reliable_match"
       }
     ]
@@ -31,7 +33,7 @@ test("formats eval results for the topbar popover", () => {
       id: "gq-no-reliable-match-high-risk",
       label: "no-reliable-match-high-risk",
       status: "failed",
-      action: "no_reliable_match"
+      action: "blocked_no_key"
     }
   ]);
 });

@@ -8,8 +8,8 @@ test("release eval summary validation accepts all passing cases", () => {
       passed: 2,
       total: 2,
       results: [
-        { case_id: "a", passed: true, failures: [], recommended_action: "use", top_tool_ids: ["tool-a"] },
-        { case_id: "b", passed: true, failures: [], recommended_action: "no_reliable_match", top_tool_ids: [] }
+        { case_id: "a", passed: true, failure_category: "none", failures: [], recommended_action: "use", top_tool_ids: ["tool-a"] },
+        { case_id: "b", passed: true, failure_category: "none", failures: [], recommended_action: "no_reliable_match", top_tool_ids: [] }
       ]
     })
   );
@@ -22,8 +22,8 @@ test("release eval summary validation rejects failed cases", () => {
         passed: 1,
         total: 2,
         results: [
-          { case_id: "a", passed: true, failures: [], recommended_action: "use", top_tool_ids: ["tool-a"] },
-          { case_id: "b", passed: false, failures: ["expected no_reliable_match"], recommended_action: "ask_human", top_tool_ids: ["tool-b"] }
+          { case_id: "a", passed: true, failure_category: "none", failures: [], recommended_action: "use", top_tool_ids: ["tool-a"] },
+          { case_id: "b", passed: false, failure_category: "quality_failure", failures: ["expected no_reliable_match"], recommended_action: "ask_human", top_tool_ids: ["tool-b"] }
         ]
       }),
     /release eval failed: 1\/2/

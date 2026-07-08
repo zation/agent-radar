@@ -4,6 +4,7 @@ export interface EvalPopoverSummary {
   results: Array<{
     case_id: string;
     passed: boolean;
+    failure_category?: string;
     recommended_action: string;
   }>;
 }
@@ -20,6 +21,6 @@ export function createEvalPopoverRows(summary: EvalPopoverSummary): EvalPopoverR
     id: result.case_id,
     label: result.case_id.replace(/^gq-/, ""),
     status: result.passed ? "passed" : "failed",
-    action: result.recommended_action
+    action: result.passed ? result.recommended_action : result.failure_category ?? result.recommended_action
   }));
 }

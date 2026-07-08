@@ -8,7 +8,16 @@ import { buildArtifacts } from "../src/pipeline/build-artifacts.js";
 import type { ToolCard } from "../src/schema.js";
 
 interface EvalSummaryFile {
-  results: Array<{ failures: string[] }>;
+  results: Array<{ failure_category: string; failures: string[] }>;
+}
+
+interface ManifestFile {
+  eval_report: string;
+  rules_versions: { rating: string };
+  schema_versions: { tool_card: string; source_registry: string };
+  source_registry: string;
+  tool_card_validation: string;
+  mcp_tools: string;
 }
 
 test("builds MVP data artifacts and an eval report", async () => {
@@ -26,7 +35,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(summary.goldenQueriesPassed, 0);
     assert.equal(summary.goldenQueriesTotal >= 10, true);
 
-    const manifest = JSON.parse(await readFile(join(outputDir, "data", "manifest.json"), "utf8"));
+    const manifest = JSON.parse(await readFile(join(outputDir, "data", "manifest.json"), "utf8")) as ManifestFile;
     assert.equal(manifest.rules_versions.rating, "rating_rules.v0.1-draft");
     assert.equal(manifest.schema_versions.tool_card, "tool_card.v1");
     assert.equal(manifest.schema_versions.source_registry, "source_registry.v1");
@@ -53,7 +62,10 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.ok(searchIndex.documents.length >= 20);
 
     const evalSummary = JSON.parse(await readFile(join(outputDir, "data", "eval_summary.json"), "utf8")) as EvalSummaryFile;
+    assert.equal(evalSummary.results[0].failure_category, "blocked_no_key");
     assert.match(evalSummary.results[0].failures[0], /AGENT_RADAR_LLM_API_KEY/);
+    const evalReport = await readFile(join(outputDir, manifest.eval_report), "utf8");
+    assert.match(evalReport, /category=blocked_no_key/);
 
     const d1SeedSql = await readFile(join(outputDir, "data", "d1_seed.sql"), "utf8");
     assert.match(d1SeedSql, /INSERT INTO tool_cards/);

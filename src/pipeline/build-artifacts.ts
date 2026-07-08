@@ -107,7 +107,7 @@ function renderEvalReport(dataVersion: string, summary: EvalSummary): string {
     ...summary.results.map((result) => {
       const status = result.passed ? "pass" : "fail";
       const failures = result.failures.length > 0 ? ` (${result.failures.join("; ")})` : "";
-      return `- ${result.case_id}: ${status}, action=${result.recommended_action}, top=${result.top_tool_ids.join(", ")}${failures}`;
+      return `- ${result.case_id}: ${status}, category=${result.failure_category}, action=${result.recommended_action}, top=${result.top_tool_ids.join(", ")}${failures}`;
     })
   ];
   return `${lines.join("\n")}\n`;

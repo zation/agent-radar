@@ -42,6 +42,7 @@
 - Recommend UI 的模型下拉选项已从同一份 provider registry 派生，避免前后端 provider label 分叉。
 - LLM provider 请求会记录 provider、endpoint、model、状态码和脱敏错误体，不记录 API key。
 - Provider 401/403、429、模型不可用和 JSON 输出异常已映射为稳定 API error code，并在 Recommend UI 中展示 provider/status 上下文。
+- Eval summary 和 markdown eval report 已输出 `failure_category`，可区分 `blocked_no_key`、`provider_error`、`schema_error` 和 `quality_failure`。
 - 无 `AGENT_RADAR_LLM_API_KEY` 时，pipeline/eval 会生成 blocked eval summary，而不是运行旧本地推荐引擎。
 - 已用真实 provider key 跑通 5 个 MVP golden queries，并通过 release gate。
 - `npm run ingest` 已提供 v0.2 最小采集草稿链路：读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records，并为完整且无 parser warnings 的 manual 记录生成待审核 Tool Card drafts 和 review queue。
@@ -340,7 +341,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 - 扩展 Source Registry validator，覆盖来源变更 diff、parser 覆盖检查和审核记录。
 - 扩展 Tool Card validator，覆盖字段级 evidence、URL 可达性和人工 override 审计。
 - 补齐 deduper、normalizer 和最小人工 override record。
-- 扩展 provider error report，把 provider/config failure 写入 eval report 分类。
+- 使用真实 provider key 重跑 10 条 golden queries，并审查新增 case 的推荐质量。
 
 ### P1：v0.2 基础
 
@@ -351,7 +352,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 - 增加 1-2 个官方来源的 crawler/parser，保持 GitHub topics disabled 直到噪声评估完成。
 - 为 provider registry 增加版本号和运行时配置导出能力。
 - 补齐完整 MCP server 协议包装和 agent-facing 示例。
-- 让 eval report 区分 `blocked_no_key`、`provider_error`、`schema_error`、`quality_failure`。
+- 将 eval failure category 汇总到 preview artifact manifest 和审核摘要中。
 
 ### P2：可信度增强
 

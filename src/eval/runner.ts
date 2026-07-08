@@ -1,9 +1,12 @@
 import type { EvalCase, RatingResult, RecommendationResult, ToolCard } from "../schema.js";
-import { recommendTools, type RecommendToolsRuntime } from "../recommendation/engine.js";
+import { RecommendationProviderError, recommendTools, type RecommendToolsRuntime } from "../recommendation/engine.js";
+
+export type EvalFailureCategory = "blocked_no_key" | "provider_error" | "schema_error" | "quality_failure" | "none";
 
 export interface EvalResult {
   case_id: string;
   passed: boolean;
+  failure_category: EvalFailureCategory;
   failures: string[];
   recommended_action: string;
   top_tool_ids: string[];
@@ -21,7 +24,7 @@ export async function runGoldenQueries(
   ratings: RatingResult[],
   runtime: RecommendToolsRuntime
 ): Promise<EvalSummary> {
-  const results = await Promise.all(cases.map(async (evalCase) => evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards)));
+  const results = await Promise.all(cases.map(async (evalCase) => evaluateGoldenQuery(evalCase, cards, ratings, runtime)));
   return {
     passed: results.filter((result) => result.passed).length,
     total: results.length,
@@ -36,11 +39,25 @@ export function createBlockedEvalSummary(cases: EvalCase[], reason: string): Eva
     results: cases.map((evalCase) => ({
       case_id: evalCase.id,
       passed: false,
+      failure_category: "blocked_no_key",
       failures: [reason],
       recommended_action: "blocked",
       top_tool_ids: []
     }))
   };
+}
+
+async function evaluateGoldenQuery(
+  evalCase: EvalCase,
+  cards: ToolCard[],
+  ratings: RatingResult[],
+  runtime: RecommendToolsRuntime
+): Promise<EvalResult> {
+  try {
+    return evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards);
+  } catch (error) {
+    return createFailedEvalResult(evalCase.id, classifyEvalError(error), describeEvalError(error));
+  }
 }
 
 function evaluateCase(evalCase: EvalCase, result: RecommendationResult, cards: ToolCard[]): EvalResult {
@@ -71,8 +88,37 @@ function evaluateCase(evalCase: EvalCase, result: RecommendationResult, cards: T
   return {
     case_id: evalCase.id,
     passed: failures.length === 0,
+    failure_category: failures.length === 0 ? "none" : "quality_failure",
     failures,
     recommended_action: result.recommended_action,
     top_tool_ids: result.candidates.map((candidate) => candidate.tool_id)
   };
+}
+
+function createFailedEvalResult(caseId: string, category: EvalFailureCategory, failure: string): EvalResult {
+  return {
+    case_id: caseId,
+    passed: false,
+    failure_category: category,
+    failures: [failure],
+    recommended_action: "blocked",
+    top_tool_ids: []
+  };
+}
+
+function classifyEvalError(error: unknown): EvalFailureCategory {
+  if (error instanceof RecommendationProviderError) {
+    return error.code === "provider_schema_error" ? "schema_error" : "provider_error";
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  if (/schema|json|parse/i.test(message)) return "schema_error";
+  if (/provider|llm_request_failed|rate|auth|model/i.test(message)) return "provider_error";
+  return "quality_failure";
+}
+
+function describeEvalError(error: unknown): string {
+  if (error instanceof RecommendationProviderError) {
+    return `${error.code}: ${error.message}${error.status ? ` (HTTP ${error.status})` : ""}`;
+  }
+  return error instanceof Error ? error.message : String(error);
 }

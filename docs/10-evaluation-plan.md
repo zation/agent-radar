@@ -62,6 +62,8 @@ Provider eval 的失败类型应分开记录：
 | `schema_error` | LLM JSON 不符合 `RecommendationResult` 预期 | 调整 prompt/解析/校验 |
 | `quality_failure` | 输出合法但未满足 golden query | 修 Tool Card、prompt 或安全归一化 |
 
+当前 `eval_summary.json` 和 markdown eval report 已输出每个 case 的 `failure_category`，其中缺少 `AGENT_RADAR_LLM_API_KEY` 会被标记为 `blocked_no_key`，provider 请求错误会标记为 `provider_error`，provider/LLM JSON 解析问题会标记为 `schema_error`，合法推荐但未满足 golden query 的结果会标记为 `quality_failure`。
+
 发布前的推荐质量声明必须基于 Provider Eval，而不是 Contract Eval。
 
 ## Eval Case Schema
