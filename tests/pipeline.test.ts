@@ -16,6 +16,7 @@ interface ManifestFile {
   rules_versions: { rating: string };
   schema_versions: { tool_card: string; source_registry: string };
   source_registry: string;
+  source_registry_diff: string;
   tool_card_validation: string;
   mcp_tools: string;
 }
@@ -40,6 +41,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.schema_versions.tool_card, "tool_card.v1");
     assert.equal(manifest.schema_versions.source_registry, "source_registry.v1");
     assert.equal(manifest.source_registry, "data/source_registry.json");
+    assert.equal(manifest.source_registry_diff, "data/source_registry_diff.json");
     assert.equal(manifest.tool_card_validation, "data/tool_card_validation.json");
     assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
 
@@ -48,6 +50,10 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(sourceRegistry.sources.length >= 2, true);
     assert.equal(sourceRegistry.validation.passed, true);
     assert.deepEqual(sourceRegistry.validation.errors, []);
+
+    const sourceRegistryDiff = JSON.parse(await readFile(join(outputDir, "data", "source_registry_diff.json"), "utf8"));
+    assert.equal(sourceRegistryDiff.schema_version, "source_registry_diff.v1");
+    assert.deepEqual(sourceRegistryDiff.summary, { added: 2, removed: 0, changed: 0 });
 
     const toolCardValidation = JSON.parse(await readFile(join(outputDir, "data", "tool_card_validation.json"), "utf8"));
     assert.equal(toolCardValidation.schema_version, "tool_card_validation.v1");

@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { crawlEnabledSources } from "../src/ingestion/crawler.js";
 import { runIngestion } from "../src/ingestion/run.js";
-import { getEnabledSources, sourceRegistry, validateSourceRegistry } from "../src/ingestion/source-registry.js";
+import { buildSourceRegistryDiff, getEnabledSources, sourceRegistry, validateSourceRegistry } from "../src/ingestion/source-registry.js";
 
 test("source registry exposes only enabled MVP sources", () => {
   const enabled = getEnabledSources(sourceRegistry);
@@ -64,6 +64,37 @@ test("source registry validator rejects enabled sources without robots and terms
 
   assert.match(errors.join("\n"), /manual-agent-radar-seed: enabled source requires robots review/);
   assert.match(errors.join("\n"), /manual-agent-radar-seed: enabled source requires terms review/);
+});
+
+test("source registry diff records added removed and changed source ids", () => {
+  const diff = buildSourceRegistryDiff(
+    [
+      sourceRegistry[0],
+      {
+        ...sourceRegistry[1],
+        enabled: false
+      }
+    ],
+    [
+      {
+        ...sourceRegistry[0],
+        enabled: false,
+        last_reviewed_at: "2026-07-08T00:00:00Z"
+      },
+      {
+        ...sourceRegistry[1],
+        id: "new-official-source",
+        enabled: false
+      }
+    ],
+    "2026-07-08T00:00:00Z"
+  );
+
+  assert.equal(diff.schema_version, "source_registry_diff.v1");
+  assert.deepEqual(diff.summary, { added: 1, removed: 1, changed: 1 });
+  assert.deepEqual(diff.added.map((source) => source.id), ["new-official-source"]);
+  assert.deepEqual(diff.removed.map((source) => source.id), ["github-topic-mcp"]);
+  assert.deepEqual(diff.changed[0]?.changed_fields, ["enabled", "last_reviewed_at"]);
 });
 
 test("crawler saves immutable raw snapshots without request secrets", async () => {

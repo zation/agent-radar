@@ -47,7 +47,7 @@ npm run ingest
 
 `npm run ingest` 也已支持最小 Approval Record artifact：人工审核决定会记录为 `approved`、`rejected` 或 `needs_changes`，并要求 `reviewer`、`reason`、`source_record_id` 和 `reviewed_at`。Approval Record 只作为审核证据和发布准入输入，不会自动把 draft 发布为可靠 Tool Card。
 
-发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 preview/release 审核源配置。
+发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 preview/release 审核源配置；同时输出 `data/source_registry_diff.json`，记录来源配置 added、removed 和 changed 摘要。
 
 发布流水线也会输出 `data/tool_card_validation.json`，并在 Tool Card validation 失败时阻断 artifacts 生成，避免低置信、缺证据或风险未知的 Tool Card 进入可靠发布数据。
 
@@ -57,7 +57,7 @@ npm run ingest
 - 通用外部 HTTP/API crawler 的限流和重试；当前已输出最小 crawl audit log。
 - 更多来源专属 parser。
 - 完整跨来源 deduper、跨来源 normalizer 和人工 override 审核 UI。
-- 完整 Source Registry validator，包括来源变更 diff；当前已检查 enabled source 的 parser 覆盖、owner、`last_reviewed_at` 和 robots/terms 审核记录。
+- 更完整的 Source Registry validator；当前已检查 enabled source 的 parser 覆盖、owner、`last_reviewed_at` 和 robots/terms 审核记录，并输出来源变更 diff artifact。
 - 完整的人工审核 UI 和 Tool Card drafts 发布准入流程。
 - 更完整的 Tool Card validator，包括 URL 可达性和字段级 evidence coverage；当前已支持 override evidence ref 对应 Override Record 的审计检查。
 

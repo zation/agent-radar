@@ -20,6 +20,11 @@ export interface ArtifactManifest {
     partial: number;
     failed: number;
   };
+  source_registry_diff?: {
+    added: number;
+    removed: number;
+    changed: number;
+  };
   ingestion_review?: {
     approvals: {
       approved: number;
@@ -44,6 +49,7 @@ export interface BuildArtifactManifestOptions {
 export async function buildArtifactManifest(options: BuildArtifactManifestOptions): Promise<ArtifactManifest> {
   const dataManifest = JSON.parse(await readFile(join(options.distDir, "data", "manifest.json"), "utf8")) as { data_version?: string };
   const evalSummary = JSON.parse(await readFile(join(options.distDir, "data", "eval_summary.json"), "utf8")) as EvalSummary;
+  const sourceRegistryDiff = await readSourceRegistryDiffSummary(options.distDir);
 
   return {
     schema_version: "artifact_manifest.v1",
@@ -56,8 +62,21 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
       model: options.providerModel,
       failure_categories: countEvalFailureCategories(evalSummary)
     },
+    ...(sourceRegistryDiff ? { source_registry_diff: sourceRegistryDiff } : {}),
     checksums: await checksumFiles(options.distDir)
   };
+}
+
+async function readSourceRegistryDiffSummary(distDir: string): Promise<ArtifactManifest["source_registry_diff"] | undefined> {
+  try {
+    const diff = JSON.parse(await readFile(join(distDir, "data", "source_registry_diff.json"), "utf8")) as {
+      summary?: ArtifactManifest["source_registry_diff"];
+    };
+    return diff.summary;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
+    throw error;
+  }
 }
 
 function countEvalFailureCategories(summary: EvalSummary): Record<string, number> {

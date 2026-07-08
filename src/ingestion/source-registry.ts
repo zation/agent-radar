@@ -70,6 +70,24 @@ export interface SourceRegistryArtifact {
   sources: SourceDefinition[];
 }
 
+export interface SourceRegistryDiff {
+  schema_version: "source_registry_diff.v1";
+  generated_at: string;
+  summary: {
+    added: number;
+    removed: number;
+    changed: number;
+  };
+  added: SourceDefinition[];
+  removed: SourceDefinition[];
+  changed: Array<{
+    id: string;
+    before: SourceDefinition;
+    after: SourceDefinition;
+    changed_fields: string[];
+  }>;
+}
+
 export function buildSourceRegistryArtifact(sources: SourceDefinition[], generatedAt: string): SourceRegistryArtifact {
   const errors = validateSourceRegistry(sources);
 
@@ -81,6 +99,35 @@ export function buildSourceRegistryArtifact(sources: SourceDefinition[], generat
       errors
     },
     sources
+  };
+}
+
+export function buildSourceRegistryDiff(previousSources: SourceDefinition[], currentSources: SourceDefinition[], generatedAt: string): SourceRegistryDiff {
+  const previousById = new Map(previousSources.map((source) => [source.id, source]));
+  const currentById = new Map(currentSources.map((source) => [source.id, source]));
+
+  const added = currentSources.filter((source) => !previousById.has(source.id));
+  const removed = previousSources.filter((source) => !currentById.has(source.id));
+  const changed = currentSources
+    .flatMap((after) => {
+      const before = previousById.get(after.id);
+      if (!before) return [];
+      const changedFields = diffSourceFields(before, after);
+      return changedFields.length > 0 ? [{ id: after.id, before, after, changed_fields: changedFields }] : [];
+    })
+    .sort((a, b) => a.id.localeCompare(b.id));
+
+  return {
+    schema_version: "source_registry_diff.v1",
+    generated_at: generatedAt,
+    summary: {
+      added: added.length,
+      removed: removed.length,
+      changed: changed.length
+    },
+    added: [...added].sort((a, b) => a.id.localeCompare(b.id)),
+    removed: [...removed].sort((a, b) => a.id.localeCompare(b.id)),
+    changed
   };
 }
 
@@ -116,6 +163,11 @@ export function validateSourceRegistry(sources: SourceDefinition[]): string[] {
   }
 
   return errors;
+}
+
+function diffSourceFields(before: SourceDefinition, after: SourceDefinition): string[] {
+  const fields = new Set([...Object.keys(before), ...Object.keys(after)]);
+  return [...fields].filter((field) => JSON.stringify(before[field as keyof SourceDefinition]) !== JSON.stringify(after[field as keyof SourceDefinition])).sort();
 }
 
 function validateAccessReview(source: SourceDefinition): string[] {

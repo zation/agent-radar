@@ -227,13 +227,13 @@ Preview deployment 应包含：
 - 产品网站本体。
 - `data/*`：Tool Cards、ratings、search index、eval summary、D1 seed。
 - `reports/*`：eval report。
-- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、crawl audit summary、ingestion approval summary、构建时间和关键文件 checksum。
+- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、crawl audit summary、ingestion approval summary、构建时间和关键文件 checksum。
 
 GitHub Actions summary 应包含：
 
 - `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选。
 - Cloudflare Pages preview URL。
-- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、crawl audit summary、ingestion approval summary 和 checksum 数量。
+- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、source registry diff summary、crawl audit summary、ingestion approval summary 和 checksum 数量。
 
 GitHub 配置要求：
 
