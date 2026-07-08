@@ -25,6 +25,12 @@ export interface ArtifactManifest {
     removed: number;
     changed: number;
   };
+  tool_card_url_validation?: {
+    checked: number;
+    reachable: number;
+    failed: number;
+    skipped: number;
+  };
   ingestion_review?: {
     approvals: {
       approved: number;
@@ -50,6 +56,7 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
   const dataManifest = JSON.parse(await readFile(join(options.distDir, "data", "manifest.json"), "utf8")) as { data_version?: string };
   const evalSummary = JSON.parse(await readFile(join(options.distDir, "data", "eval_summary.json"), "utf8")) as EvalSummary;
   const sourceRegistryDiff = await readSourceRegistryDiffSummary(options.distDir);
+  const toolCardUrlValidation = await readToolCardUrlValidationSummary(options.distDir);
 
   return {
     schema_version: "artifact_manifest.v1",
@@ -63,6 +70,7 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
       failure_categories: countEvalFailureCategories(evalSummary)
     },
     ...(sourceRegistryDiff ? { source_registry_diff: sourceRegistryDiff } : {}),
+    ...(toolCardUrlValidation ? { tool_card_url_validation: toolCardUrlValidation } : {}),
     checksums: await checksumFiles(options.distDir)
   };
 }
@@ -73,6 +81,18 @@ async function readSourceRegistryDiffSummary(distDir: string): Promise<ArtifactM
       summary?: ArtifactManifest["source_registry_diff"];
     };
     return diff.summary;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+async function readToolCardUrlValidationSummary(distDir: string): Promise<ArtifactManifest["tool_card_url_validation"] | undefined> {
+  try {
+    const validation = JSON.parse(await readFile(join(distDir, "data", "tool_card_url_validation.json"), "utf8")) as {
+      summary?: ArtifactManifest["tool_card_url_validation"];
+    };
+    return validation.summary;
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
     throw error;

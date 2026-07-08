@@ -17,6 +17,33 @@ export interface ToolCardValidationOptions {
   overrideRecords?: OverrideRecord[];
 }
 
+export interface ToolCardUrlValidationItem {
+  tool_id: string;
+  url: string;
+  field: string;
+  status: "reachable" | "failed" | "skipped";
+  method?: "HEAD" | "GET";
+  http_status?: number;
+  reason?: string;
+}
+
+export interface ToolCardUrlValidationArtifact {
+  schema_version: "tool_card_url_validation.v1";
+  checked_at: string;
+  summary: {
+    checked: number;
+    reachable: number;
+    failed: number;
+    skipped: number;
+  };
+  items: ToolCardUrlValidationItem[];
+}
+
+export interface ToolCardUrlCheckOptions {
+  fetchImpl?: typeof fetch;
+  checkedAt: string;
+}
+
 export function validateToolCards(cards: ToolCard[], options: ToolCardValidationOptions = {}): ToolCardValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -44,6 +71,104 @@ export function validateToolCards(cards: ToolCard[], options: ToolCardValidation
     errors,
     warnings
   };
+}
+
+export async function checkToolCardUrls(cards: ToolCard[], options: ToolCardUrlCheckOptions): Promise<ToolCardUrlValidationArtifact> {
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const candidates = dedupeUrlCandidates(cards);
+  const items: ToolCardUrlValidationItem[] = [];
+
+  for (const candidate of candidates) {
+    if (!isHttpUrl(candidate.url)) {
+      items.push({ ...candidate, status: "skipped", reason: "non_http_url" });
+      continue;
+    }
+    items.push(await checkUrl(candidate, fetchImpl));
+  }
+
+  return {
+    schema_version: "tool_card_url_validation.v1",
+    checked_at: options.checkedAt,
+    summary: {
+      checked: items.filter((item) => item.status !== "skipped").length,
+      reachable: items.filter((item) => item.status === "reachable").length,
+      failed: items.filter((item) => item.status === "failed").length,
+      skipped: items.filter((item) => item.status === "skipped").length
+    },
+    items
+  };
+}
+
+export function buildSkippedToolCardUrlValidation(cards: ToolCard[], checkedAt: string, reason: string): ToolCardUrlValidationArtifact {
+  const items = dedupeUrlCandidates(cards).map((candidate) => ({
+    ...candidate,
+    status: "skipped" as const,
+    reason
+  }));
+
+  return {
+    schema_version: "tool_card_url_validation.v1",
+    checked_at: checkedAt,
+    summary: {
+      checked: 0,
+      reachable: 0,
+      failed: 0,
+      skipped: items.length
+    },
+    items
+  };
+}
+
+function dedupeUrlCandidates(cards: ToolCard[]): Array<{ tool_id: string; url: string; field: string }> {
+  const seen = new Set<string>();
+  const candidates: Array<{ tool_id: string; url: string; field: string }> = [];
+
+  for (const card of cards) {
+    const entries = collectUrlEntries(card);
+    for (const entry of entries) {
+      const key = `${card.id}:${entry.url}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      candidates.push({ tool_id: card.id, ...entry });
+    }
+  }
+
+  return candidates;
+}
+
+function collectUrlEntries(card: ToolCard): Array<{ url: string; field: string }> {
+  return [
+    ...card.source_urls.map((url) => ({ url, field: "source_urls" })),
+    ...(card.docs_url ? [{ url: card.docs_url, field: "docs_url" }] : []),
+    ...(card.repo_url ? [{ url: card.repo_url, field: "repo_url" }] : []),
+    ...(card.homepage_url ? [{ url: card.homepage_url, field: "homepage_url" }] : []),
+    ...(card.package_urls ?? []).map((url) => ({ url, field: "package_urls" })),
+    ...card.install_methods.map((method) => ({ url: method.docs_url, field: "install_methods.docs_url" })).filter((entry) => entry.url.trim().length > 0)
+  ];
+}
+
+async function checkUrl(candidate: { tool_id: string; url: string; field: string }, fetchImpl: typeof fetch): Promise<ToolCardUrlValidationItem> {
+  try {
+    const head = await fetchImpl(candidate.url, { method: "HEAD" });
+    if (isReachableStatus(head.status)) return { ...candidate, status: "reachable", method: "HEAD", http_status: head.status };
+    if (head.status !== 405) return { ...candidate, status: "failed", method: "HEAD", http_status: head.status };
+
+    const get = await fetchImpl(candidate.url, { method: "GET" });
+    return isReachableStatus(get.status)
+      ? { ...candidate, status: "reachable", method: "GET", http_status: get.status }
+      : { ...candidate, status: "failed", method: "GET", http_status: get.status };
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "url_check_failed";
+    return { ...candidate, status: "failed", method: "HEAD", reason };
+  }
+}
+
+function isReachableStatus(status: number): boolean {
+  return status >= 200 && status < 400;
+}
+
+function isHttpUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
 }
 
 function validateOverrideEvidenceRefs(card: ToolCard, overrideIds: Set<string>, errors: string[]): void {

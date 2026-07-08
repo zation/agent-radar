@@ -8,11 +8,13 @@ import { buildSourceRegistryArtifact, buildSourceRegistryDiff, sourceRegistry } 
 import { rateAllToolCards } from "../rating/engine.js";
 import { DEFAULT_RECOMMENDATION_MODEL } from "../recommendation/provider-registry.js";
 import { buildSearchIndex } from "../search/index-builder.js";
-import { validateToolCards } from "../validation/tool-card-validator.js";
+import { buildSkippedToolCardUrlValidation, checkToolCardUrls, validateToolCards } from "../validation/tool-card-validator.js";
 
 export interface BuildArtifactsOptions {
   outputDir: string;
   toolCards?: typeof seedToolCards;
+  checkUrlReachability?: boolean;
+  fetchImpl?: typeof fetch;
 }
 
 export interface BuildArtifactsSummary {
@@ -44,6 +46,10 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   const dataVersion = "data-2026-07-06";
   const sourceRegistryArtifact = buildSourceRegistryArtifact(sourceRegistry, "2026-07-06T00:00:00Z");
   const sourceRegistryDiff = buildSourceRegistryDiff([], sourceRegistry, "2026-07-06T00:00:00Z");
+  const shouldCheckUrls = options.checkUrlReachability ?? process.env.AGENT_RADAR_CHECK_URLS === "true";
+  const toolCardUrlValidation = shouldCheckUrls
+    ? await checkToolCardUrls(toolCards, { fetchImpl: options.fetchImpl, checkedAt: "2026-07-06T00:00:00Z" })
+    : buildSkippedToolCardUrlValidation(toolCards, "2026-07-06T00:00:00Z", "url_reachability_check_not_enabled");
   const mcpToolManifest = buildMcpToolManifest();
 
   await writeFile(join(publicDataDir, "tool_cards.jsonl"), toJsonl(toolCards), "utf8");
@@ -52,6 +58,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await writeFile(join(publicDataDir, "source_registry.json"), JSON.stringify(sourceRegistryArtifact, null, 2), "utf8");
   await writeFile(join(publicDataDir, "source_registry_diff.json"), JSON.stringify(sourceRegistryDiff, null, 2), "utf8");
   await writeFile(join(publicDataDir, "tool_card_validation.json"), JSON.stringify(toolCardValidation, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "tool_card_url_validation.json"), JSON.stringify(toolCardUrlValidation, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_tools.json"), JSON.stringify(mcpToolManifest, null, 2), "utf8");
   await writeFile(join(publicDataDir, "d1_seed.sql"), renderD1SeedSql(toolCards, ratings, index.documents), "utf8");
   await writeFile(join(publicDataDir, "golden_queries.json"), JSON.stringify(goldenQueries, null, 2), "utf8");
@@ -76,6 +83,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         source_registry: "data/source_registry.json",
         source_registry_diff: "data/source_registry_diff.json",
         tool_card_validation: "data/tool_card_validation.json",
+        tool_card_url_validation: "data/tool_card_url_validation.json",
         mcp_tools: "data/mcp_tools.json",
         d1_seed: "data/d1_seed.sql",
         eval_report: `reports/eval-${dataVersion}.md`,

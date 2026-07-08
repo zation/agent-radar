@@ -18,6 +18,7 @@ interface ManifestFile {
   source_registry: string;
   source_registry_diff: string;
   tool_card_validation: string;
+  tool_card_url_validation: string;
   mcp_tools: string;
 }
 
@@ -43,6 +44,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.source_registry, "data/source_registry.json");
     assert.equal(manifest.source_registry_diff, "data/source_registry_diff.json");
     assert.equal(manifest.tool_card_validation, "data/tool_card_validation.json");
+    assert.equal(manifest.tool_card_url_validation, "data/tool_card_url_validation.json");
     assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
 
     const sourceRegistry = JSON.parse(await readFile(join(outputDir, "data", "source_registry.json"), "utf8"));
@@ -59,6 +61,11 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(toolCardValidation.schema_version, "tool_card_validation.v1");
     assert.equal(toolCardValidation.passed, true);
     assert.equal(toolCardValidation.checked_count, summary.toolCount);
+
+    const toolCardUrlValidation = JSON.parse(await readFile(join(outputDir, "data", "tool_card_url_validation.json"), "utf8"));
+    assert.equal(toolCardUrlValidation.schema_version, "tool_card_url_validation.v1");
+    assert.equal(toolCardUrlValidation.summary.checked, 0);
+    assert.equal(toolCardUrlValidation.summary.skipped > 0, true);
 
     const mcpTools = JSON.parse(await readFile(join(outputDir, "data", "mcp_tools.json"), "utf8"));
     assert.equal(mcpTools.schema_version, "mcp_tool_manifest.v1");
@@ -100,6 +107,30 @@ test("pipeline rejects invalid tool cards before publishing artifacts", async ()
       () => buildArtifacts({ outputDir, toolCards: [invalidCard] }),
       /Tool Card validation failed: invalid-release-card: source_urls is required/
     );
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test("pipeline can run Tool Card URL reachability checks when enabled", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-"));
+  const fetchImpl: typeof fetch = () => Promise.resolve(new Response("ok", { status: 200 }));
+
+  try {
+    await buildArtifacts({
+      outputDir,
+      toolCards: [seedToolCards[0]],
+      checkUrlReachability: true,
+      fetchImpl
+    });
+
+    const toolCardUrlValidation = JSON.parse(await readFile(join(outputDir, "data", "tool_card_url_validation.json"), "utf8")) as {
+      summary: { checked: number; reachable: number; failed: number; skipped: number };
+    };
+
+    assert.equal(toolCardUrlValidation.summary.checked > 0, true);
+    assert.equal(toolCardUrlValidation.summary.reachable, toolCardUrlValidation.summary.checked);
+    assert.equal(toolCardUrlValidation.summary.failed, 0);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
