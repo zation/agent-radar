@@ -54,6 +54,18 @@ test("source registry validator rejects enabled sources without review owner", (
   assert.match(errors.join("\n"), /manual-agent-radar-seed: enabled source requires owner/);
 });
 
+test("source registry validator rejects enabled sources without robots and terms review", () => {
+  const errors = validateSourceRegistry([
+    {
+      ...sourceRegistry[0],
+      access_review: undefined
+    }
+  ]);
+
+  assert.match(errors.join("\n"), /manual-agent-radar-seed: enabled source requires robots review/);
+  assert.match(errors.join("\n"), /manual-agent-radar-seed: enabled source requires terms review/);
+});
+
 test("crawler saves immutable raw snapshots without request secrets", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
 

@@ -14,6 +14,13 @@ export const sourceRegistry: SourceDefinition[] = [
     field_coverage: ["name", "type", "source_urls", "use_cases", "not_for", "permissions", "security", "confidence"],
     rate_limits: "local manual source",
     terms_notes: "Uses project-maintained seed data with explicit source URLs on each Tool Card.",
+    access_review: {
+      robots_txt: "not_applicable",
+      terms: "reviewed",
+      reviewed_by: "agent-radar",
+      reviewed_at: "2026-07-07T00:00:00Z",
+      notes: "Internal manual source; source URLs on Tool Cards remain the public evidence boundary."
+    },
     parser: "manual_seed_parser",
     failure_policy: "failure blocks only ingestion draft generation; published MVP seed artifacts remain unchanged",
     enabled: true,
@@ -32,6 +39,13 @@ export const sourceRegistry: SourceDefinition[] = [
     field_coverage: ["name", "description", "repo_url", "stars", "license", "last_commit_at"],
     rate_limits: "GitHub API rate limits",
     terms_notes: "Public API only; disabled for MVP to avoid noisy community discovery.",
+    access_review: {
+      robots_txt: "reviewed",
+      terms: "reviewed",
+      reviewed_by: "agent-radar",
+      reviewed_at: "2026-07-07T00:00:00Z",
+      notes: "Disabled discovery source; use public GitHub topic/API surfaces only after noise review."
+    },
     parser: "github_topic_parser",
     failure_policy: "skip this source and preserve previous stable data",
     enabled: false,
@@ -93,10 +107,29 @@ export function validateSourceRegistry(sources: SourceDefinition[]): string[] {
     if (source.enabled && !source.owner?.trim()) {
       errors.push(`${source.id}: enabled source requires owner`);
     }
+    if (source.enabled) {
+      errors.push(...validateAccessReview(source));
+    }
     if (source.enabled && source.parser?.trim() && !isSupportedSourceParser(source.parser)) {
       errors.push(`${source.id}: parser ${source.parser} is not implemented`);
     }
   }
+
+  return errors;
+}
+
+function validateAccessReview(source: SourceDefinition): string[] {
+  const errors: string[] = [];
+  const review = source.access_review;
+
+  if (!review) {
+    return [`${source.id}: enabled source requires robots review`, `${source.id}: enabled source requires terms review`];
+  }
+  if (review.robots_txt !== "reviewed" && review.robots_txt !== "not_applicable") errors.push(`${source.id}: enabled source requires robots review`);
+  if (review.terms !== "reviewed" && review.terms !== "not_applicable") errors.push(`${source.id}: enabled source requires terms review`);
+  if (!review.reviewed_by.trim()) errors.push(`${source.id}: access review requires reviewer`);
+  if (!isIsoUtc(review.reviewed_at)) errors.push(`${source.id}: access review reviewed_at must be ISO 8601 UTC`);
+  if (!review.notes.trim()) errors.push(`${source.id}: access review notes are required`);
 
   return errors;
 }

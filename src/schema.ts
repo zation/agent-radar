@@ -211,6 +211,13 @@ export interface SourceDefinition {
   field_coverage: string[];
   rate_limits?: string;
   terms_notes: string;
+  access_review?: {
+    robots_txt: "reviewed" | "not_applicable";
+    terms: "reviewed" | "not_applicable";
+    reviewed_by: string;
+    reviewed_at: string;
+    notes: string;
+  };
   parser?: string;
   failure_policy: string;
   enabled: boolean;

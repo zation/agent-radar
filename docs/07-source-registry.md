@@ -29,6 +29,12 @@ trust_level:
 field_coverage:
 rate_limits:
 terms_notes:
+access_review:
+  robots_txt:
+  terms:
+  reviewed_by:
+  reviewed_at:
+  notes:
 parser:
 failure_policy:
 enabled:
@@ -51,6 +57,7 @@ last_reviewed_at:
 | `field_coverage` | array | 是 | 可获得字段 |
 | `rate_limits` | string | 否 | 速率限制说明 |
 | `terms_notes` | string | 是 | 使用条款和限制 |
+| `access_review` | object | enabled source 必填 | robots/terms 审核记录 |
 | `parser` | string | 否 | parser 名称 |
 | `failure_policy` | string | 是 | 失败处理 |
 | `enabled` | boolean | 是 | 是否启用自动采集 |
@@ -187,6 +194,12 @@ trust_level: official
 field_coverage: [name, docs_url, usage, protocol_context]
 rate_limits: "遵守站点 robots 和合理请求频率"
 terms_notes: "只采集公开文档和链接"
+access_review:
+  robots_txt: reviewed
+  terms: reviewed
+  reviewed_by: agent-radar
+  reviewed_at: 2026-07-06T00:00:00Z
+  notes: "只采集公开文档和链接"
 parser: mcp_docs_parser
 failure_policy: "失败时保留上一版本并标记 stale"
 enabled: true
@@ -209,6 +222,12 @@ trust_level: active_open_source
 field_coverage: [name, description, repo_url, stars, license, last_commit_at]
 rate_limits: "GitHub API rate limits"
 terms_notes: "使用公开 API，不采集私有仓库"
+access_review:
+  robots_txt: reviewed
+  terms: reviewed
+  reviewed_by: agent-radar
+  reviewed_at: 2026-07-06T00:00:00Z
+  notes: "仅使用公开 topic/API surfaces"
 parser: github_topic_parser
 failure_policy: "限流时跳过本次并保留上次结果"
 enabled: false
