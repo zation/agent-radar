@@ -80,7 +80,7 @@ manual seed Tool Cards
   -> Vite Web UI / Workers-style API reads artifacts
 ```
 
-当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、发布用 `source_registry.json` artifact、基础 validator、最小 normalizer、最小 deduper、人工 override artifact、Approval Request、review queue、release admission、promotion candidates、seed candidate snippet、promotion plan 和 promotion check dry-run，用于验证采集契约。尚未实现的是完整跨来源 normalizer、完整跨来源 deduper、人工 override 审核 UI，以及 promotion candidates 到可靠发布 artifacts 的人工提升执行流程。
+当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、最小 normalizer、最小 deduper、人工 override artifact、Approval Request、review queue、release admission、promotion candidates、seed candidate snippet、promotion plan 和 promotion check dry-run，用于验证采集契约。尚未实现的是完整跨来源 normalizer、完整跨来源 deduper、人工 override 审核 UI，以及 discovery/promotion candidates 到可靠发布 artifacts 的人工提升执行流程。
 
 ### 目标形态
 
@@ -239,14 +239,14 @@ Preview deployment 应包含：
 - `data/mcp_examples.json`：MCP JSON-RPC 请求示例，供 agent/client 集成验证。
 - `data/mcp_smoke_checklist.json`：MCP deployment review checklist，列出 initialize、tools/list、只读 tools/call 和只读边界的必检项。
 - `reports/*`：eval report。
-- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、Tool Card field provenance summary、crawl audit summary、ingestion approval summary、approval requests summary、field value provenance summary、release admission summary、promotion candidates summary、promotion check summary、构建时间和关键文件 checksum；checksum 覆盖 `provider_registry.json`、`tool_card_field_provenance.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`。
+- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、Tool Card field provenance summary、crawl audit summary、ingestion approval summary、discovery candidates summary、approval requests summary、field value provenance summary、release admission summary、promotion candidates summary、promotion check summary、构建时间和关键文件 checksum；checksum 覆盖 `provider_registry.json`、`tool_card_field_provenance.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`。
 
 GitHub Actions summary 应包含：
 
-- `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选；summary 会列出 approval request 模板、release admission item 的 status 和 blocking reasons；如果 Source Registry diff 包含字段级 review requirements，summary 会列出 source、field 和 review reason；如果存在 promotion candidates，summary 会列出候选 tool id、Source Record id、reviewer、review time、approval reason、seed candidate snippet 路径和 promotion check 状态。
+- `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选；summary 会列出 discovery candidate 明细、approval request 模板、release admission item 的 status 和 blocking reasons；如果 Source Registry diff 包含字段级 review requirements，summary 会列出 source、field 和 review reason；如果存在 promotion candidates，summary 会列出候选 tool id、Source Record id、reviewer、review time、approval reason、seed candidate snippet 路径和 promotion check 状态。
 - Cloudflare Pages preview URL。
 - MCP smoke 结果；如果未配置 `AGENT_RADAR_MCP_BASE_URL`，summary 会明确标注 skipped。
-- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、eval failure categories、Source Registry review summary、Tool Card field provenance summary、crawl audit summary、ingestion approval summary、approval requests summary、field value provenance summary、release admission summary、promotion candidates summary 和 checksum 数量。
+- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、eval failure categories、Source Registry review summary、Tool Card field provenance summary、crawl audit summary、ingestion approval summary、discovery candidates summary、approval requests summary、field value provenance summary、release admission summary、promotion candidates summary 和 checksum 数量。
 
 GitHub 配置要求：
 

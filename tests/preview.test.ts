@@ -92,11 +92,26 @@ const ingestionResult: RunIngestionResult = {
     schema_version: "tool_discovery_candidates.v1",
     generated_at: "2026-07-07T00:00:00Z",
     summary: {
-      candidates: 0,
-      pending_manual_review: 0,
-      by_source: {}
+      candidates: 1,
+      pending_manual_review: 1,
+      by_source: { "github-topic-mcp": 1 }
     },
-    items: []
+    items: [
+      {
+        source_record_id: "github-topic-mcp-modelcontextprotocol-servers-20260708",
+        source_id: "github-topic-mcp",
+        name: "modelcontextprotocol/servers",
+        description: "Model Context Protocol servers",
+        repo_url: "https://github.com/modelcontextprotocol/servers",
+        stars: 51000,
+        license: "MIT",
+        last_commit_at: "2026-07-07T12:00:00Z",
+        topics: ["mcp", "model-context-protocol"],
+        source_confidence: "medium",
+        review_status: "pending_manual_review",
+        recommended_action: "review_before_tool_card_draft"
+      }
+    ]
   },
   toolCardDrafts: [],
   overrideRecords: [],
@@ -327,6 +342,9 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /Codex/);
   assert.match(markdown, /https:\/\/developers.openai.com\/codex/);
   assert.match(markdown, /Review ready: 0/);
+  assert.match(markdown, /Discovery candidates: 1 pending manual review/);
+  assert.match(markdown, /## Discovery Candidates/);
+  assert.match(markdown, /modelcontextprotocol\/servers source=github-topic-mcp source_record=github-topic-mcp-modelcontextprotocol-servers-20260708 repo=https:\/\/github.com\/modelcontextprotocol\/servers stars=51000 review_status=pending_manual_review action=review_before_tool_card_draft/);
   assert.match(markdown, /Crawl audit: 1 success, 0 partial, 0 failed/);
   assert.match(markdown, /Approvals: 1 approved, 0 rejected, 0 needs changes/);
   assert.match(markdown, /## Field Value Provenance/);
@@ -448,6 +466,10 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
       eligible_for_publish: 2,
       blocked: 18
     },
+    discovery_candidates: {
+      candidates: 3,
+      pending_manual_review: 3
+    },
     promotion_candidates: {
       candidates: 2
     },
@@ -482,6 +504,7 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
   assert.match(markdown, /- Approval requests: 18 pending, 12 duplicate review, 1 blocked validation/);
   assert.match(markdown, /- Field value provenance: 240 field values across 20 Tool Cards/);
   assert.match(markdown, /- Release admission: 2 eligible, 18 blocked/);
+  assert.match(markdown, /- Discovery candidates: 3 candidates, 3 pending manual review/);
   assert.match(markdown, /- Promotion candidates: 2/);
   assert.match(markdown, /- Promotion plan: 2 candidates, manual merge required/);
   assert.match(markdown, /- Promotion check: 1 ready, 1 blocked, failed/);
@@ -586,6 +609,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       approval_requests: { pending_approval: number; duplicate_review_required: number; blocked_validation: number };
       field_value_provenance: { tool_cards: number; field_values: number };
       release_admission: { eligible_for_publish: number; blocked: number };
+      discovery_candidates: { candidates: number; pending_manual_review: number };
       promotion_candidates: { candidates: number };
       promotion_plan: { candidates: number; manual_merge_required: boolean };
       promotion_check: { candidates: number; ready_for_manual_merge: number; blocked: number; duplicate_tool_ids: number; validation_errors: number; validation_warnings: number; passed: boolean };
@@ -607,6 +631,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.deepEqual(artifactManifest.approval_requests, { pending_approval: 1, duplicate_review_required: 1, blocked_validation: 0 });
     assert.deepEqual(artifactManifest.field_value_provenance, { tool_cards: 1, field_values: 2 });
     assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 1 });
+    assert.deepEqual(artifactManifest.discovery_candidates, { candidates: 1, pending_manual_review: 1 });
     assert.deepEqual(artifactManifest.promotion_candidates, { candidates: 1 });
     assert.deepEqual(artifactManifest.promotion_plan, { candidates: 1, manual_merge_required: true });
     assert.deepEqual(artifactManifest.promotion_check, {

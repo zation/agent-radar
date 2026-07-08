@@ -69,6 +69,10 @@ export interface ArtifactManifest {
     eligible_for_publish: number;
     blocked: number;
   };
+  discovery_candidates?: {
+    candidates: number;
+    pending_manual_review: number;
+  };
   promotion_candidates?: {
     candidates: number;
   };

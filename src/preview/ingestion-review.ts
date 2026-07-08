@@ -29,6 +29,7 @@ export function renderIngestionReviewMarkdown(
     `- Tool card drafts: ${result.toolCardDrafts.length}`,
     `- Review ready: ${result.reviewQueue.summary.ready_for_review}`,
     `- Review blocked: ${result.reviewQueue.summary.blocked_validation}`,
+    `- Discovery candidates: ${result.discoveryCandidates.summary.pending_manual_review} pending manual review`,
     `- Crawl audit: ${result.crawlAudit.summary.success} success, ${result.crawlAudit.summary.partial} partial, ${result.crawlAudit.summary.failed} failed`,
     `- Approvals: ${result.approvalArtifact.summary.approved} approved, ${result.approvalArtifact.summary.rejected} rejected, ${result.approvalArtifact.summary.needs_changes} needs changes`,
     `- Release admission: ${result.releaseAdmission.summary.eligible_for_publish} eligible, ${result.releaseAdmission.summary.blocked} blocked`,
@@ -45,6 +46,7 @@ export function renderIngestionReviewMarkdown(
       const urls = record.urls.length ? ` urls=${record.urls.join(", ")}` : "";
       return `- ${record.name} (${record.record_type}, confidence=${record.source_confidence}) source=${record.source_id}${warnings}${urls}`;
     }),
+    ...renderDiscoveryCandidates(result),
     ...renderFieldValueProvenance(result),
     ...renderApprovalRequests(result),
     ...renderReleaseAdmission(result),
@@ -55,6 +57,20 @@ export function renderIngestionReviewMarkdown(
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderDiscoveryCandidates(result: RunIngestionResult): string[] {
+  if (result.discoveryCandidates.items.length === 0) return [];
+
+  return [
+    "",
+    "## Discovery Candidates",
+    ...result.discoveryCandidates.items.map((item) => {
+      const repo = item.repo_url ? ` repo=${item.repo_url}` : "";
+      const stars = typeof item.stars === "number" ? ` stars=${item.stars}` : "";
+      return `- ${item.name} source=${item.source_id} source_record=${item.source_record_id}${repo}${stars} review_status=${item.review_status} action=${item.recommended_action}`;
+    })
+  ];
 }
 
 export function renderSourceRegistryReviewRequests(requests: SourceRegistryReviewRequestSummary[]): string[] {

@@ -17,6 +17,7 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     ...(manifest.approval_requests ? [`- Approval requests: ${formatApprovalRequests(manifest.approval_requests)}`] : []),
     ...(manifest.field_value_provenance ? [`- Field value provenance: ${formatFieldValueProvenance(manifest.field_value_provenance)}`] : []),
     ...(manifest.release_admission ? [`- Release admission: ${formatReleaseAdmission(manifest.release_admission)}`] : []),
+    ...(manifest.discovery_candidates ? [`- Discovery candidates: ${formatDiscoveryCandidates(manifest.discovery_candidates)}`] : []),
     ...(manifest.promotion_candidates ? [`- Promotion candidates: ${manifest.promotion_candidates.candidates}`] : []),
     ...(manifest.promotion_plan ? [`- Promotion plan: ${formatPromotionPlan(manifest.promotion_plan)}`] : []),
     ...(manifest.promotion_check ? [`- Promotion check: ${formatPromotionCheck(manifest.promotion_check)}`] : []),
@@ -62,6 +63,10 @@ function formatFieldValueProvenance(provenance: NonNullable<ArtifactManifest["fi
 
 function formatReleaseAdmission(admission: NonNullable<ArtifactManifest["release_admission"]>): string {
   return `${admission.eligible_for_publish} eligible, ${admission.blocked} blocked`;
+}
+
+function formatDiscoveryCandidates(candidates: NonNullable<ArtifactManifest["discovery_candidates"]>): string {
+  return `${candidates.candidates} candidates, ${candidates.pending_manual_review} pending manual review`;
 }
 
 function formatPromotionPlan(plan: NonNullable<ArtifactManifest["promotion_plan"]>): string {

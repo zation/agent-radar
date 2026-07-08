@@ -51,6 +51,10 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     eligible_for_publish: options.ingestion.releaseAdmission.summary.eligible_for_publish,
     blocked: options.ingestion.releaseAdmission.summary.blocked
   };
+  manifest.discovery_candidates = {
+    candidates: options.ingestion.discoveryCandidates.summary.candidates,
+    pending_manual_review: options.ingestion.discoveryCandidates.summary.pending_manual_review
+  };
   manifest.promotion_candidates = {
     candidates: options.ingestion.promotionCandidates.summary.candidates
   };
