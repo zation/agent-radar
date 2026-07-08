@@ -344,6 +344,53 @@ test("crawler saves immutable raw snapshots without request secrets", async () =
   }
 });
 
+test("crawler fetches GitHub topic sources through public search API without secrets", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
+
+  try {
+    const [snapshot] = await crawlEnabledSources({
+      sources: [sourceRegistry[1]],
+      outputDir,
+      now: "2026-07-08T00:00:00Z",
+      fetchImpl: (url, init) => {
+        assert.equal(url, "https://api.github.com/search/repositories?q=topic%3Amcp&sort=stars&order=desc&per_page=20");
+        const headers = new Headers(init?.headers);
+        assert.equal(headers.get("authorization"), null);
+        assert.equal(headers.get("accept"), "application/vnd.github+json");
+        assert.equal(headers.get("user-agent"), "agent-radar-crawler");
+        return Promise.resolve(
+          new Response(JSON.stringify({ items: [{ full_name: "modelcontextprotocol/servers", html_url: "https://github.com/modelcontextprotocol/servers" }] }), {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+              "x-ratelimit-limit": "60",
+              "x-ratelimit-remaining": "59",
+              "x-ratelimit-reset": "1783468800"
+            }
+          })
+        );
+      }
+    });
+
+    assert.equal(snapshot?.schema_version, "raw_snapshot.v1");
+    assert.equal(snapshot?.source_id, "github-topic-mcp");
+    assert.equal(snapshot?.source_url, "https://api.github.com/search/repositories?q=topic%3Amcp&sort=stars&order=desc&per_page=20");
+    assert.equal(snapshot?.fetch_method, "api");
+    assert.equal(snapshot?.status, "success");
+    assert.deepEqual(snapshot?.request_meta, {
+      rate_limit_limit: "60",
+      rate_limit_remaining: "59",
+      rate_limit_reset: "1783468800"
+    });
+
+    const meta = JSON.parse(await readFile(join(outputDir, `${snapshot?.content_path}.meta.json`), "utf8")) as { request_meta: Record<string, string> };
+    assert.equal(JSON.stringify(meta).includes("authorization"), false);
+    assert.equal(meta.request_meta.rate_limit_remaining, "59");
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 test("ingestion writes a crawl plan for enabled sources", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
 

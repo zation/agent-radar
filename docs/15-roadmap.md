@@ -78,7 +78,7 @@
 - Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
 - `npm run ingest` 已输出最小 crawl plan artifact，记录 Source Registry sources 的抓取方法、频率、parser 和 ready/disabled/blocked 状态。
 - `npm run ingest` 已输出最小 crawl audit artifact，记录本轮 Raw Snapshot 的来源、抓取状态、HTTP 状态、内容 hash、保存路径和 request metadata。
-- 已实现基础 `github_topic_parser` fixture，可把 GitHub topic/API repository payload 解析成 Source Records；对应 source 仍保持 disabled，只作为后续噪声评估和人工审核前的发现信号准备。
+- 已实现基础 `github_topic_parser` fixture 和显式 GitHub topic crawler 映射，可把 GitHub topic/Search API repository payload 解析成 Source Records，并记录 rate-limit metadata；对应 source 仍保持 disabled，只作为后续噪声评估和人工审核前的发现信号准备。
 
 当前主要缺口：
 

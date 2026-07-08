@@ -297,7 +297,7 @@ enabled: false
 last_reviewed_at: 2026-07-06T00:00:00Z
 ```
 
-用途：v0.2 之后可用于发现开源 MCP 工具；MVP 不启用，避免社区来源噪声。
+用途：v0.2 之后可用于发现开源 MCP 工具；MVP 不启用，避免社区来源噪声。显式抓取时 crawler 会把 `https://github.com/topics/<topic>` 映射到 GitHub Search API，并保留 rate-limit response metadata 供审核。
 
 ### GitHub Topics: AI Agent
 
