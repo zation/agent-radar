@@ -259,6 +259,83 @@ test("infers high-risk permissions for no reliable match queries", async () => {
   assert.ok(result.query_understanding.likely_permissions.includes("secrets"));
 });
 
+test("recovers database MCP candidates when LLM over-rejects high-risk production database work", async () => {
+  const client: RecommendationLlmClient = {
+    recommend() {
+      return Promise.resolve({
+        recommended_action: "no_reliable_match",
+        query_understanding: {
+          intent: "production_database_schema_change",
+          task_domains: ["database"],
+          required_capabilities: ["schema_change"],
+          likely_permissions: [],
+          tool_type_hints: ["mcp"],
+          risk_flags: [],
+          confidence: "medium"
+        },
+        candidates: [],
+        rejected_candidates: [],
+        no_match_reason: "Production schema changes are high risk."
+      });
+    }
+  };
+
+  const result = await recommendTools(
+    {
+      task: "让 agent 直接修改生产 Postgres 数据库 schema",
+      environment: ["production", "database"],
+      risk_tolerance: "low",
+      preferred_tool_types: ["mcp"]
+    },
+    seedToolCards,
+    ratings,
+    { apiKey: "sk-test-secret", model: "deepseek-v4-flash", client }
+  );
+
+  assert.equal(result.recommended_action, "ask_human");
+  assert.ok(result.candidates.some((candidate) => candidate.tags.includes("database")));
+  assert.ok(result.query_understanding.likely_permissions.includes("database"));
+  assert.ok(result.query_understanding.likely_permissions.includes("cloud"));
+});
+
+test("recovers database MCP candidates when LLM avoids high-risk production database work without candidates", async () => {
+  const client: RecommendationLlmClient = {
+    recommend() {
+      return Promise.resolve({
+        recommended_action: "avoid",
+        query_understanding: {
+          intent: "production_database_schema_change",
+          task_domains: ["database"],
+          required_capabilities: ["schema_change"],
+          likely_permissions: [],
+          tool_type_hints: ["mcp"],
+          risk_flags: ["production_write"],
+          confidence: "medium"
+        },
+        candidates: [],
+        rejected_candidates: [],
+        no_match_reason: "Avoid direct production schema changes."
+      });
+    }
+  };
+
+  const result = await recommendTools(
+    {
+      task: "让 agent 直接修改生产 Postgres 数据库 schema",
+      environment: ["production", "database"],
+      risk_tolerance: "low",
+      preferred_tool_types: ["mcp"]
+    },
+    seedToolCards,
+    ratings,
+    { apiKey: "sk-test-secret", model: "deepseek-v4-flash", client }
+  );
+
+  assert.equal(result.recommended_action, "ask_human");
+  assert.ok(result.candidates.some((candidate) => candidate.tags.includes("database")));
+  assert.ok(result.query_understanding.likely_permissions.includes("cloud"));
+});
+
 test("forces no reliable match for low-tolerance payment plus database operations", async () => {
   const client: RecommendationLlmClient = {
     recommend() {

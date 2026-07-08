@@ -172,7 +172,7 @@ LLM 推荐相关环境变量：
 | 变量 | 必填 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `AGENT_RADAR_LLM_API_KEY` | eval 必填 | 无 | BYOK provider key，仅用于当前 eval/provider 请求 |
-| `AGENT_RADAR_LLM_MODEL` | 否 | `gpt-4.1` | eval 使用的模型 ID 或已支持的 provider model label；CI 可设置为 `deepseek-v4-flash` |
+| `AGENT_RADAR_LLM_MODEL` | 否 | `deepseek-v4-flash` | eval 使用的模型 ID 或已支持的 provider model label；本地 CLI 和 CI 使用同一默认值 |
 
 当前 Web UI 支持用户在 Recommend 表单中输入一次性 API key 和模型。请求路径为：
 
@@ -227,13 +227,13 @@ Preview deployment 应包含：
 - 产品网站本体。
 - `data/*`：Tool Cards、ratings、search index、eval summary、D1 seed。
 - `reports/*`：eval report。
-- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、ingestion approval summary、构建时间和关键文件 checksum。
+- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、crawl audit summary、ingestion approval summary、构建时间和关键文件 checksum。
 
 GitHub Actions summary 应包含：
 
 - `artifacts/review/ingestion.md` 的内容，用于维护者审核采集候选。
 - Cloudflare Pages preview URL。
-- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、ingestion approval summary 和 checksum 数量。
+- `artifact-manifest.json` 的摘要，包括 git sha、data version、eval 通过数、crawl audit summary、ingestion approval summary 和 checksum 数量。
 
 GitHub 配置要求：
 

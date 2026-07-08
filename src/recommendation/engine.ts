@@ -103,14 +103,18 @@ export async function recommendTools(
   });
 
   const rejectedCandidates = [...(llmOutput.rejected_candidates ?? [])];
-  const candidates = (llmOutput.candidates ?? [])
+  let candidates = (llmOutput.candidates ?? [])
     .map((candidate) => normalizeCandidate(candidate, cardByTool, ratingByTool, rejectedCandidates))
     .filter((candidate): candidate is RecommendationCandidate => Boolean(candidate))
     .slice(0, query.top_k ?? 5)
     .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
 
-  const queryUnderstanding = normalizeQueryUnderstanding(llmOutput.query_understanding, query, candidates);
+  let queryUnderstanding = normalizeQueryUnderstanding(llmOutput.query_understanding, query, candidates);
   const forcedNoMatchReason = getForcedNoMatchReason(query, queryUnderstanding);
+  if (!forcedNoMatchReason && shouldRecoverCatalogCandidates(llmOutput.recommended_action, candidates) && candidates.length === 0) {
+    candidates = recoverCatalogCandidates(query, cards, ratingByTool, queryUnderstanding, rejectedCandidates);
+    queryUnderstanding = normalizeQueryUnderstanding(llmOutput.query_understanding, query, candidates);
+  }
   const recommendedAction = forcedNoMatchReason ? "no_reliable_match" : chooseSafeAction(llmOutput.recommended_action, candidates);
 
   return {
@@ -337,6 +341,49 @@ function normalizeCandidate(
     next_steps: nonEmptyStrings(candidate.next_steps, buildNextSteps(card, rating.risk_level)),
     evidence_refs: [...card.evidence_refs, rating.id]
   };
+}
+
+function shouldRecoverCatalogCandidates(action: RecommendedAction, candidates: RecommendationCandidate[]): boolean {
+  return candidates.length === 0 && (action === "no_reliable_match" || action === "avoid");
+}
+
+function recoverCatalogCandidates(
+  query: RecommendationQuery,
+  cards: ToolCard[],
+  ratingByTool: Map<string, RatingResult>,
+  understanding: QueryUnderstanding,
+  rejectedCandidates: RejectedCandidate[]
+): RecommendationCandidate[] {
+  const permissions = new Set(understanding.likely_permissions);
+  if (!permissions.has("database")) return [];
+
+  const preferredTypes = new Set(query.preferred_tool_types ?? []);
+  return cards
+    .filter((card) => (preferredTypes.size === 0 ? true : preferredTypes.has(card.type)))
+    .filter((card) => hasDatabaseCapability(card))
+    .filter((card) => riskRank[card.security.risk_level] >= riskRank.high || card.security.requires_human_approval)
+    .map((card) =>
+      normalizeCandidate(
+        {
+          tool_id: card.id,
+          fit_score: ratingByTool.get(card.id)?.overall_score,
+          why: [`Catalog fallback matched ${card.name} to database capabilities after the LLM over-rejected a high-risk task.`],
+          risks: [],
+          next_steps: buildNextSteps(card, card.security.risk_level)
+        },
+        new Map(cards.map((candidateCard) => [candidateCard.id, candidateCard])),
+        ratingByTool,
+        rejectedCandidates
+      )
+    )
+    .filter((candidate): candidate is RecommendationCandidate => Boolean(candidate))
+    .sort((a, b) => b.fit_score - a.fit_score)
+    .slice(0, query.top_k ?? 5)
+    .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
+}
+
+function hasDatabaseCapability(card: ToolCard): boolean {
+  return card.tags.includes("database") || card.tags.includes("postgres") || card.permissions.some((permission) => permission.scope === "database");
 }
 
 function normalizeQueryUnderstanding(

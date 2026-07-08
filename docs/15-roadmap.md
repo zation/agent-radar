@@ -68,7 +68,7 @@
 当前主要缺口：
 
 - Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和字段级证据质量。
-- Golden queries 已达到 v0.2 下限 10 条，但仍需用真实 provider key 重跑并审查新增 case 的推荐质量。
+- Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 review queue 和 approval records 尚未进入可靠发布数据。
 - 完整 Source Registry validator、完整 Tool Card validator、跨来源 normalizer、跨来源 deduper 和人工 override 审核 UI 尚未完成。
 - Workers API 当前是 HTTP/JSON 风格实现，并已提供只读 MCP tool manifest；尚未实现完整 MCP server 协议包装。

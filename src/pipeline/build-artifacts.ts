@@ -6,6 +6,7 @@ import { goldenQueries } from "../eval/golden-queries.js";
 import { createBlockedEvalSummary, runGoldenQueries, type EvalSummary } from "../eval/runner.js";
 import { buildSourceRegistryArtifact, sourceRegistry } from "../ingestion/source-registry.js";
 import { rateAllToolCards } from "../rating/engine.js";
+import { DEFAULT_RECOMMENDATION_MODEL } from "../recommendation/provider-registry.js";
 import { buildSearchIndex } from "../search/index-builder.js";
 import { validateToolCards } from "../validation/tool-card-validator.js";
 
@@ -36,7 +37,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   const ratings = rateAllToolCards(toolCards);
   const index = buildSearchIndex(toolCards, ratings);
   const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";
-  const model = process.env.AGENT_RADAR_LLM_MODEL ?? "gpt-4.1";
+  const model = process.env.AGENT_RADAR_LLM_MODEL ?? DEFAULT_RECOMMENDATION_MODEL;
   const evalSummary = apiKey
     ? await runGoldenQueries(goldenQueries, toolCards, ratings, { apiKey, model })
     : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.");

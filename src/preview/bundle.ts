@@ -23,6 +23,12 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     builtAt: options.builtAt,
     providerModel: options.providerModel
   });
+  manifest.crawl_audit = {
+    total: options.ingestion.crawlAudit.summary.total,
+    success: options.ingestion.crawlAudit.summary.success,
+    partial: options.ingestion.crawlAudit.summary.partial,
+    failed: options.ingestion.crawlAudit.summary.failed
+  };
   manifest.ingestion_review = {
     approvals: {
       approved: options.ingestion.approvalArtifact.summary.approved,

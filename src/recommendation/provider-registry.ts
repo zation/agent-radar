@@ -1,5 +1,7 @@
 export type RecommendationProvider = "openai" | "minimax" | "deepseek";
 
+export const DEFAULT_RECOMMENDATION_MODEL = "deepseek-v4-flash";
+
 export interface RecommendationProviderModel {
   apiModel: string;
   endpoint: string;

@@ -14,6 +14,12 @@ export interface ArtifactManifest {
     model: string;
     failure_categories: Record<string, number>;
   };
+  crawl_audit?: {
+    total: number;
+    success: number;
+    partial: number;
+    failed: number;
+  };
   ingestion_review?: {
     approvals: {
       approved: number;

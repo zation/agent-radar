@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { runIngestion } from "../ingestion/run.js";
 import { createPreviewBundle } from "../preview/bundle.js";
+import { DEFAULT_RECOMMENDATION_MODEL } from "../recommendation/provider-registry.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -9,7 +10,7 @@ const distDir = process.env.AGENT_RADAR_PREVIEW_DIST_DIR ?? "dist-pages";
 const reviewDir = process.env.AGENT_RADAR_REVIEW_DIR ?? "artifacts/review";
 const gitSha = process.env.GITHUB_SHA ?? (await readGitSha());
 const builtAt = process.env.AGENT_RADAR_PREVIEW_BUILT_AT ?? new Date().toISOString();
-const providerModel = process.env.AGENT_RADAR_LLM_MODEL ?? "gpt-4.1";
+const providerModel = process.env.AGENT_RADAR_LLM_MODEL ?? DEFAULT_RECOMMENDATION_MODEL;
 
 const ingestion = await runIngestion({ outputDir: "." });
 await createPreviewBundle({

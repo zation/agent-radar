@@ -158,6 +158,7 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /Codex/);
   assert.match(markdown, /https:\/\/developers.openai.com\/codex/);
   assert.match(markdown, /Review ready: 0/);
+  assert.match(markdown, /Crawl audit: 1 success, 0 partial, 0 failed/);
   assert.match(markdown, /Approvals: 1 approved, 0 rejected, 0 needs changes/);
   assert.match(markdown, /Release admission: 1 eligible, 0 blocked/);
 });
@@ -225,12 +226,14 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     const reviewMarkdown = await readFile(join(artifactsDir, "ingestion.md"), "utf8");
     const artifactManifest = JSON.parse(await readFile(join(outputDir, "artifact-manifest.json"), "utf8")) as {
       git_sha: string;
+      crawl_audit: { total: number; success: number; partial: number; failed: number };
       ingestion_review: { approvals: { approved: number; rejected: number; needs_changes: number } };
       release_admission: { eligible_for_publish: number; blocked: number };
     };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
     assert.equal(artifactManifest.git_sha, "abc123");
+    assert.deepEqual(artifactManifest.crawl_audit, { total: 1, success: 1, partial: 0, failed: 0 });
     assert.deepEqual(artifactManifest.ingestion_review.approvals, { approved: 1, rejected: 0, needs_changes: 0 });
     assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 0 });
     await assert.rejects(() => stat(join(outputDir, "review", "ingestion.md")));
