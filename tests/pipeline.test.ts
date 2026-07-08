@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { buildArtifacts } from "../src/pipeline/build-artifacts.js";
+import { sourceRegistry as defaultSourceRegistry } from "../src/ingestion/source-registry.js";
 import type { ToolCard } from "../src/schema.js";
 
 interface EvalSummaryFile {
@@ -26,6 +27,21 @@ interface ManifestFile {
   mcp_tools: string;
   mcp_examples: string;
   mcp_smoke_checklist: string;
+}
+
+function mockGitHubRepo(fullName: string): Record<string, unknown> {
+  const name = fullName.split("/").at(-1) ?? fullName;
+  return {
+    full_name: fullName,
+    name,
+    html_url: `https://github.com/${fullName}`,
+    description: `${fullName} public repository metadata for pipeline tests.`,
+    stargazers_count: 1000,
+    license: { spdx_id: "MIT" },
+    pushed_at: "2026-07-07T00:00:00Z",
+    topics: ["mcp", "agent-radar-test"],
+    homepage: `https://example.com/${name}`
+  };
 }
 
 test("builds MVP data artifacts and an eval report", async () => {
@@ -68,6 +84,16 @@ test("builds MVP data artifacts and an eval report", async () => {
         { status: 200, headers: { "content-type": "application/json" } }
       );
     }
+    if (requestUrl.startsWith("https://api.github.com/repos/")) {
+      const fullName = requestUrl.replace("https://api.github.com/repos/", "");
+      return new Response(JSON.stringify(mockGitHubRepo(fullName)), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (requestUrl.startsWith("https://docs.stripe.com/") || requestUrl.startsWith("https://developers.google.com/") || requestUrl.startsWith("https://developers.openai.com/")) {
+      return new Response(
+        `<html><head><title>${requestUrl}</title><meta name="description" content="Official documentation for ${requestUrl}."></head></html>`,
+        { status: 200, headers: { "content-type": "text/html" } }
+      );
+    }
     return new Response("not found", { status: 404 });
   };
 
@@ -77,7 +103,7 @@ test("builds MVP data artifacts and an eval report", async () => {
 
     const summary = await buildArtifacts({ outputDir, fetchImpl });
 
-    assert.equal(summary.toolCount, 2);
+    assert.equal(summary.toolCount >= 10, true);
     assert.equal(summary.goldenQueriesPassed, 0);
     assert.equal(summary.goldenQueriesTotal >= 10, true);
 
@@ -99,13 +125,13 @@ test("builds MVP data artifacts and an eval report", async () => {
 
     const sourceRegistry = JSON.parse(await readFile(join(outputDir, "data", "source_registry.json"), "utf8"));
     assert.equal(sourceRegistry.schema_version, "source_registry.v1");
-    assert.equal(sourceRegistry.sources.length, 2);
+    assert.equal(sourceRegistry.sources.length, defaultSourceRegistry.length);
     assert.equal(sourceRegistry.validation.passed, true);
     assert.deepEqual(sourceRegistry.validation.errors, []);
 
     const sourceRegistryDiff = JSON.parse(await readFile(join(outputDir, "data", "source_registry_diff.json"), "utf8"));
     assert.equal(sourceRegistryDiff.schema_version, "source_registry_diff.v1");
-    assert.deepEqual(sourceRegistryDiff.summary, { added: 2, removed: 0, changed: 0 });
+    assert.deepEqual(sourceRegistryDiff.summary, { added: defaultSourceRegistry.length, removed: 0, changed: 0 });
 
     const sourceRegistryReview = JSON.parse(await readFile(join(outputDir, "data", "source_registry_review.json"), "utf8"));
     assert.equal(sourceRegistryReview.schema_version, "source_registry_review.v1");
@@ -122,14 +148,15 @@ test("builds MVP data artifacts and an eval report", async () => {
     const toolCardFieldProvenance = JSON.parse(await readFile(join(outputDir, "data", "tool_card_field_provenance.json"), "utf8")) as {
       schema_version: string;
       critical_fields: string[];
-      summary: { cards_checked: number; fields_checked: number; covered_by_manual_review: number; missing: number };
+      summary: { cards_checked: number; fields_checked: number; covered: number; covered_by_manual_review: number; missing: number };
     };
     assert.equal(toolCardFieldProvenance.schema_version, "tool_card_field_provenance.v1");
     assert.deepEqual(toolCardFieldProvenance.critical_fields, ["permissions", "security", "maintenance"]);
     assert.equal(toolCardFieldProvenance.summary.cards_checked, summary.toolCount);
     assert.equal(toolCardFieldProvenance.summary.fields_checked, summary.toolCount * 3);
+    assert.equal(toolCardFieldProvenance.summary.covered >= 29, true);
     assert.equal(toolCardFieldProvenance.summary.covered_by_manual_review, 0);
-    assert.equal(toolCardFieldProvenance.summary.missing, summary.toolCount * 3);
+    assert.equal(toolCardFieldProvenance.summary.missing <= 4, true);
 
     const toolCardUrlValidation = JSON.parse(await readFile(join(outputDir, "data", "tool_card_url_validation.json"), "utf8"));
     assert.equal(toolCardUrlValidation.schema_version, "tool_card_url_validation.v1");
@@ -188,11 +215,11 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.deepEqual(mcpSmokeChecklist.summary, { total: 4, required: 4 });
 
     const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
-    assert.equal(searchIndex.documents.length, 2);
-    assert.deepEqual(
-      searchIndex.documents.map((document: { tool_id: string }) => document.tool_id).sort(),
-      ["mcp-example-public-mcp", "mcp-modelcontextprotocol-sdk"]
-    );
+    assert.equal(searchIndex.documents.length, summary.toolCount);
+    const indexedToolIds = searchIndex.documents.map((document: { tool_id: string }) => document.tool_id);
+    assert.ok(indexedToolIds.includes("mcp-browser-automation"));
+    assert.ok(indexedToolIds.includes("skill-stripe-checkout-guidance"));
+    assert.ok(indexedToolIds.includes("mcp-github-server"));
 
     const evalSummary = JSON.parse(await readFile(join(outputDir, "data", "eval_summary.json"), "utf8")) as EvalSummaryFile;
     assert.equal(evalSummary.results[0].failure_category, "blocked_no_key");

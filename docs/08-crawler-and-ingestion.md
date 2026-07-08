@@ -52,11 +52,11 @@ npm run ingest
   -> data/promotion_candidates/promotion_check.json
 ```
 
-当前默认 enabled sources 包括受控的 `github-topic-mcp` 和 `npm-modelcontextprotocol-sdk`。`github-topic-mcp` 使用 GitHub 公共 Search API 抓取 topic repository metadata，不发送 Authorization header、cookie 或私人 token；`github_topic_parser` 会把 API payload 解析为 repository Source Records，并记录 rate-limit response metadata。`npm-modelcontextprotocol-sdk` 使用 npm registry 公共 package metadata，`npm_package_parser` 会解析 package name、package URL、repository URL、homepage、license、latest version 和 last release time。`manual_seed_parser` 仍保留为测试和人工 fixture 能力，但不再作为默认发布来源。
+当前默认 enabled sources 包括受控的 GitHub topic discovery、npm package metadata、精确 GitHub repository metadata 和官方 docs 页面。`github-topic-mcp` 使用 GitHub 公共 Search API 抓取 topic repository metadata，不发送 Authorization header、cookie 或私人 token；`github_topic_parser` 会把 API payload 解析为 repository Source Records，并记录 rate-limit response metadata。`github_repo_parser` 用于绑定到具体公开 repo 的来源，避免只依赖 topic 搜索的偶然覆盖。`npm_package_parser` 会解析 package name、package URL、repository URL、homepage、license、latest version 和 last release time。`official_docs_parser` 只抽取固定官方页面的标题/description，并把 SourceDefinition `profile` 写入 Source Record；它不把页面正文猜测成权限事实。`manual_seed_parser` 仍保留为测试和人工 fixture 能力，但不再作为默认发布来源。
 
 repository/package Source Records 会进入 `tool_discovery_candidates.v1`，也会生成保守的 Tool Card drafts：这些 draft 只基于公开 repo/package metadata 填充 repo、package、license、stars、last commit/release、topic/keyword、维护状态和中等风险安全说明，不把社区仓库或包自动升级为官方或高信任工具。最小跨来源 normalizer 会按 canonical repo/package key 合并同一工具的多来源 evidence refs、source URLs 和 package URLs；review queue 会标注与已发布 Tool Cards 以及同批 incoming drafts 的重复信号和已记录的 approval decision。approval requests 会为尚未审核的 draft 输出 approval record 模板、decision options、重复信号和 validation 背景，并在 preview markdown 中区分 `published_duplicates` 和 `draft_duplicates`。
 
-自动审核会输出 `tool_card_auto_review.v1`，为每个 draft 生成建议动作、证据 URL、主要风险、缺失字段、人工复核原因和发布准入评分卡。release admission 现在接受两类 gate：人工 `approved`，或自动审核建议 `promote` 且无高风险、重复、parser warning、缺字段等人工复核原因。promotion candidates 会把 eligible drafts 连同 `manual_approval` 或 `auto_review` evidence 复制到独立候选 artifact；promotion plan 会为这些候选输出目标 artifact、候选 artifact 路径、推荐发布动作和发布前检查项；promotion check 会 dry-run 校验候选是否与当前发布候选重复、是否仍通过 Tool Card validator。`npm run pipeline` 会消费通过 promotion check 的候选并生成可靠发布 artifacts。
+自动审核会输出 `tool_card_auto_review.v1`，为每个 draft 生成建议动作、证据 URL、主要风险、缺失字段、人工复核原因和发布准入评分卡。release admission 现在接受两类 gate：人工 `approved`，或自动审核建议 `promote` 且无重复、parser warning、缺字段等数据质量复核原因。高风险并不自动阻断 profile-backed Tool Card 进入 catalog；高风险的运行时边界由 Tool Card `security.requires_human_approval` 和 recommendation engine 的 `ask_human`/`no_reliable_match` 决定。promotion candidates 会把 eligible drafts 连同 `manual_approval` 或 `auto_review` evidence 复制到独立候选 artifact；promotion plan 会为这些候选输出目标 artifact、候选 artifact 路径、推荐发布动作和发布前检查项；promotion check 会 dry-run 校验候选是否与当前发布候选重复、是否仍通过 Tool Card validator。`npm run pipeline` 会消费通过 promotion check 的候选并生成可靠发布 artifacts。
 
 `npm run ingest` 已支持最小 Override Record artifact：人工修正只作用于待审核 draft normalization，不覆盖 Raw Snapshot 或 Source Record，也不会自动发布到可靠 Tool Cards。Override Record 必须包含 `reason`、`created_by` 和至少一个 `evidence_urls`；被应用的 override id 会写入 draft `evidence_refs`，让后续 Tool Card validator 能审计 override record 上下文。
 
@@ -78,7 +78,7 @@ repository/package Source Records 会进入 `tool_discovery_candidates.v1`，也
 
 - 更完整的 Crawl Plan 生成；当前已输出 Source Registry sources 的最小 crawl plan artifact，并标注 ready、disabled 或 blocked。
 - 通用外部 HTTP/API crawler 的限流和重试；当前已输出最小 crawl audit log，并对显式 GitHub topic API 抓取记录 rate-limit metadata。
-- 更多来源专属 parser；当前已有 `manual_seed_parser`、基础 `github_topic_parser` 和基础 `npm_package_parser`。
+- 更多来源专属 parser；当前已有 `manual_seed_parser`、`github_topic_parser`、`github_repo_parser`、`npm_package_parser` 和 `official_docs_parser`。
 - 更完整的跨来源 deduper、跨来源 normalizer 和人工 override 审核记录导入；当前已实现 repo/package key 的最小跨来源合并，以及 canonical URL/package URL 对已发布 Tool Cards 和同批 incoming drafts 的最小重复信号与发布阻断。
 - 更完整的 Source Registry validator；当前已检查 enabled source 的 parser 覆盖、owner、`last_reviewed_at` 和 robots/terms 审核记录，并输出带字段级 review requirements、确认状态 summary 和 pending confirmation 模板的来源变更审核 artifacts。
 - 更完整的 promotion candidate 审核 artifact 与审核记录持久化流程；当前 preview review markdown 已展示 discovery candidates、approval request、auto review summary、release admission blocked reasons、promotion candidate 明细、promotion plan 发布提示和 promotion check dry-run 结果。

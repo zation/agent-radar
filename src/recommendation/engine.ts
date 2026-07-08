@@ -396,7 +396,7 @@ function normalizeCandidate(
 function shouldRecoverCatalogCandidates(action: RecommendedAction, candidates: RecommendationCandidate[], understanding: QueryUnderstanding): boolean {
   if (candidates.length > 0) return false;
   if (action === "no_reliable_match" || action === "avoid") return true;
-  return action === "ask_human" && understanding.likely_permissions.includes("database");
+  return action === "ask_human" && understanding.likely_permissions.length > 0;
 }
 
 function recoverCatalogCandidates(
@@ -406,24 +406,25 @@ function recoverCatalogCandidates(
   understanding: QueryUnderstanding,
   rejectedCandidates: RejectedCandidate[]
 ): RecommendationCandidate[] {
-  const permissions = new Set(understanding.likely_permissions);
-  if (!permissions.has("database")) return [];
-
   const preferredTypes = new Set(query.preferred_tool_types ?? []);
-  return cards
+  const cardByTool = new Map(cards.map((card) => [card.id, card]));
+  const scored = cards
     .filter((card) => (preferredTypes.size === 0 ? true : preferredTypes.has(card.type)))
-    .filter((card) => hasDatabaseCapability(card))
-    .filter((card) => riskRank[card.security.risk_level] >= riskRank.high || card.security.requires_human_approval)
-    .map((card) =>
+    .map((card) => ({ card, score: scoreCatalogCard(query, card, understanding) }))
+    .filter((item) => item.score >= 6)
+    .sort((a, b) => b.score - a.score || (ratingByTool.get(b.card.id)?.overall_score ?? 0) - (ratingByTool.get(a.card.id)?.overall_score ?? 0));
+
+  return scored
+    .map(({ card, score }) =>
       normalizeCandidate(
         {
           tool_id: card.id,
-          fit_score: ratingByTool.get(card.id)?.overall_score,
-          why: [`Catalog fallback matched ${card.name} to database capabilities after the LLM over-rejected a high-risk task.`],
+          fit_score: Math.min(100, Math.max(score * 8, ratingByTool.get(card.id)?.overall_score ?? 0)),
+          why: [`Catalog fallback matched ${card.name} to source-backed tags, permissions, and type hints after the LLM over-rejected a covered task.`],
           risks: [],
           next_steps: buildNextSteps(card, card.security.risk_level)
         },
-        new Map(cards.map((candidateCard) => [candidateCard.id, candidateCard])),
+        cardByTool,
         ratingByTool,
         rejectedCandidates
       )
@@ -434,8 +435,42 @@ function recoverCatalogCandidates(
     .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
 }
 
-function hasDatabaseCapability(card: ToolCard): boolean {
-  return card.tags.includes("database") || card.tags.includes("postgres") || card.permissions.some((permission) => permission.scope === "database");
+function scoreCatalogCard(query: RecommendationQuery, card: ToolCard, understanding: QueryUnderstanding): number {
+  const text = normalizeSearchText([
+    query.task,
+    ...(query.language_or_stack ?? []),
+    ...(query.environment ?? []),
+    ...(query.allowed_permissions ?? []),
+    ...(query.existing_tools ?? []),
+    ...understanding.task_domains,
+    ...understanding.required_capabilities
+  ]);
+  const cardText = normalizeSearchText([card.id, card.name, card.type, card.summary, card.primary_purpose, ...card.tags, ...card.use_cases]);
+  const permissions = new Set(understanding.likely_permissions);
+  const preferredTypes = new Set(query.preferred_tool_types ?? []);
+  let score = 0;
+
+  if (preferredTypes.has(card.type)) score += 3;
+  for (const permission of card.permissions) {
+    if (permissions.has(permission.scope)) score += permission.required ? 3 : 2;
+  }
+  for (const tag of card.tags) {
+    if (text.includes(tag.toLowerCase().replaceAll("_", " "))) score += 3;
+    if (text.includes(tag.toLowerCase())) score += 2;
+  }
+  for (const token of tokenize(text)) {
+    if (token.length >= 4 && cardText.includes(token)) score += 1;
+  }
+  if (card.security.requires_human_approval && [...permissions].some((permission) => ["payment", "email", "database", "cloud", "secrets"].includes(permission))) score += 2;
+  return score;
+}
+
+function normalizeSearchText(values: string[]): string {
+  return values.join(" ").toLowerCase().replace(/[_-]+/g, " ");
+}
+
+function tokenize(value: string): string[] {
+  return [...new Set(value.split(/[^a-z0-9]+/i).filter(Boolean))];
 }
 
 function normalizeQueryUnderstanding(
@@ -461,6 +496,7 @@ function chooseSafeAction(action: RecommendedAction, candidates: RecommendationC
   const normalizedAction = allowedActions.includes(action) ? action : "compare";
   const highestRisk = Math.max(...candidates.map((candidate) => riskRank[candidate.risk_level]));
   if (highestRisk >= riskRank.high) return "ask_human";
+  if (normalizedAction === "no_reliable_match" || normalizedAction === "avoid") return candidates.length === 1 ? "use" : "compare";
   return normalizedAction;
 }
 
@@ -498,6 +534,7 @@ function inferQueryPermissions(query: RecommendationQuery): string[] {
   if (/(browser|screenshot|网页|浏览器|截图|本地网页)/i.test(text)) permissions.push("browser", "network");
   if (/(gmail|mail|email|邮件|邮箱)/i.test(text)) permissions.push("email");
   if (/(database|db|数据库|生产库)/i.test(text)) permissions.push("database", "secrets");
+  if (/(github|pull request|\\bpr\\b|issue|code review|monitoring|sentry|production|线上|cloud|postgres|neon)/i.test(text)) permissions.push("cloud");
   if (/(stripe|payment|refund|checkout|支付|退款|收款)/i.test(text)) permissions.push("payment", "network", "secrets");
   if (/(api key|apikey|token|secret|密钥|凭证|生产|线上)/i.test(text)) permissions.push("secrets");
   if (/(shell|command|命令|执行脚本|代码执行)/i.test(text)) permissions.push("shell", "code_execution");

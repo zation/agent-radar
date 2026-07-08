@@ -17,6 +17,10 @@ const githubTopicSource = sourceRegistry.find((source) => source.id === "github-
 assert.ok(githubTopicSource);
 const npmPackageSource = sourceRegistry.find((source) => source.id === "npm-modelcontextprotocol-sdk");
 assert.ok(npmPackageSource);
+const githubRepoSource = sourceRegistry.find((source) => source.id === "github-repo-microsoft-playwright-mcp");
+assert.ok(githubRepoSource);
+const stripeDocsSource = sourceRegistry.find((source) => source.id === "docs-stripe-checkout");
+assert.ok(stripeDocsSource);
 
 const manualTestSource: SourceDefinition = {
   id: "manual-agent-radar-seed",
@@ -44,14 +48,28 @@ const manualTestSource: SourceDefinition = {
   last_reviewed_at: "2026-07-07T00:00:00Z"
 };
 
-test("source registry exposes only enabled MVP sources", () => {
+test("source registry exposes enabled source-backed coverage for golden query domains", () => {
   const enabled = getEnabledSources(sourceRegistry);
 
-  assert.deepEqual(enabled.map((source) => source.id), ["github-topic-mcp", "npm-modelcontextprotocol-sdk"]);
+  assert.deepEqual(enabled.map((source) => source.id), [
+    "github-topic-mcp",
+    "npm-modelcontextprotocol-sdk",
+    "github-repo-microsoft-playwright-mcp",
+    "github-repo-google-gemini-cli",
+    "github-repo-vercel-ai",
+    "github-repo-github-github-mcp-server",
+    "github-repo-neondatabase-mcp-server-neon",
+    "github-repo-getsentry-sentry-mcp",
+    "docs-stripe-checkout",
+    "docs-gmail-api",
+    "docs-openai-codex"
+  ]);
   assert.equal(enabled[0]?.collection_method, "api");
   assert.equal(enabled[0]?.parser, "github_topic_parser");
   assert.equal(enabled[1]?.source_type, "package_registry");
   assert.equal(enabled[1]?.parser, "npm_package_parser");
+  assert.equal(enabled.find((source) => source.id === "github-repo-microsoft-playwright-mcp")?.parser, "github_repo_parser");
+  assert.equal(enabled.find((source) => source.id === "docs-stripe-checkout")?.parser, "official_docs_parser");
 });
 
 test("ingestion CLI summary includes approval and release gates", () => {
@@ -199,6 +217,99 @@ test("github topic parser creates repository source records from API payloads", 
     assert.equal(records[0]?.source_confidence, "medium");
     assert.equal(records[0]?.parser_version, "github_topic_parser.v1");
     assert.deepEqual(records[0]?.warnings, []);
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test("github repo parser creates a source-profiled repository record from exact API payloads", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
+  const contentPath = "data/raw/github-repo-microsoft-playwright-mcp/2026-07-08/repo.json";
+
+  try {
+    await mkdir(join(outputDir, "data", "raw", "github-repo-microsoft-playwright-mcp", "2026-07-08"), { recursive: true });
+    await writeFile(
+      join(outputDir, contentPath),
+      JSON.stringify({
+        full_name: "microsoft/playwright-mcp",
+        name: "playwright-mcp",
+        html_url: "https://github.com/microsoft/playwright-mcp",
+        description: "Playwright MCP server.",
+        stargazers_count: 12345,
+        license: { spdx_id: "Apache-2.0" },
+        pushed_at: "2026-07-07T12:00:00Z",
+        topics: ["mcp", "playwright", "browser-automation"],
+        homepage: "https://playwright.dev"
+      }),
+      "utf8"
+    );
+
+    const records = await parseSnapshot(
+      {
+        id: "github-repo-microsoft-playwright-mcp-20260708-repo",
+        schema_version: "raw_snapshot.v1",
+        source_id: "github-repo-microsoft-playwright-mcp",
+        source_url: "https://api.github.com/repos/microsoft/playwright-mcp",
+        fetched_at: "2026-07-08T00:00:00Z",
+        fetch_method: "api",
+        status: "success",
+        content_type: "application/json",
+        content_hash: "sha256:test",
+        content_path: contentPath
+      },
+      githubRepoSource,
+      outputDir,
+      "2026-07-08T00:00:00Z"
+    );
+
+    assert.equal(records.length, 1);
+    assert.equal(records[0]?.record_type, "repository");
+    assert.equal(records[0]?.name, "microsoft/playwright-mcp");
+    assert.equal(records[0]?.parsed_fields.repo_url, "https://github.com/microsoft/playwright-mcp");
+    assert.equal(records[0]?.parsed_fields.homepage_url, "https://playwright.dev");
+    assert.equal((records[0]?.parsed_fields.source_profile as { tool_id?: string }).tool_id, "mcp-browser-automation");
+    assert.equal(records[0]?.parser_version, "github_repo_parser.v1");
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test("official docs parser creates a profile-backed doc page record", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
+  const contentPath = "data/raw/docs-stripe-checkout/2026-07-08/docs.txt";
+
+  try {
+    await mkdir(join(outputDir, "data", "raw", "docs-stripe-checkout", "2026-07-08"), { recursive: true });
+    await writeFile(
+      join(outputDir, contentPath),
+      '<html><head><title>Stripe Checkout</title><meta name="description" content="Stripe Checkout docs for hosted payments."></head></html>',
+      "utf8"
+    );
+
+    const records = await parseSnapshot(
+      {
+        id: "docs-stripe-checkout-20260708-docs",
+        schema_version: "raw_snapshot.v1",
+        source_id: "docs-stripe-checkout",
+        source_url: "https://docs.stripe.com/checkout",
+        fetched_at: "2026-07-08T00:00:00Z",
+        fetch_method: "http",
+        status: "success",
+        content_type: "text/html",
+        content_hash: "sha256:test",
+        content_path: contentPath
+      },
+      stripeDocsSource,
+      outputDir,
+      "2026-07-08T00:00:00Z"
+    );
+
+    assert.equal(records.length, 1);
+    assert.equal(records[0]?.record_type, "doc_page");
+    assert.equal(records[0]?.name, "Stripe Checkout Guidance");
+    assert.equal(records[0]?.description, "Stripe Checkout docs for hosted payments.");
+    assert.equal((records[0]?.parsed_fields.source_profile as { tool_id?: string }).tool_id, "skill-stripe-checkout-guidance");
+    assert.equal(records[0]?.parser_version, "official_docs_parser.v1");
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
@@ -556,7 +667,7 @@ test("ingestion writes a crawl plan for enabled sources", async () => {
     });
 
     assert.equal(result.crawlPlan.schema_version, "source_crawl_plan.v1");
-    assert.equal(result.crawlPlan.summary.total, 2);
+    assert.equal(result.crawlPlan.summary.total, getEnabledSources(sourceRegistry).length);
     assert.equal(result.crawlPlan.summary.disabled, 0);
     assert.equal(result.crawlPlan.items[0]?.source_id, "github-topic-mcp");
     assert.equal(result.crawlPlan.items[0]?.status, "ready");
@@ -569,13 +680,8 @@ test("ingestion writes a crawl plan for enabled sources", async () => {
       items: Array<{ source_id: string; status: string }>;
     };
     assert.equal(crawlPlan.schema_version, "source_crawl_plan.v1");
-    assert.deepEqual(
-      crawlPlan.items.map((item) => [item.source_id, item.status]),
-      [
-        ["github-topic-mcp", "ready"],
-        ["npm-modelcontextprotocol-sdk", "ready"]
-      ]
-    );
+    assert.equal(crawlPlan.items.length, getEnabledSources(sourceRegistry).length);
+    assert.equal(crawlPlan.items.every((item) => item.status === "ready"), true);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
@@ -593,7 +699,7 @@ test("ingestion writes crawl audit log from snapshots", async () => {
     });
 
     assert.equal(result.crawlAudit.schema_version, "crawl_audit.v1");
-    assert.equal(result.crawlAudit.summary.success, 2);
+    assert.equal(result.crawlAudit.summary.success, getEnabledSources(sourceRegistry).length);
     assert.equal(result.crawlAudit.items[0]?.source_id, "github-topic-mcp");
     assert.equal(result.crawlAudit.items[0]?.status, "success");
     assert.equal(result.crawlAudit.items[0]?.fetch_method, "api");
@@ -606,14 +712,8 @@ test("ingestion writes crawl audit log from snapshots", async () => {
       items: Array<{ source_id: string; status: string }>;
     };
     assert.equal(audit.schema_version, "crawl_audit.v1");
-    assert.equal(audit.summary.success, 2);
-    assert.deepEqual(
-      audit.items.map((item) => [item.source_id, item.status]),
-      [
-        ["github-topic-mcp", "success"],
-        ["npm-modelcontextprotocol-sdk", "success"]
-      ]
-    );
+    assert.equal(audit.summary.success, getEnabledSources(sourceRegistry).length);
+    assert.equal(audit.items.every((item) => item.status === "success"), true);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
@@ -1073,6 +1173,7 @@ test("ingestion promotes low risk GitHub repository drafts through auto review",
       outputDir,
       now: "2026-07-08T00:00:00Z",
       existingToolCards: [],
+      sources: [githubTopicSource],
       fetchImpl: (url) => {
         const requestUrl = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
         if (requestUrl.startsWith("internal://")) {

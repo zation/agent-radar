@@ -82,7 +82,7 @@ enabled Source Registry
   -> Vite Web UI / Workers-style API reads artifacts
 ```
 
-当前已实现最小 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、repo/package 跨来源 normalizer、最小 deduper、人工 override artifact、Approval Request、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 已可展示 Source Registry review confirmation requests，并生成可复制的 review record JSON 草稿。尚未实现的是更完整的跨来源冲突处理和人工 override 审核记录导入。
+当前已实现 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、repo/package/docs 跨来源 normalizer、source profile 字段映射、最小 deduper、人工 override artifact、Approval Request、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 已可展示 Source Registry review confirmation requests，并生成可复制的 review record JSON 草稿。尚未实现的是更完整的跨来源冲突处理和人工 override 审核记录导入。
 
 ### 目标形态
 

@@ -136,8 +136,121 @@ test("normalizer merges cross-source repository and package records into one dra
   assert.equal(drafts[0]?.id, "mcp-modelcontextprotocol-typescript-sdk");
   assert.equal(drafts[0]?.repo_url, "https://github.com/modelcontextprotocol/typescript-sdk");
   assert.deepEqual(drafts[0]?.package_urls, ["https://www.npmjs.com/package/@modelcontextprotocol/sdk"]);
-  assert.deepEqual(drafts[0]?.evidence_refs, records.map((record) => record.id));
+  assert.deepEqual(drafts[0]?.evidence_refs, [...records.map((record) => record.id), "field:maintenance:source_record"]);
   assert.equal(drafts[0]?.maintenance.last_release_at, "2026-07-07T12:00:00.000Z");
+});
+
+test("normalizer enriches source-backed repository drafts from source profiles", () => {
+  const records: SourceRecord[] = [
+    {
+      id: "github-repo-microsoft-playwright-mcp-20260708",
+      schema_version: "source_record.v1",
+      snapshot_id: "snapshot-github-repo",
+      source_id: "github-repo-microsoft-playwright-mcp",
+      record_type: "repository",
+      name: "microsoft/playwright-mcp",
+      description: "Playwright MCP server.",
+      urls: ["https://github.com/microsoft/playwright-mcp"],
+      raw_fields: {},
+      parsed_fields: {
+        repo_url: "https://github.com/microsoft/playwright-mcp",
+        homepage_url: "https://playwright.dev",
+        license: "Apache-2.0",
+        topics: ["mcp", "playwright"],
+        source_profile: {
+          tool_id: "mcp-browser-automation",
+          name: "Playwright MCP",
+          type: "mcp",
+          tags: ["browser_automation", "testing"],
+          primary_purpose: "browser_automation_testing",
+          use_cases: ["Open web pages, inspect DOM state, and capture screenshots for UI verification."],
+          not_for: ["Unattended browsing of private user sessions."],
+          permissions: [
+            { scope: "browser", access: "execute", required: true, notes: "Controls a browser session." },
+            { scope: "network", access: "read_write", required: true, notes: "Loads web pages and local previews." }
+          ],
+          security: {
+            risk_level: "medium",
+            trust_level: "well_known_org",
+            known_risks: ["browser_session_access"],
+            requires_human_approval: false,
+            security_notes: "Use an isolated profile for sensitive browsing."
+          },
+          maturity: "stable"
+        }
+      },
+      source_confidence: "high",
+      parsed_at: "2026-07-08T00:00:00Z",
+      parser_version: "github_repo_parser.v1",
+      warnings: []
+    }
+  ];
+
+  const drafts = normalizeToolCardDrafts(records);
+
+  assert.equal(drafts.length, 1);
+  assert.equal(drafts[0]?.id, "mcp-browser-automation");
+  assert.equal(drafts[0]?.name, "Playwright MCP");
+  assert.equal(drafts[0]?.type, "mcp");
+  assert.ok(drafts[0]?.tags.includes("browser_automation"));
+  assert.ok(drafts[0]?.tags.includes("testing"));
+  assert.ok(drafts[0]?.permissions.some((permission) => permission.scope === "browser"));
+  assert.equal(drafts[0]?.security.trust_level, "well_known_org");
+});
+
+test("normalizer creates profile-backed drafts from official docs records", () => {
+  const records: SourceRecord[] = [
+    {
+      id: "docs-stripe-checkout-20260708",
+      schema_version: "source_record.v1",
+      snapshot_id: "snapshot-docs",
+      source_id: "docs-stripe-checkout",
+      record_type: "doc_page",
+      name: "Stripe Checkout Guidance",
+      description: "Stripe Checkout docs for hosted payments.",
+      urls: ["https://docs.stripe.com/checkout"],
+      raw_fields: {},
+      parsed_fields: {
+        docs_url: "https://docs.stripe.com/checkout",
+        source_profile: {
+          tool_id: "skill-stripe-checkout-guidance",
+          name: "Stripe Checkout Guidance",
+          type: "skill",
+          tags: ["payment", "checkout", "nextjs"],
+          primary_purpose: "payment_checkout_integration_guidance",
+          use_cases: ["Integrate Stripe Checkout into a web application with payment and secret handling."],
+          not_for: ["Automatically issuing refunds or changing live payment state without human approval."],
+          auth_required: "api_key",
+          permissions: [
+            { scope: "payment", access: "write", required: true, notes: "Creates payment sessions or changes payment state." },
+            { scope: "network", access: "read_write", required: true, notes: "Calls Stripe APIs." },
+            { scope: "secrets", access: "read", required: true, notes: "Uses Stripe API keys." }
+          ],
+          security: {
+            risk_level: "high",
+            trust_level: "official",
+            known_risks: ["payment_state_change", "secret_handling"],
+            requires_human_approval: true,
+            security_notes: "Use test mode first and require human approval for live payments."
+          },
+          maturity: "stable"
+        }
+      },
+      source_confidence: "high",
+      parsed_at: "2026-07-08T00:00:00Z",
+      parser_version: "official_docs_parser.v1",
+      warnings: []
+    }
+  ];
+
+  const drafts = normalizeToolCardDrafts(records);
+
+  assert.equal(drafts.length, 1);
+  assert.equal(drafts[0]?.id, "skill-stripe-checkout-guidance");
+  assert.equal(drafts[0]?.docs_url, "https://docs.stripe.com/checkout");
+  assert.ok(drafts[0]?.tags.includes("payment"));
+  assert.equal(drafts[0]?.auth_required, "api_key");
+  assert.equal(drafts[0]?.security.requires_human_approval, true);
 });
 
 test("normalizer rejects override records without evidence", () => {

@@ -23,6 +23,7 @@ interface GitHubTopicRepository {
   } | null;
   pushed_at?: string;
   topics?: string[];
+  homepage?: string;
 }
 
 interface NpmPackagePayload {
@@ -40,7 +41,7 @@ interface NpmPackagePayload {
   } & Record<string, string | undefined>;
 }
 
-export const supportedSourceParsers = ["manual_seed_parser", "github_topic_parser", "npm_package_parser"] as const;
+export const supportedSourceParsers = ["manual_seed_parser", "github_topic_parser", "github_repo_parser", "npm_package_parser", "official_docs_parser"] as const;
 
 export type SupportedSourceParser = (typeof supportedSourceParsers)[number];
 
@@ -52,7 +53,9 @@ export async function parseSnapshot(snapshot: RawSourceSnapshot, source: SourceD
   if (snapshot.status !== "success") return [];
   if (source.parser === "manual_seed_parser") return parseManualSeedSnapshot(snapshot, source, outputDir, now);
   if (source.parser === "github_topic_parser") return parseGitHubTopicSnapshot(snapshot, source, outputDir, now);
+  if (source.parser === "github_repo_parser") return parseGitHubRepoSnapshot(snapshot, source, outputDir, now);
   if (source.parser === "npm_package_parser") return parseNpmPackageSnapshot(snapshot, source, outputDir, now);
+  if (source.parser === "official_docs_parser") return parseOfficialDocsSnapshot(snapshot, source, outputDir, now);
   return [];
 }
 
@@ -93,34 +96,14 @@ async function parseGitHubTopicSnapshot(snapshot: RawSourceSnapshot, source: Sou
 
   return repositories
     .filter((repo) => Boolean(repo.full_name && repo.html_url))
-    .map((repo) => {
-      const repoUrl = repo.html_url ?? "";
-      const license = repo.license?.spdx_id && repo.license.spdx_id !== "NOASSERTION" ? repo.license.spdx_id : repo.license?.name;
-      const parsedFields: Record<string, unknown> = {
-        repo_url: repoUrl,
-        stars: typeof repo.stargazers_count === "number" ? repo.stargazers_count : undefined,
-        license,
-        last_commit_at: repo.pushed_at,
-        topics: Array.isArray(repo.topics) ? repo.topics : []
-      };
+    .map((repo) => githubRepositoryToSourceRecord(repo, snapshot, source, now, "github_topic_parser.v1"));
+}
 
-      return {
-        id: `${source.id}-${slugify(repo.full_name ?? repo.name ?? "unknown")}-${now.slice(0, 10).replaceAll("-", "")}`,
-        schema_version: "source_record.v1" as const,
-        snapshot_id: snapshot.id,
-        source_id: source.id,
-        record_type: "repository" as const,
-        name: repo.full_name ?? repo.name ?? "unknown",
-        description: repo.description,
-        urls: [repoUrl],
-        raw_fields: repo as Record<string, unknown>,
-        parsed_fields: dropUndefined(parsedFields),
-        source_confidence: confidenceFromSource(source),
-        parsed_at: now,
-        parser_version: "github_topic_parser.v1",
-        warnings: buildGitHubTopicWarnings(repo)
-      };
-    });
+async function parseGitHubRepoSnapshot(snapshot: RawSourceSnapshot, source: SourceDefinition, outputDir: string, now: string): Promise<SourceRecord[]> {
+  const raw = await readFile(join(outputDir, snapshot.content_path), "utf8");
+  const repo = JSON.parse(raw) as GitHubTopicRepository;
+  if (!repo.full_name || !repo.html_url) return [];
+  return [githubRepositoryToSourceRecord(repo, snapshot, source, now, "github_repo_parser.v1")];
 }
 
 async function parseNpmPackageSnapshot(snapshot: RawSourceSnapshot, source: SourceDefinition, outputDir: string, now: string): Promise<SourceRecord[]> {
@@ -139,7 +122,8 @@ async function parseNpmPackageSnapshot(snapshot: RawSourceSnapshot, source: Sour
     license: payload.license,
     latest_version: payload["dist-tags"]?.latest,
     last_release_at: payload.time?.modified,
-    keywords
+    keywords,
+    source_profile: source.profile
   };
 
   return [
@@ -160,6 +144,74 @@ async function parseNpmPackageSnapshot(snapshot: RawSourceSnapshot, source: Sour
       warnings: buildNpmPackageWarnings(payload, repoUrl)
     }
   ];
+}
+
+async function parseOfficialDocsSnapshot(snapshot: RawSourceSnapshot, source: SourceDefinition, outputDir: string, now: string): Promise<SourceRecord[]> {
+  const raw = await readFile(join(outputDir, snapshot.content_path), "utf8");
+  const title = extractHtmlTitle(raw);
+  const description = extractMetaDescription(raw) ?? source.profile?.summary ?? title ?? source.name;
+  const docsUrl = source.profile?.docs_url ?? source.url;
+  const parsedFields: Record<string, unknown> = {
+    docs_url: docsUrl,
+    homepage_url: source.profile?.homepage_url,
+    source_profile: source.profile
+  };
+
+  return [
+    {
+      id: `${source.id}-${now.slice(0, 10).replaceAll("-", "")}`,
+      schema_version: "source_record.v1",
+      snapshot_id: snapshot.id,
+      source_id: source.id,
+      record_type: "doc_page",
+      name: source.profile?.name ?? title ?? source.name,
+      description,
+      urls: [...new Set([docsUrl, source.profile?.homepage_url, source.url].filter((url): url is string => Boolean(url)))],
+      raw_fields: { title, description, source_url: source.url },
+      parsed_fields: dropUndefined(parsedFields),
+      source_confidence: confidenceFromSource(source),
+      parsed_at: now,
+      parser_version: "official_docs_parser.v1",
+      warnings: description ? [] : ["missing_description"]
+    }
+  ];
+}
+
+function githubRepositoryToSourceRecord(
+  repo: GitHubTopicRepository,
+  snapshot: RawSourceSnapshot,
+  source: SourceDefinition,
+  now: string,
+  parserVersion: string
+): SourceRecord {
+  const repoUrl = repo.html_url ?? "";
+  const license = repo.license?.spdx_id && repo.license.spdx_id !== "NOASSERTION" ? repo.license.spdx_id : repo.license?.name;
+  const parsedFields: Record<string, unknown> = {
+    repo_url: repoUrl,
+    homepage_url: repo.homepage,
+    stars: typeof repo.stargazers_count === "number" ? repo.stargazers_count : undefined,
+    license,
+    last_commit_at: repo.pushed_at,
+    topics: Array.isArray(repo.topics) ? repo.topics : [],
+    source_profile: source.profile
+  };
+
+  return {
+    id: `${source.id}-${slugify(repo.full_name ?? repo.name ?? "unknown")}-${now.slice(0, 10).replaceAll("-", "")}`,
+    schema_version: "source_record.v1",
+    snapshot_id: snapshot.id,
+    source_id: source.id,
+    record_type: "repository",
+    name: repo.full_name ?? repo.name ?? "unknown",
+    description: repo.description,
+    urls: [repoUrl, repo.homepage].filter((url): url is string => Boolean(url)),
+    raw_fields: repo as Record<string, unknown>,
+    parsed_fields: dropUndefined(parsedFields),
+    source_confidence: confidenceFromSource(source),
+    parsed_at: now,
+    parser_version: parserVersion,
+    warnings: buildGitHubTopicWarnings(repo)
+  };
 }
 
 function confidenceFromSource(source: SourceDefinition): Confidence {
@@ -211,4 +263,14 @@ function normalizeRepositoryUrl(value: string | undefined): string | undefined {
     .replace(/^git:\/\//, "https://")
     .replace(/\.git$/, "")
     .trim();
+}
+
+function extractHtmlTitle(value: string): string | undefined {
+  const match = /<title[^>]*>([^<]+)<\/title>/i.exec(value);
+  return match?.[1]?.replace(/\s+/g, " ").trim();
+}
+
+function extractMetaDescription(value: string): string | undefined {
+  const match = /<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["'][^>]*>/i.exec(value);
+  return match?.[1]?.replace(/\s+/g, " ").trim();
 }

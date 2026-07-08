@@ -95,6 +95,18 @@ function buildSourceRequest(source: SourceDefinition): { url: string; headers: H
       };
     }
   }
+  if (source.parser === "github_repo_parser") {
+    const repo = parseGitHubRepo(source.url);
+    if (repo) {
+      return {
+        url: `https://api.github.com/repos/${repo}`,
+        headers: {
+          accept: "application/vnd.github+json",
+          "user-agent": "agent-radar-crawler"
+        }
+      };
+    }
+  }
 
   return { url: source.url, headers: {} };
 }
@@ -124,6 +136,17 @@ function parseGitHubTopic(sourceUrl: string): string | undefined {
     if (url.hostname !== "github.com") return undefined;
     const [, namespace, topic] = url.pathname.split("/");
     return namespace === "topics" && topic ? topic : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseGitHubRepo(sourceUrl: string): string | undefined {
+  try {
+    const url = new URL(sourceUrl);
+    if (url.hostname !== "github.com") return undefined;
+    const [, owner, repo] = url.pathname.split("/");
+    return owner && repo ? `${owner}/${repo}` : undefined;
   } catch {
     return undefined;
   }

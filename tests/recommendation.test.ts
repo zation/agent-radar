@@ -396,6 +396,87 @@ test("recovers database MCP candidates when LLM over-rejects high-risk productio
   assert.ok(result.query_understanding.likely_permissions.includes("cloud"));
 });
 
+test("recovers browser automation candidates when LLM over-rejects a covered testing task", async () => {
+  const client: RecommendationLlmClient = {
+    recommend() {
+      return Promise.resolve({
+        recommended_action: "no_reliable_match",
+        query_understanding: {
+          intent: "browser_screenshot_validation",
+          task_domains: ["testing"],
+          required_capabilities: ["browser_automation"],
+          likely_permissions: [],
+          tool_type_hints: ["mcp"],
+          risk_flags: [],
+          confidence: "medium"
+        },
+        candidates: [],
+        rejected_candidates: [],
+        no_match_reason: "No safe browser automation candidate."
+      });
+    }
+  };
+
+  const result = await recommendTools(
+    {
+      task: "让 agent 打开本地网页并做截图验证",
+      environment: ["local_dev", "browser"],
+      risk_tolerance: "medium",
+      preferred_tool_types: ["mcp"]
+    },
+    reviewedToolCardFixtures,
+    ratings,
+    { apiKey: "sk-test-secret", model: "gpt-4.1", client }
+  );
+
+  assert.notEqual(result.recommended_action, "no_reliable_match");
+  assert.ok(result.candidates.some((candidate) => candidate.tags.includes("browser_automation")));
+  assert.ok(result.candidates.some((candidate) => candidate.tags.includes("testing")));
+  assert.ok(result.query_understanding.likely_permissions.includes("browser"));
+  assert.ok(result.query_understanding.likely_permissions.includes("network"));
+});
+
+test("recovers high-risk payment guidance behind human approval when LLM over-rejects covered integration work", async () => {
+  const client: RecommendationLlmClient = {
+    recommend() {
+      return Promise.resolve({
+        recommended_action: "no_reliable_match",
+        query_understanding: {
+          intent: "stripe_checkout_integration",
+          task_domains: ["payment", "web_app"],
+          required_capabilities: ["checkout_integration"],
+          likely_permissions: [],
+          tool_type_hints: ["skill"],
+          risk_flags: [],
+          confidence: "medium"
+        },
+        candidates: [],
+        rejected_candidates: [],
+        no_match_reason: "Payments require care."
+      });
+    }
+  };
+
+  const result = await recommendTools(
+    {
+      task: "给 Next.js 应用接入 Stripe Checkout",
+      language_or_stack: ["typescript", "next.js"],
+      environment: ["web_app"],
+      risk_tolerance: "medium",
+      preferred_tool_types: ["skill"]
+    },
+    reviewedToolCardFixtures,
+    ratings,
+    { apiKey: "sk-test-secret", model: "gpt-4.1", client }
+  );
+
+  assert.equal(result.recommended_action, "ask_human");
+  assert.ok(result.candidates.some((candidate) => candidate.tags.includes("payment")));
+  assert.ok(result.query_understanding.likely_permissions.includes("payment"));
+  assert.ok(result.query_understanding.likely_permissions.includes("secrets"));
+  assert.ok(result.query_understanding.likely_permissions.includes("network"));
+});
+
 test("recovers database MCP candidates when LLM avoids high-risk production database work without candidates", async () => {
   const client: RecommendationLlmClient = {
     recommend() {

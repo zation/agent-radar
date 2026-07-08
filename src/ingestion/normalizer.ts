@@ -1,4 +1,6 @@
-import type { SourceRecord, ToolCard, ToolType } from "../schema.js";
+import type { Permission, SourceDefinition, SourceRecord, ToolCard, ToolType } from "../schema.js";
+
+type SourceProfile = NonNullable<SourceDefinition["profile"]>;
 
 export interface OverrideRecord {
   id: string;
@@ -49,62 +51,69 @@ function normalizeManualToolCardDraft(record: SourceRecord, overrideRecords: Ove
 function normalizeSourceBackedToolCardDraft(records: SourceRecord[], overridesByToolId: Map<string, OverrideRecord[]>): ToolCard | undefined {
   const primaryRecord = choosePrimaryRecord(records);
   const mergedFields = mergeParsedFields(records);
+  const profile = mergeSourceProfiles(records);
   const repoUrl = readString(mergedFields.repo_url) ?? records.flatMap((record) => record.urls).find((url) => url.includes("github.com"));
-  const summary = records.find((record) => record.description?.trim())?.description?.trim();
+  const summary = profile.summary ?? records.find((record) => record.description?.trim())?.description?.trim();
   const packageUrl = readString(mergedFields.package_url);
-  const homepageUrl = readString(mergedFields.homepage_url);
-  if (!repoUrl || !summary) return undefined;
+  const homepageUrl = profile.homepage_url ?? readString(mergedFields.homepage_url);
+  const docsUrl = profile.docs_url ?? readString(mergedFields.docs_url);
+  if ((!repoUrl && !docsUrl && !homepageUrl) || !summary) return undefined;
 
   const topics = [...new Set([...readStringArray(mergedFields.topics), ...readStringArray(mergedFields.keywords)])];
-  const toolType = inferToolType(primaryRecord, topics);
-  const toolId = `${toolType}-${slugify(primaryRecord.name)}`;
+  const toolType = profile.type ?? inferToolType(primaryRecord, topics);
+  const toolId = profile.tool_id ?? `${toolType}-${slugify(primaryRecord.name)}`;
   const license = readString(mergedFields.license);
   const lastCommitAt = readString(mergedFields.last_commit_at);
   const lastReleaseAt = readString(mergedFields.last_release_at);
   const packageName = readString(mergedFields.package_name);
-  const sourceUrls = [...new Set([repoUrl, packageUrl, homepageUrl, ...records.flatMap((record) => record.urls)].filter((url): url is string => Boolean(url)))];
+  const sourceUrls = [...new Set([repoUrl, packageUrl, homepageUrl, docsUrl, ...records.flatMap((record) => record.urls)].filter((url): url is string => Boolean(url)))];
+  const tags = [...new Set([toolType, ...topics, ...(profile.tags ?? [])])].slice(0, 16);
+  const installMethods = profile.install_methods ?? buildInstallMethods(repoUrl, packageUrl, packageName, primaryRecord.source_confidence);
+  if (installMethods.length === 0) installMethods.push({ method: "manual", command: "", docs_url: docsUrl ?? homepageUrl ?? sourceUrls[0] ?? "", confidence: primaryRecord.source_confidence });
 
   const draft: ToolCard = {
     id: toolId,
     schema_version: "tool_card.v1",
-    name: primaryRecord.name,
+    name: profile.name ?? primaryRecord.name,
     type: toolType,
-    secondary_types: inferSecondaryTypes(topics, toolType),
+    secondary_types: profile.secondary_types ?? inferSecondaryTypes(topics, toolType),
     summary,
     source_urls: sourceUrls,
     repo_url: repoUrl,
     homepage_url: homepageUrl,
+    docs_url: docsUrl,
     package_urls: packageUrl ? [packageUrl] : undefined,
     license,
-    primary_purpose: inferPrimaryPurpose(toolType, topics),
-    use_cases: [`Evaluate ${primaryRecord.name} for ${toolType} workflows.`],
-    not_for: ["Production use before reviewing the repository, license, permissions, and install instructions."],
-    tags: [...new Set([toolType, ...topics])].slice(0, 12),
-    install_methods: buildInstallMethods(repoUrl, packageUrl, packageName, primaryRecord.source_confidence),
-    auth_required: "none",
-    permissions: [{ scope: "network", access: "read", required: false, notes: "Reviewing or cloning the public repository requires network access." }],
+    primary_purpose: profile.primary_purpose ?? inferPrimaryPurpose(toolType, tags),
+    use_cases: profile.use_cases ?? [`Evaluate ${profile.name ?? primaryRecord.name} for ${toolType} workflows.`],
+    not_for: profile.not_for ?? ["Production use before reviewing the repository, license, permissions, and install instructions."],
+    tags,
+    supported_agents: profile.supported_agents,
+    install_methods: installMethods,
+    auth_required: profile.auth_required ?? "none",
+    permissions: profile.permissions ?? defaultPermissions(repoUrl),
     maintenance: {
-      status: lastCommitAt || lastReleaseAt ? "active" : "unknown",
+      status: profile.maintenance?.status ?? (lastCommitAt || lastReleaseAt ? "active" : "unknown"),
       last_release_at: lastReleaseAt,
       last_commit_at: lastCommitAt,
-      issue_activity: "unknown",
-      maintainer_type: "community",
-      signals: buildMaintenanceSignals(mergedFields)
+      issue_activity: profile.maintenance?.issue_activity ?? "unknown",
+      maintainer_type: profile.maintenance?.maintainer_type ?? inferMaintainerType(profile),
+      signals: [...new Set([...(profile.maintenance?.signals ?? []), ...buildMaintenanceSignals(mergedFields)])]
     },
-    security: {
+    security: profile.security ?? {
       risk_level: "medium",
       trust_level: "active_open_source",
       known_risks: ["unreviewed_open_source_code"],
       requires_human_approval: false,
       security_notes: "Generated from public GitHub metadata only; review code, permissions, and install path before use."
     },
-    maturity: "unknown",
-    evidence_refs: records.map((record) => record.id),
+    maturity: profile.maturity ?? "unknown",
+    evidence_refs: [...records.map((record) => record.id), ...buildProfileFieldEvidenceRefs(profile, mergedFields)],
     last_checked_at: primaryRecord.parsed_at,
     confidence: records.some((record) => record.source_confidence === "high") ? "high" : "medium",
     created_at: primaryRecord.parsed_at,
     updated_at: primaryRecord.parsed_at,
-    ai_decision_notes: {
+    ai_decision_notes: profile.ai_decision_notes ?? {
       when_to_use: [`Use as a discovery candidate when evaluating ${toolType} tooling.`],
       when_to_avoid: ["Avoid recommending as reliable until docs, permissions, and install method are reviewed."],
       questions_to_ask_human: ["Should this repository be trusted for the current environment?"],
@@ -120,12 +129,21 @@ function normalizeSourceBackedToolCardDraft(records: SourceRecord[], overridesBy
   return draft;
 }
 
+function buildProfileFieldEvidenceRefs(profile: SourceProfile, fields: Record<string, unknown>): string[] {
+  const refs: string[] = [];
+  if (profile.permissions) refs.push("field:permissions:source_profile");
+  if (profile.security) refs.push("field:security:source_profile");
+  if (profile.maintenance) refs.push("field:maintenance:source_profile");
+  else if (typeof fields.last_commit_at === "string" || typeof fields.last_release_at === "string") refs.push("field:maintenance:source_record");
+  return refs;
+}
+
 function groupSourceBackedRecords(sourceRecords: SourceRecord[]): SourceRecord[][] {
   const groups = new Map<string, SourceRecord[]>();
   const ungrouped: SourceRecord[][] = [];
 
   for (const record of sourceRecords) {
-    if (record.record_type !== "repository" && record.record_type !== "package") continue;
+    if (record.record_type !== "repository" && record.record_type !== "package" && record.record_type !== "doc_page") continue;
     const key = canonicalRecordKey(record);
     if (!key) {
       ungrouped.push([record]);
@@ -138,10 +156,14 @@ function groupSourceBackedRecords(sourceRecords: SourceRecord[]): SourceRecord[]
 }
 
 function canonicalRecordKey(record: SourceRecord): string | undefined {
+  const profile = readSourceProfile(record);
+  if (profile?.tool_id) return `profile:${profile.tool_id}`;
   const repoUrl = readString(record.parsed_fields.repo_url) ?? record.urls.find((url) => url.includes("github.com"));
   if (repoUrl) return `repo:${canonicalUrl(repoUrl)}`;
   const packageUrl = readString(record.parsed_fields.package_url);
   if (packageUrl) return `package:${canonicalPackageUrl(packageUrl)}`;
+  const docsUrl = readString(record.parsed_fields.docs_url);
+  if (docsUrl) return `docs:${canonicalUrl(docsUrl)}`;
   return undefined;
 }
 
@@ -164,11 +186,53 @@ function mergeParsedFields(records: SourceRecord[]): Record<string, unknown> {
   return merged;
 }
 
-function buildInstallMethods(repoUrl: string, packageUrl: string | undefined, packageName: string | undefined, confidence: SourceRecord["source_confidence"]): ToolCard["install_methods"] {
+function buildInstallMethods(repoUrl: string | undefined, packageUrl: string | undefined, packageName: string | undefined, confidence: SourceRecord["source_confidence"]): ToolCard["install_methods"] {
   const methods: ToolCard["install_methods"] = [];
   if (packageUrl && packageName) methods.push({ method: "npm", command: `npm install ${packageName}`, docs_url: packageUrl, confidence });
-  methods.push({ method: "source", command: "", docs_url: repoUrl, confidence });
+  if (repoUrl) methods.push({ method: "source", command: "", docs_url: repoUrl, confidence });
   return methods;
+}
+
+function defaultPermissions(repoUrl: string | undefined): Permission[] {
+  return [
+    {
+      scope: "network",
+      access: "read",
+      required: false,
+      notes: repoUrl ? "Reviewing or cloning the public repository requires network access." : "Reviewing the public source page requires network access."
+    }
+  ];
+}
+
+function inferMaintainerType(profile: SourceProfile): ToolCard["maintenance"]["maintainer_type"] {
+  if (profile.security?.trust_level === "official") return "official";
+  if (profile.security?.trust_level === "well_known_org" || profile.security?.trust_level === "commercial") return "company";
+  return "community";
+}
+
+function mergeSourceProfiles(records: SourceRecord[]): SourceProfile {
+  const merged: SourceProfile = {};
+  for (const record of records) {
+    const profile = readSourceProfile(record);
+    if (!profile) continue;
+    for (const [key, value] of Object.entries(profile) as Array<[keyof SourceProfile, SourceProfile[keyof SourceProfile]]>) {
+      if (value === undefined) continue;
+      if (Array.isArray(value)) {
+        const existing = Array.isArray(merged[key]) ? (merged[key] as unknown[]) : [];
+        (merged as Record<string, unknown>)[key] = [...new Set([...existing, ...value])];
+      } else if (isRecord(value) && isRecord(merged[key])) {
+        (merged as Record<string, unknown>)[key] = { ...(merged[key] as Record<string, unknown>), ...value };
+      } else if (merged[key] === undefined) {
+        (merged as Record<string, unknown>)[key] = value;
+      }
+    }
+  }
+  return merged;
+}
+
+function readSourceProfile(record: SourceRecord): SourceProfile | undefined {
+  const profile = record.parsed_fields.source_profile;
+  return isRecord(profile) ? (profile as SourceProfile) : undefined;
 }
 
 function validateOverrideRecords(overrideRecords: OverrideRecord[]): void {

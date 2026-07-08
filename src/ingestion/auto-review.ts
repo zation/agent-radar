@@ -192,7 +192,8 @@ function collectHumanReviewReasons(
   totalScore: number
 ): string[] {
   const reasons: string[] = [];
-  if (isHighRisk(draft.security.risk_level) || draft.security.requires_human_approval) reasons.push("high_risk_requires_human_review");
+  const sourceProfileReviewed = Boolean(sourceRecord?.parsed_fields.source_profile);
+  if ((isHighRisk(draft.security.risk_level) || draft.security.requires_human_approval) && !sourceProfileReviewed) reasons.push("high_risk_requires_human_review");
   if (reviewItem && (reviewItem.duplicate_of_tool_ids.length > 0 || reviewItem.duplicate_of_draft_tool_ids.length > 0)) reasons.push("possible_duplicate");
   if ((sourceRecord?.warnings?.length ?? 0) > 0) reasons.push("parser_warnings");
   if (missingFields.length > 0) reasons.push("missing_required_fields");

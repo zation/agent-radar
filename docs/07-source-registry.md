@@ -36,6 +36,7 @@ access_review:
   reviewed_at:
   notes:
 parser:
+profile:
 failure_policy:
 enabled:
 owner:
@@ -59,10 +60,20 @@ last_reviewed_at:
 | `terms_notes` | string | 是 | 使用条款和限制 |
 | `access_review` | object | enabled source 必填 | robots/terms 审核记录 |
 | `parser` | string | 否 | parser 名称 |
+| `profile` | object | 否 | 来源级结构化映射，用于补足 tag、权限、安全、用途和维护状态等不能从通用 metadata 可靠推断的字段 |
 | `failure_policy` | string | 是 | 失败处理 |
 | `enabled` | boolean | 是 | 是否启用自动采集 |
 | `owner` | string | 否 | 维护人或模块 |
 | `last_reviewed_at` | datetime | 是 | 来源审核时间 |
+
+`profile` 不是手工 Tool Card seed。它必须绑定一个具体公开来源，并只描述该来源能支撑的字段映射，例如：
+
+- `tool_id`、`name`、`type`、`tags`。
+- `primary_purpose`、`use_cases`、`not_for`。
+- `permissions`、`security`、`auth_required`。
+- `docs_url`、`homepage_url`、`maintenance`。
+
+profile 的用途是让官方文档、精确 GitHub repo 和 package metadata 能稳定进入 normalizer/deduper/release eval，而不是把 crawler 难以判断的权限和风险留给 LLM 临时猜测。修改 `profile` 会触发 source registry review requirement。
 
 ## Source Registry Diff
 
@@ -78,7 +89,7 @@ changed:
         confirmation_required: true
 ```
 
-当前会生成 review requirement 的字段包括：`enabled`、`url`、`source_type`、`collection_method`、`recommended_frequency`、`trust_level`、`field_coverage`、`rate_limits`、`terms_notes`、`access_review` 和 `parser`。Cloudflare Pages preview 的 ingestion review markdown 会展示这些字段级审核提示，便于 reviewer 在 Actions Summary 中确认高影响来源变更。该 artifact 只提供审核提示，不自动信任新来源，也不替代人工确认。
+当前会生成 review requirement 的字段包括：`enabled`、`url`、`source_type`、`collection_method`、`recommended_frequency`、`trust_level`、`field_coverage`、`rate_limits`、`terms_notes`、`access_review`、`parser` 和 `profile`。Cloudflare Pages preview 的 ingestion review markdown 会展示这些字段级审核提示，便于 reviewer 在 Actions Summary 中确认高影响来源变更。该 artifact 只提供审核提示，不自动信任新来源，也不替代人工确认。
 
 `source_registry_review.json` 记录这些 requirements 的人工确认状态：
 

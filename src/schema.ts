@@ -219,6 +219,27 @@ export interface SourceDefinition {
     notes: string;
   };
   parser?: string;
+  profile?: {
+    tool_id?: string;
+    name?: string;
+    type?: ToolType;
+    secondary_types?: ToolType[];
+    summary?: string;
+    tags?: string[];
+    primary_purpose?: string;
+    use_cases?: string[];
+    not_for?: string[];
+    supported_agents?: string[];
+    install_methods?: InstallMethod[];
+    auth_required?: ToolCard["auth_required"];
+    permissions?: Permission[];
+    security?: Security;
+    maturity?: ToolCard["maturity"];
+    docs_url?: string;
+    homepage_url?: string;
+    maintenance?: Partial<Maintenance>;
+    ai_decision_notes?: ToolCard["ai_decision_notes"];
+  };
   failure_policy: string;
   enabled: boolean;
   owner?: string;
