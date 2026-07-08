@@ -41,6 +41,9 @@ jobs:
       - name: Build preview bundle
         run: npm run preview:build
 
+      - name: Check promotion candidates
+        run: npm run promotion:check
+
       - name: Deploy Cloudflare Pages preview
         id: deploy
         uses: cloudflare/wrangler-action@v3

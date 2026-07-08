@@ -152,6 +152,7 @@ npm run eval
 npm run pages:build
 npm run dev:with-data
 npm run release:build
+npm run promotion:check
 npm run mcp:smoke
 npm run preview:build
 npm run dev -- --port 4173
@@ -165,6 +166,7 @@ npm run dev -- --port 4173
 - `npm run pages:build`：构建 Cloudflare Pages 风格静态 UI，输出到本地 `dist-pages/`。
 - `npm run dev:with-data`：先运行 pipeline 生成本地发布产物，再启动 Vite dev server。
 - `npm run release:build`：运行测试、生成发布产物并构建 Pages 输出，适合 CI 或手动发布前使用。
+- `npm run promotion:check`：读取 `data/promotion_candidates/promotion_check.json`，如果 promotion candidate 与现有 seed 重复或未通过 Tool Card validator dry-run，则非 0 退出；preview workflow 会在部署前执行该 gate。
 - `npm run mcp:smoke`：对 `AGENT_RADAR_MCP_BASE_URL` 指向的真实 MCP/Workers base URL 执行 JSON-RPC smoke test，覆盖 initialize、tools/list、只读 tools/call 和只读边界。
 - `npm run preview:build`：在 release build 后运行 ingest，把 artifact manifest 写入 `dist-pages/`，把审核报告写入 `artifacts/review/`，用于 Cloudflare Pages preview 和 GitHub Actions summary 审核。
 - `npm run dev -- --port 4173`：本地预览 Pages UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler。
@@ -222,6 +224,7 @@ git push origin v0.2.0-preview.1
 checkout
   -> install dependencies
   -> npm run preview:build
+  -> npm run promotion:check
   -> deploy dist-pages to Cloudflare Pages preview
   -> if AGENT_RADAR_MCP_BASE_URL is configured, npm run mcp:smoke against deployed MCP base URL
   -> append artifacts/review/ingestion.md to GitHub Actions summary
