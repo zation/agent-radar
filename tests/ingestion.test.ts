@@ -90,6 +90,34 @@ test("crawler saves immutable raw snapshots without request secrets", async () =
   }
 });
 
+test("ingestion writes a crawl plan for enabled sources", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
+
+  try {
+    const result = await runIngestion({
+      outputDir,
+      now: "2026-07-08T00:00:00Z",
+      fetchImpl: () =>
+        Promise.resolve(new Response(JSON.stringify({ tools: [] }), { status: 200, headers: { "content-type": "application/json" } }))
+    });
+
+    assert.equal(result.crawlPlan.schema_version, "source_crawl_plan.v1");
+    assert.equal(result.crawlPlan.summary.total, 1);
+    assert.equal(result.crawlPlan.items[0]?.source_id, "manual-agent-radar-seed");
+    assert.equal(result.crawlPlan.items[0]?.status, "ready");
+    assert.equal(result.crawlPlan.items[0]?.parser, "manual_seed_parser");
+
+    const crawlPlan = JSON.parse(await readFile(join(outputDir, "data", "crawl_plan", "source_crawl_plan.json"), "utf8")) as {
+      schema_version: string;
+      items: Array<{ source_id: string }>;
+    };
+    assert.equal(crawlPlan.schema_version, "source_crawl_plan.v1");
+    assert.equal(crawlPlan.items[0]?.source_id, "manual-agent-radar-seed");
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 test("ingestion parses manual seed snapshots into source records", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
 

@@ -28,6 +28,7 @@ src/data/seed-tool-cards.ts
 ```text
 npm run ingest
   -> src/ingestion/source-registry.ts
+  -> data/crawl_plan/source_crawl_plan.json
   -> crawl enabled source
   -> data/raw/<source_id>/<YYYY-MM-DD>/<hash>.json
   -> parse Source Records
@@ -39,7 +40,7 @@ npm run ingest
   -> data/release_admission/tool_card_drafts.json
 ```
 
-当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Raw Snapshot、Source Record、Tool Card draft、dedup report、approval record、review queue 和 release admission 契约。完整且无 parser warnings 的 manual Source Records 会经过最小 normalizer 生成待审核 Tool Card drafts，并输出最小 duplicate report；review queue 也会标注与已发布 Tool Cards 的最小重复信号和已记录的 approval decision。release admission 会把 `ready_for_review`、`approved` 且无重复信号的 draft 标为 `eligible_for_publish`，但不会自动合并或发布。这些草稿仍不进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
+当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Crawl Plan、Raw Snapshot、Source Record、Tool Card draft、dedup report、approval record、review queue 和 release admission 契约。完整且无 parser warnings 的 manual Source Records 会经过最小 normalizer 生成待审核 Tool Card drafts，并输出最小 duplicate report；review queue 也会标注与已发布 Tool Cards 的最小重复信号和已记录的 approval decision。release admission 会把 `ready_for_review`、`approved` 且无重复信号的 draft 标为 `eligible_for_publish`，但不会自动合并或发布。这些草稿仍不进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
 
 `npm run ingest` 已支持最小 Override Record artifact：人工修正只作用于待审核 draft normalization，不覆盖 Raw Snapshot 或 Source Record，也不会自动发布到可靠 Tool Cards。Override Record 必须包含 `reason`、`created_by` 和至少一个 `evidence_urls`。
 
@@ -51,7 +52,7 @@ npm run ingest
 
 尚未实现的采集能力包括：
 
-- Crawl Plan 生成。
+- 更完整的 Crawl Plan 生成；当前已输出 enabled sources 的最小 crawl plan artifact。
 - 通用外部 HTTP/API crawler 的限流、重试和审计日志。
 - 更多来源专属 parser。
 - 完整跨来源 deduper、跨来源 normalizer 和人工 override 审核 UI。

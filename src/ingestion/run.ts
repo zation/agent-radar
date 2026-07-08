@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildApprovalArtifact, type ApprovalArtifact, type ApprovalRecord } from "./approval.js";
+import { buildSourceCrawlPlan, type SourceCrawlPlan } from "./crawl-plan.js";
 import { crawlEnabledSources } from "./crawler.js";
 import { buildToolCardDuplicateReport, type ToolCardDuplicateReport } from "./deduper.js";
 import { normalizeToolCardDrafts, type OverrideRecord } from "./normalizer.js";
@@ -21,6 +22,7 @@ export interface RunIngestionOptions {
 }
 
 export interface RunIngestionResult {
+  crawlPlan: SourceCrawlPlan;
   snapshots: RawSourceSnapshot[];
   sourceRecords: SourceRecord[];
   toolCardDrafts: ToolCard[];
@@ -34,6 +36,8 @@ export interface RunIngestionResult {
 export async function runIngestion(options: RunIngestionOptions): Promise<RunIngestionResult> {
   const now = options.now ?? new Date().toISOString();
   const enabledSources = getEnabledSources(sourceRegistry);
+  const crawlPlan = buildSourceCrawlPlan(enabledSources, now);
+  await writeCrawlPlan(options.outputDir, crawlPlan);
   const snapshots = await crawlEnabledSources({
     sources: enabledSources,
     outputDir: options.outputDir,
@@ -68,6 +72,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeReleaseAdmission(options.outputDir, releaseAdmission);
 
   return {
+    crawlPlan,
     snapshots,
     sourceRecords,
     toolCardDrafts,
@@ -77,6 +82,12 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     reviewQueue,
     releaseAdmission
   };
+}
+
+async function writeCrawlPlan(outputDir: string, crawlPlan: SourceCrawlPlan): Promise<void> {
+  const crawlPlanDir = join(outputDir, "data", "crawl_plan");
+  await mkdir(crawlPlanDir, { recursive: true });
+  await writeFile(join(crawlPlanDir, "source_crawl_plan.json"), JSON.stringify(crawlPlan, null, 2), "utf8");
 }
 
 async function writeSourceRecords(outputDir: string, recordsBySource: Map<string, SourceRecord[]>): Promise<void> {

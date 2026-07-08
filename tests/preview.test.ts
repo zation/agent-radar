@@ -9,6 +9,26 @@ import { buildArtifactManifest } from "../src/preview/manifest.js";
 import type { RunIngestionResult } from "../src/ingestion/run.js";
 
 const ingestionResult: RunIngestionResult = {
+  crawlPlan: {
+    schema_version: "source_crawl_plan.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    summary: {
+      total: 1,
+      ready: 1,
+      blocked: 0
+    },
+    items: [
+      {
+        source_id: "manual-agent-radar-seed",
+        source_url: "internal://manual-review/seed-tool-cards",
+        collection_method: "manual",
+        recommended_frequency: "manual",
+        parser: "manual_seed_parser",
+        status: "ready",
+        reason: "enabled_source_ready_for_crawl"
+      }
+    ]
+  },
   snapshots: [
     {
       id: "manual-agent-radar-seed-20260707-abc123",
