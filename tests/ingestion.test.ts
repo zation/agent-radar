@@ -162,6 +162,7 @@ test("ingestion writes tool card drafts from complete manual source records", as
     assert.equal(result.reviewQueue.items.length, 1);
     assert.equal(result.reviewQueue.items[0]?.status, "ready_for_review");
     assert.equal(result.reviewQueue.items[0]?.tool_id, "agent-codex");
+    assert.deepEqual(result.reviewQueue.items[0]?.duplicate_of_tool_ids, ["agent-codex"]);
     assert.equal(result.toolCardDrafts[0]?.id, "agent-codex");
     assert.deepEqual(result.toolCardDrafts[0]?.evidence_refs, ["manual-agent-radar-seed-agent-codex-20260708"]);
 

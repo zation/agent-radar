@@ -4,12 +4,14 @@ import { crawlEnabledSources } from "./crawler.js";
 import { parseSnapshot } from "./parser.js";
 import { buildToolCardReviewQueue, type ToolCardReviewQueue } from "./review-queue.js";
 import { getEnabledSources, sourceRegistry } from "./source-registry.js";
+import { seedToolCards } from "../data/seed-tool-cards.js";
 import type { RawSourceSnapshot, SourceRecord, ToolCard } from "../schema.js";
 
 export interface RunIngestionOptions {
   outputDir: string;
   now?: string;
   fetchImpl?: typeof fetch;
+  existingToolCards?: ToolCard[];
 }
 
 export interface RunIngestionResult {
@@ -42,7 +44,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeToolCardDrafts(options.outputDir, draftsBySource);
   const sourceRecords = [...recordsBySource.values()].flat();
   const toolCardDrafts = [...draftsBySource.values()].flat();
-  const reviewQueue = buildToolCardReviewQueue(toolCardDrafts, sourceRecords, now);
+  const reviewQueue = buildToolCardReviewQueue(toolCardDrafts, sourceRecords, options.existingToolCards ?? seedToolCards, now);
   await writeReviewQueue(options.outputDir, reviewQueue);
 
   return {

@@ -8,6 +8,7 @@ export interface ToolCardReviewQueueItem {
   name: string;
   source_id: string;
   source_record_id: string;
+  duplicate_of_tool_ids: string[];
   status: ToolCardReviewStatus;
   validation_errors: string[];
   validation_warnings: string[];
@@ -24,9 +25,14 @@ export interface ToolCardReviewQueue {
   items: ToolCardReviewQueueItem[];
 }
 
-export function buildToolCardReviewQueue(drafts: ToolCard[], sourceRecords: SourceRecord[], generatedAt: string): ToolCardReviewQueue {
+export function buildToolCardReviewQueue(
+  drafts: ToolCard[],
+  sourceRecords: SourceRecord[],
+  existingToolCards: ToolCard[],
+  generatedAt: string
+): ToolCardReviewQueue {
   const recordsById = new Map(sourceRecords.map((record) => [record.id, record]));
-  const items = drafts.map((draft) => buildReviewQueueItem(draft, recordsById));
+  const items = drafts.map((draft) => buildReviewQueueItem(draft, recordsById, existingToolCards));
 
   return {
     schema_version: "tool_card_review_queue.v1",
@@ -40,7 +46,7 @@ export function buildToolCardReviewQueue(drafts: ToolCard[], sourceRecords: Sour
   };
 }
 
-function buildReviewQueueItem(draft: ToolCard, recordsById: Map<string, SourceRecord>): ToolCardReviewQueueItem {
+function buildReviewQueueItem(draft: ToolCard, recordsById: Map<string, SourceRecord>, existingToolCards: ToolCard[]): ToolCardReviewQueueItem {
   const validation = validateToolCards([draft]);
   const sourceRecordId = draft.evidence_refs[0] ?? "";
   const sourceRecord = recordsById.get(sourceRecordId);
@@ -50,8 +56,20 @@ function buildReviewQueueItem(draft: ToolCard, recordsById: Map<string, SourceRe
     name: draft.name,
     source_id: sourceRecord?.source_id ?? "unknown",
     source_record_id: sourceRecordId,
+    duplicate_of_tool_ids: findDuplicateToolIds(draft, existingToolCards),
     status: validation.passed ? "ready_for_review" : "blocked_validation",
     validation_errors: validation.errors,
     validation_warnings: validation.warnings
   };
+}
+
+function findDuplicateToolIds(draft: ToolCard, existingToolCards: ToolCard[]): string[] {
+  const draftKeys = canonicalToolKeys(draft);
+  return existingToolCards.filter((card) => card.id === draft.id || canonicalToolKeys(card).some((key) => draftKeys.includes(key))).map((card) => card.id);
+}
+
+function canonicalToolKeys(card: ToolCard): string[] {
+  return [card.repo_url, card.homepage_url, card.docs_url, ...(card.package_urls ?? [])]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.toLowerCase().replace(/\.git$/, "").replace(/\/$/, ""));
 }
