@@ -37,6 +37,7 @@
   - OpenAI：`OpenAI GPT-4.1`、`OpenAI GPT-4.1 mini`
   - MiniMax：`MiniMax M3`
   - DeepSeek：`DeepSeek V4 Pro`、`DeepSeek V4 Flash`
+- 推荐 provider endpoint、model label、API model 和 instruction role 已集中到 provider registry，避免推荐引擎内散落常量。
 - LLM provider 请求会记录 provider、endpoint、model、状态码和脱敏错误体，不记录 API key。
 - 无 `AGENT_RADAR_LLM_API_KEY` 时，pipeline/eval 会生成 blocked eval summary，而不是运行旧本地推荐引擎。
 - 已用真实 provider key 跑通 5 个 MVP golden queries，并通过 release gate。
@@ -345,7 +346,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
   - Production 只 promote 已审核的 preview deployment 或同一个 immutable bundle，不重新运行 pipeline/eval。
   - 记录 production deployment id、manifest checksum 和 D1 seed checksum。
 - 增加 1-2 个官方来源的 crawler/parser，保持 GitHub topics disabled 直到噪声评估完成。
-- 建立 provider registry，避免 provider endpoint/model label 分散在代码常量里。
+- 为 provider registry 增加版本号和 UI/配置导出能力。
 - 补齐完整 MCP server 协议包装和 agent-facing 示例。
 - 让 eval report 区分 `blocked_no_key`、`provider_error`、`schema_error`、`quality_failure`。
 

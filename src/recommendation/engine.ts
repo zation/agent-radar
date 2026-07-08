@@ -11,6 +11,7 @@ import type {
   ToolCard,
   ToolType
 } from "../schema.js";
+import { resolveRecommendationProviderModel, type RecommendationProvider } from "./provider-registry.js";
 
 export interface RecommendationLlmInput {
   apiKey: string;
@@ -69,7 +70,7 @@ export async function recommendTools(
   const client = runtime.client ?? createOpenAiRecommendationClient();
   const llmOutput = await client.recommend({
     apiKey: runtime.apiKey,
-    model: normalizeModelName(runtime.model),
+    model: runtime.model.trim(),
     prompt: buildRecommendationPrompt(query, cards, ratings)
   });
 
@@ -223,33 +224,16 @@ interface ModelRequest {
   endpoint: string;
   instructionRole: "developer" | "system";
   model: string;
-  provider: "openai" | "minimax" | "deepseek";
+  provider: RecommendationProvider;
 }
 
 export function resolveModelRequest(model: string): ModelRequest {
-  const normalizedModel = normalizeModelName(model);
-  if (normalizedModel.startsWith("MiniMax-")) {
-    return {
-      endpoint: "https://api.minimax.io/v1/chat/completions",
-      instructionRole: "system",
-      model: normalizedModel,
-      provider: "minimax"
-    };
-  }
-  if (normalizedModel.startsWith("deepseek-")) {
-    return {
-      endpoint: "https://api.deepseek.com/chat/completions",
-      instructionRole: "system",
-      model: normalizedModel,
-      provider: "deepseek"
-    };
-  }
-
+  const providerModel = resolveRecommendationProviderModel(model);
   return {
-    endpoint: "https://api.openai.com/v1/chat/completions",
-    instructionRole: "developer",
-    model: normalizedModel,
-    provider: "openai"
+    endpoint: providerModel.endpoint,
+    instructionRole: providerModel.instructionRole,
+    model: providerModel.apiModel,
+    provider: providerModel.provider
   };
 }
 
@@ -364,17 +348,6 @@ function buildNextSteps(card: ToolCard, risk: RiskLevel): string[] {
     return ["先确认权限范围和数据流。", "使用最小权限、测试模式或只读范围。"];
   }
   return ["阅读来源文档。", "按最小权限配置后再执行。"];
-}
-
-function normalizeModelName(model: string): string {
-  const knownLabels: Record<string, string> = {
-    "OpenAI GPT-4.1": "gpt-4.1",
-    "OpenAI GPT-4.1 mini": "gpt-4.1-mini",
-    "MiniMax M3": "MiniMax-M3",
-    "DeepSeek V4 Pro": "deepseek-v4-pro",
-    "DeepSeek V4 Flash": "deepseek-v4-flash"
-  };
-  return knownLabels[model] ?? model;
 }
 
 function clampScore(score: number): number {
