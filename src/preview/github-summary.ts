@@ -10,6 +10,11 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     `- Eval: ${manifest.eval.passed}/${manifest.eval.total} using \`${manifest.eval.model}\``,
     `- Eval failure categories: ${formatFailureCategories(manifest.eval.failure_categories)}`,
     ...(manifest.tool_card_field_provenance ? [`- Tool Card field provenance: ${formatToolCardFieldProvenance(manifest.tool_card_field_provenance)}`] : []),
+    ...(manifest.crawl_audit ? [`- Crawl audit: ${formatCrawlAudit(manifest.crawl_audit)}`] : []),
+    ...(manifest.source_registry_review ? [`- Source registry review: ${formatSourceRegistryReview(manifest.source_registry_review)}`] : []),
+    ...(manifest.ingestion_review ? [`- Ingestion approvals: ${formatIngestionApprovals(manifest.ingestion_review.approvals)}`] : []),
+    ...(manifest.release_admission ? [`- Release admission: ${formatReleaseAdmission(manifest.release_admission)}`] : []),
+    ...(manifest.promotion_candidates ? [`- Promotion candidates: ${manifest.promotion_candidates.candidates}`] : []),
     `- Checksums: ${Object.keys(manifest.checksums).length} files`
   ];
   return `${lines.join("\n")}\n`;
@@ -24,4 +29,20 @@ function formatFailureCategories(categories: Record<string, number>): string {
 function formatToolCardFieldProvenance(provenance: NonNullable<ArtifactManifest["tool_card_field_provenance"]>): string {
   const covered = provenance.covered + provenance.covered_by_manual_review;
   return `${covered}/${provenance.fields_checked} fields covered (${provenance.covered} field refs, ${provenance.covered_by_manual_review} manual review, ${provenance.missing} missing)`;
+}
+
+function formatCrawlAudit(crawlAudit: NonNullable<ArtifactManifest["crawl_audit"]>): string {
+  return `${crawlAudit.success} success, ${crawlAudit.partial} partial, ${crawlAudit.failed} failed (${crawlAudit.total} total)`;
+}
+
+function formatSourceRegistryReview(review: NonNullable<ArtifactManifest["source_registry_review"]>): string {
+  return `${review.confirmed}/${review.total_requirements} confirmed, ${review.pending} pending, ${review.rejected} rejected, ${review.needs_changes} needs changes`;
+}
+
+function formatIngestionApprovals(approvals: NonNullable<ArtifactManifest["ingestion_review"]>["approvals"]): string {
+  return `${approvals.approved} approved, ${approvals.rejected} rejected, ${approvals.needs_changes} needs changes`;
+}
+
+function formatReleaseAdmission(admission: NonNullable<ArtifactManifest["release_admission"]>): string {
+  return `${admission.eligible_for_publish} eligible, ${admission.blocked} blocked`;
 }
