@@ -43,3 +43,17 @@ test("tool card validator rejects cards missing release-quality fields", () => {
   assert.match(validation.errors.join("\n"), /invalid-tool-card: evidence_refs is required/);
   assert.match(validation.errors.join("\n"), /invalid-tool-card: confidence must be at least medium for reliable release/);
 });
+
+test("tool card validator accepts ISO UTC timestamps with milliseconds", () => {
+  const card: ToolCard = {
+    ...seedToolCards[0],
+    id: "millisecond-timestamp-card",
+    last_checked_at: "2026-07-08T12:34:56.789Z",
+    created_at: "2026-07-08T12:34:56.789Z",
+    updated_at: "2026-07-08T12:34:56.789Z"
+  };
+
+  const validation = validateToolCards([card]);
+
+  assert.equal(validation.passed, true);
+});

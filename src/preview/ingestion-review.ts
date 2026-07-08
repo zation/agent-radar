@@ -8,6 +8,8 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult): strin
     `- Snapshots: ${result.snapshots.length}`,
     `- Source records: ${result.sourceRecords.length}`,
     `- Tool card drafts: ${result.toolCardDrafts.length}`,
+    `- Review ready: ${result.reviewQueue.summary.ready_for_review}`,
+    `- Review blocked: ${result.reviewQueue.summary.blocked_validation}`,
     `- Failed snapshots: ${result.snapshots.filter((snapshot) => snapshot.status === "failed").length}`,
     "",
     "## Sources",

@@ -42,7 +42,17 @@ const ingestionResult: RunIngestionResult = {
       warnings: []
     }
   ],
-  toolCardDrafts: []
+  toolCardDrafts: [],
+  reviewQueue: {
+    schema_version: "tool_card_review_queue.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    summary: {
+      total: 0,
+      ready_for_review: 0,
+      blocked_validation: 0
+    },
+    items: []
+  }
 };
 
 test("renders ingestion review markdown for preview reviewers", () => {
@@ -52,6 +62,7 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /manual-agent-radar-seed/);
   assert.match(markdown, /Codex/);
   assert.match(markdown, /https:\/\/developers.openai.com\/codex/);
+  assert.match(markdown, /Review ready: 0/);
 });
 
 test("builds artifact manifest with checksums and eval summary", async () => {

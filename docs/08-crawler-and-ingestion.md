@@ -33,9 +33,10 @@ npm run ingest
   -> parse Source Records
   -> data/source_records/<source_id>.jsonl
   -> data/tool_card_drafts/<source_id>.jsonl
+  -> data/review_queue/tool_card_drafts.json
 ```
 
-当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Raw Snapshot、Source Record 和 Tool Card draft 契约。完整且无 parser warnings 的 manual Source Records 会生成待审核 Tool Card drafts，但尚未进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
+当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Raw Snapshot、Source Record、Tool Card draft 和 review queue 契约。完整且无 parser warnings 的 manual Source Records 会生成待审核 Tool Card drafts，并按 Tool Card validator 结果进入 review queue；这些草稿仍不进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
 
 发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 preview/release 审核源配置。
 
@@ -48,7 +49,7 @@ npm run ingest
 - 更多来源专属 parser。
 - deduper、normalizer 和人工 override。
 - 完整 Source Registry validator，包括来源变更 diff、robots/terms 审核记录和 parser 覆盖检查。
-- 完整的人工审核队列和 Tool Card drafts 发布准入流程。
+- 完整的人工审核 UI、人工批准记录和 Tool Card drafts 发布准入流程。
 - 更完整的 Tool Card validator，包括 URL 可达性、字段级 evidence coverage 和 override 审计。
 
 因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。

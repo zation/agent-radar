@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { crawlEnabledSources } from "./crawler.js";
 import { parseSnapshot } from "./parser.js";
+import { buildToolCardReviewQueue, type ToolCardReviewQueue } from "./review-queue.js";
 import { getEnabledSources, sourceRegistry } from "./source-registry.js";
 import type { RawSourceSnapshot, SourceRecord, ToolCard } from "../schema.js";
 
@@ -15,6 +16,7 @@ export interface RunIngestionResult {
   snapshots: RawSourceSnapshot[];
   sourceRecords: SourceRecord[];
   toolCardDrafts: ToolCard[];
+  reviewQueue: ToolCardReviewQueue;
 }
 
 export async function runIngestion(options: RunIngestionOptions): Promise<RunIngestionResult> {
@@ -38,11 +40,16 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeSourceRecords(options.outputDir, recordsBySource);
   const draftsBySource = buildToolCardDrafts(recordsBySource);
   await writeToolCardDrafts(options.outputDir, draftsBySource);
+  const sourceRecords = [...recordsBySource.values()].flat();
+  const toolCardDrafts = [...draftsBySource.values()].flat();
+  const reviewQueue = buildToolCardReviewQueue(toolCardDrafts, sourceRecords, now);
+  await writeReviewQueue(options.outputDir, reviewQueue);
 
   return {
     snapshots,
-    sourceRecords: [...recordsBySource.values()].flat(),
-    toolCardDrafts: [...draftsBySource.values()].flat()
+    sourceRecords,
+    toolCardDrafts,
+    reviewQueue
   };
 }
 
@@ -112,4 +119,10 @@ async function writeToolCardDrafts(outputDir: string, draftsBySource: Map<string
     const jsonl = drafts.length > 0 ? `${drafts.map((draft) => JSON.stringify(draft)).join("\n")}\n` : "";
     await writeFile(join(draftsDir, `${sourceId}.jsonl`), jsonl, "utf8");
   }
+}
+
+async function writeReviewQueue(outputDir: string, reviewQueue: ToolCardReviewQueue): Promise<void> {
+  const reviewQueueDir = join(outputDir, "data", "review_queue");
+  await mkdir(reviewQueueDir, { recursive: true });
+  await writeFile(join(reviewQueueDir, "tool_card_drafts.json"), JSON.stringify(reviewQueue, null, 2), "utf8");
 }

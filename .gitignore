@@ -6,6 +6,7 @@ public/reports/
 data/raw/
 data/source_records/
 data/tool_card_drafts/
+data/review_queue/
 artifacts/
 .DS_Store
 *.log

@@ -159,12 +159,20 @@ test("ingestion writes tool card drafts from complete manual source records", as
     });
 
     assert.equal(result.toolCardDrafts.length, 1);
+    assert.equal(result.reviewQueue.items.length, 1);
+    assert.equal(result.reviewQueue.items[0]?.status, "ready_for_review");
+    assert.equal(result.reviewQueue.items[0]?.tool_id, "agent-codex");
     assert.equal(result.toolCardDrafts[0]?.id, "agent-codex");
     assert.deepEqual(result.toolCardDrafts[0]?.evidence_refs, ["manual-agent-radar-seed-agent-codex-20260708"]);
 
     const draftsJsonl = await readFile(join(outputDir, "data", "tool_card_drafts", "manual-agent-radar-seed.jsonl"), "utf8");
     assert.match(draftsJsonl, /"id":"agent-codex"/);
     assert.match(draftsJsonl, /manual-agent-radar-seed-agent-codex-20260708/);
+
+    const reviewQueue = JSON.parse(await readFile(join(outputDir, "data", "review_queue", "tool_card_drafts.json"), "utf8"));
+    assert.equal(reviewQueue.schema_version, "tool_card_review_queue.v1");
+    assert.equal(reviewQueue.summary.ready_for_review, 1);
+    assert.equal(reviewQueue.items[0].source_record_id, "manual-agent-radar-seed-agent-codex-20260708");
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
