@@ -23,5 +23,12 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     builtAt: options.builtAt,
     providerModel: options.providerModel
   });
+  manifest.ingestion_review = {
+    approvals: {
+      approved: options.ingestion.approvalArtifact.summary.approved,
+      rejected: options.ingestion.approvalArtifact.summary.rejected,
+      needs_changes: options.ingestion.approvalArtifact.summary.needs_changes
+    }
+  };
   await writeFile(join(options.distDir, "artifact-manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
 }

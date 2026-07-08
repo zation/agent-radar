@@ -14,6 +14,13 @@ export interface ArtifactManifest {
     model: string;
     failure_categories: Record<string, number>;
   };
+  ingestion_review?: {
+    approvals: {
+      approved: number;
+      rejected: number;
+      needs_changes: number;
+    };
+  };
   checksums: Record<string, string>;
 }
 

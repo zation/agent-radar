@@ -160,10 +160,14 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     });
 
     const reviewMarkdown = await readFile(join(artifactsDir, "ingestion.md"), "utf8");
-    const artifactManifest = JSON.parse(await readFile(join(outputDir, "artifact-manifest.json"), "utf8")) as { git_sha: string };
+    const artifactManifest = JSON.parse(await readFile(join(outputDir, "artifact-manifest.json"), "utf8")) as {
+      git_sha: string;
+      ingestion_review: { approvals: { approved: number; rejected: number; needs_changes: number } };
+    };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
     assert.equal(artifactManifest.git_sha, "abc123");
+    assert.deepEqual(artifactManifest.ingestion_review.approvals, { approved: 1, rejected: 0, needs_changes: 0 });
     await assert.rejects(() => stat(join(outputDir, "review", "ingestion.md")));
   } finally {
     await rm(outputDir, { recursive: true, force: true });
