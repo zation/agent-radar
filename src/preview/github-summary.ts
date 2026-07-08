@@ -16,6 +16,7 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     ...(manifest.ingestion_review ? [`- Ingestion approvals: ${formatIngestionApprovals(manifest.ingestion_review.approvals)}`] : []),
     ...(manifest.approval_requests ? [`- Approval requests: ${formatApprovalRequests(manifest.approval_requests)}`] : []),
     ...(manifest.field_value_provenance ? [`- Field value provenance: ${formatFieldValueProvenance(manifest.field_value_provenance)}`] : []),
+    ...(manifest.auto_review ? [`- Auto review: ${formatAutoReview(manifest.auto_review)}`] : []),
     ...(manifest.release_admission ? [`- Release admission: ${formatReleaseAdmission(manifest.release_admission)}`] : []),
     ...(manifest.discovery_candidates ? [`- Discovery candidates: ${formatDiscoveryCandidates(manifest.discovery_candidates)}`] : []),
     ...(manifest.promotion_candidates ? [`- Promotion candidates: ${manifest.promotion_candidates.candidates}`] : []),
@@ -59,6 +60,10 @@ function formatApprovalRequests(requests: NonNullable<ArtifactManifest["approval
 
 function formatFieldValueProvenance(provenance: NonNullable<ArtifactManifest["field_value_provenance"]>): string {
   return `${provenance.field_values} field values across ${provenance.tool_cards} Tool Cards`;
+}
+
+function formatAutoReview(autoReview: NonNullable<ArtifactManifest["auto_review"]>): string {
+  return `${autoReview.promote} promote, ${autoReview.needs_review} needs review, ${autoReview.keep_draft} keep draft, ${autoReview.reject} reject, ${autoReview.retire} retire`;
 }
 
 function formatReleaseAdmission(admission: NonNullable<ArtifactManifest["release_admission"]>): string {

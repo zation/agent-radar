@@ -65,6 +65,13 @@ export interface ArtifactManifest {
     tool_cards: number;
     field_values: number;
   };
+  auto_review?: {
+    promote: number;
+    keep_draft: number;
+    needs_review: number;
+    reject: number;
+    retire: number;
+  };
   release_admission?: {
     eligible_for_publish: number;
     blocked: number;

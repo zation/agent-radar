@@ -284,20 +284,20 @@ recommended_frequency: weekly
 trust_level: active_open_source
 field_coverage: [name, description, repo_url, stars, license, last_commit_at]
 rate_limits: "GitHub API rate limits"
-terms_notes: "使用公开 API，不采集私有仓库"
+terms_notes: "使用公开 API，不采集私有仓库；结果进入自动审核和发布 gate"
 access_review:
   robots_txt: reviewed
   terms: reviewed
   reviewed_by: agent-radar
-  reviewed_at: 2026-07-06T00:00:00Z
-  notes: "仅使用公开 topic/API surfaces"
+  reviewed_at: 2026-07-08T00:00:00Z
+  notes: "仅使用公开 topic/API surfaces；不发送 Authorization header、cookie 或私人 token"
 parser: github_topic_parser
 failure_policy: "限流时跳过本次并保留上次结果"
-enabled: false
-last_reviewed_at: 2026-07-06T00:00:00Z
+enabled: true
+last_reviewed_at: 2026-07-08T00:00:00Z
 ```
 
-用途：v0.2 之后可用于发现开源 MCP 工具；MVP 不启用，避免社区来源噪声。显式抓取时 crawler 会把 `https://github.com/topics/<topic>` 映射到 GitHub Search API，并保留 rate-limit response metadata 供审核。
+用途：用于发现开源 MCP 工具。crawler 会把 `https://github.com/topics/<topic>` 映射到 GitHub Search API，并保留 rate-limit response metadata 供审核。该来源生成的 repository drafts 只能进入自动审核和 promotion candidate，不会直接进入可靠发布数据。
 
 ### GitHub Topics: AI Agent
 

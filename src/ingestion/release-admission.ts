@@ -1,12 +1,20 @@
 import type { ToolCardReviewQueue } from "./review-queue.js";
+import type { ToolCardAutoReview } from "./auto-review.js";
 
 export type ToolCardReleaseAdmissionStatus = "eligible_for_publish" | "blocked";
+export type ToolCardReleaseAdmissionGate = "manual_approval" | "auto_review";
 
 export interface ToolCardReleaseAdmissionItem {
   tool_id: string;
   source_record_id: string;
   status: ToolCardReleaseAdmissionStatus;
+  gate: ToolCardReleaseAdmissionGate | "blocked";
   blocking_reasons: string[];
+  auto_review?: {
+    suggested_action: string;
+    score: number;
+    human_review_reasons: string[];
+  };
 }
 
 export interface ToolCardReleaseAdmission {
@@ -20,18 +28,30 @@ export interface ToolCardReleaseAdmission {
   items: ToolCardReleaseAdmissionItem[];
 }
 
-export function buildToolCardReleaseAdmission(reviewQueue: ToolCardReviewQueue, generatedAt: string): ToolCardReleaseAdmission {
+export function buildToolCardReleaseAdmission(reviewQueue: ToolCardReviewQueue, generatedAt: string, autoReview?: ToolCardAutoReview): ToolCardReleaseAdmission {
+  const autoReviewByToolId = new Map((autoReview?.items ?? []).map((item) => [item.tool_id, item]));
   const items: ToolCardReleaseAdmissionItem[] = reviewQueue.items.map((item) => {
+    const autoReviewItem = autoReviewByToolId.get(item.tool_id);
     const blockingReasons: string[] = [];
     if (item.status !== "ready_for_review") blockingReasons.push("validation_not_ready");
-    if (item.approval?.decision !== "approved") blockingReasons.push("approval_not_approved");
+    const manualApprovalPassed = item.approval?.decision === "approved";
+    const autoReviewPassed = autoReviewItem?.suggested_action === "promote" && autoReviewItem.human_review_reasons.length === 0;
+    if (!manualApprovalPassed && !autoReviewPassed) blockingReasons.push("approval_or_auto_review_not_passed");
     if (item.duplicate_of_tool_ids.length > 0 || item.duplicate_of_draft_tool_ids.length > 0) blockingReasons.push("possible_duplicate");
 
     return {
       tool_id: item.tool_id,
       source_record_id: item.source_record_id,
       status: blockingReasons.length === 0 ? "eligible_for_publish" : "blocked",
-      blocking_reasons: blockingReasons
+      gate: blockingReasons.length > 0 ? "blocked" : manualApprovalPassed ? "manual_approval" : "auto_review",
+      blocking_reasons: blockingReasons,
+      auto_review: autoReviewItem
+        ? {
+            suggested_action: autoReviewItem.suggested_action,
+            score: autoReviewItem.scorecard.total,
+            human_review_reasons: autoReviewItem.human_review_reasons
+          }
+        : undefined
     };
   });
 

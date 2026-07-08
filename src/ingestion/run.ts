@@ -2,6 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildApprovalArtifact, type ApprovalArtifact, type ApprovalRecord } from "./approval.js";
 import { buildToolCardApprovalRequests, type ToolCardApprovalRequests } from "./approval-requests.js";
+import { buildToolCardAutoReview, type ToolCardAutoReview } from "./auto-review.js";
 import { buildCrawlAudit, type CrawlAudit } from "./crawl-audit.js";
 import { buildSourceCrawlPlan, type SourceCrawlPlan } from "./crawl-plan.js";
 import { crawlEnabledSources } from "./crawler.js";
@@ -41,6 +42,7 @@ export interface RunIngestionResult {
   fieldProvenance: ToolCardFieldValueProvenance;
   duplicateReport: ToolCardDuplicateReport;
   reviewQueue: ToolCardReviewQueue;
+  autoReview: ToolCardAutoReview;
   releaseAdmission: ToolCardReleaseAdmission;
   promotionCandidates: ToolCardPromotionCandidates;
   promotionPlan: ToolCardPromotionPlan;
@@ -88,11 +90,13 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeDuplicateReport(options.outputDir, duplicateReport);
   const reviewQueue = buildToolCardReviewQueue(toolCardDrafts, sourceRecords, existingToolCards, now, approvalRecords);
   await writeReviewQueue(options.outputDir, reviewQueue);
+  const autoReview = buildToolCardAutoReview(toolCardDrafts, sourceRecords, reviewQueue, now);
+  await writeAutoReview(options.outputDir, autoReview);
   const approvalRequests = buildToolCardApprovalRequests(reviewQueue, now);
   await writeApprovalRequests(options.outputDir, approvalRequests);
-  const releaseAdmission = buildToolCardReleaseAdmission(reviewQueue, now);
+  const releaseAdmission = buildToolCardReleaseAdmission(reviewQueue, now, autoReview);
   await writeReleaseAdmission(options.outputDir, releaseAdmission);
-  const promotionCandidates = buildToolCardPromotionCandidates(toolCardDrafts, releaseAdmission, approvalRecords, now);
+  const promotionCandidates = buildToolCardPromotionCandidates(toolCardDrafts, releaseAdmission, approvalRecords, now, autoReview);
   await writePromotionCandidates(options.outputDir, promotionCandidates);
   const promotionPlan = buildToolCardPromotionPlan(promotionCandidates, now);
   await writePromotionPlan(options.outputDir, promotionPlan);
@@ -112,6 +116,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     fieldProvenance,
     duplicateReport,
     reviewQueue,
+    autoReview,
     releaseAdmission,
     promotionCandidates,
     promotionPlan,
@@ -224,6 +229,12 @@ async function writeReleaseAdmission(outputDir: string, releaseAdmission: ToolCa
   const releaseAdmissionDir = join(outputDir, "data", "release_admission");
   await mkdir(releaseAdmissionDir, { recursive: true });
   await writeFile(join(releaseAdmissionDir, "tool_card_drafts.json"), JSON.stringify(releaseAdmission, null, 2), "utf8");
+}
+
+async function writeAutoReview(outputDir: string, autoReview: ToolCardAutoReview): Promise<void> {
+  const autoReviewDir = join(outputDir, "data", "auto_review");
+  await mkdir(autoReviewDir, { recursive: true });
+  await writeFile(join(autoReviewDir, "tool_card_drafts.json"), JSON.stringify(autoReview, null, 2), "utf8");
 }
 
 async function writePromotionCandidates(outputDir: string, promotionCandidates: ToolCardPromotionCandidates): Promise<void> {

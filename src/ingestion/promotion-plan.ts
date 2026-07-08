@@ -7,7 +7,8 @@ export interface ToolCardPromotionPlanItem {
   target_file: "src/data/seed-tool-cards.ts";
   candidate_artifact_path: "data/promotion_candidates/tool_cards.json";
   seed_candidate_artifact_path: "data/promotion_candidates/seed_tool_card_candidates.ts";
-  approval: {
+  review: {
+    gate: "manual_approval" | "auto_review";
     reviewed_by: string;
     reviewed_at: string;
     reason: string;
@@ -33,7 +34,7 @@ export function buildToolCardPromotionPlan(promotionCandidates: ToolCardPromotio
     target_file: "src/data/seed-tool-cards.ts" as const,
     candidate_artifact_path: "data/promotion_candidates/tool_cards.json" as const,
     seed_candidate_artifact_path: "data/promotion_candidates/seed_tool_card_candidates.ts" as const,
-    approval: candidate.approval,
+    review: candidate.review,
     checks: ["Manually merge the candidate draft into src/data/seed-tool-cards.ts.", "Run npm run pipeline after manual merge.", "Run npm run release:check before publishing."]
   }));
 

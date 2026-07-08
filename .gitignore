@@ -7,6 +7,17 @@ data/raw/
 data/source_records/
 data/tool_card_drafts/
 data/review_queue/
+data/approval_requests/
+data/approvals/
+data/auto_review/
+data/crawl_audit/
+data/crawl_plan/
+data/dedup/
+data/discovery_candidates/
+data/field_provenance/
+data/overrides/
+data/promotion_candidates/
+data/release_admission/
 artifacts/
 .env
 .DS_Store

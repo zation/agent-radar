@@ -47,6 +47,13 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     tool_cards: options.ingestion.fieldProvenance.summary.tool_cards,
     field_values: options.ingestion.fieldProvenance.summary.field_values
   };
+  manifest.auto_review = {
+    promote: options.ingestion.autoReview.summary.promote,
+    keep_draft: options.ingestion.autoReview.summary.keep_draft,
+    needs_review: options.ingestion.autoReview.summary.needs_review,
+    reject: options.ingestion.autoReview.summary.reject,
+    retire: options.ingestion.autoReview.summary.retire
+  };
   manifest.release_admission = {
     eligible_for_publish: options.ingestion.releaseAdmission.summary.eligible_for_publish,
     blocked: options.ingestion.releaseAdmission.summary.blocked

@@ -32,6 +32,7 @@ export function renderIngestionReviewMarkdown(
     `- Discovery candidates: ${result.discoveryCandidates.summary.pending_manual_review} pending manual review`,
     `- Crawl audit: ${result.crawlAudit.summary.success} success, ${result.crawlAudit.summary.partial} partial, ${result.crawlAudit.summary.failed} failed`,
     `- Approvals: ${result.approvalArtifact.summary.approved} approved, ${result.approvalArtifact.summary.rejected} rejected, ${result.approvalArtifact.summary.needs_changes} needs changes`,
+    `- Auto review: ${result.autoReview.summary.promote} promote, ${result.autoReview.summary.needs_review} needs review, ${result.autoReview.summary.keep_draft} keep draft`,
     `- Release admission: ${result.releaseAdmission.summary.eligible_for_publish} eligible, ${result.releaseAdmission.summary.blocked} blocked`,
     `- Promotion candidates: ${result.promotionCandidates.summary.candidates}`,
     `- Promotion plan: ${formatPromotionPlanSummary(result.promotionPlan.summary)}`,
@@ -48,6 +49,7 @@ export function renderIngestionReviewMarkdown(
     }),
     ...renderDiscoveryCandidates(result),
     ...renderFieldValueProvenance(result),
+    ...renderAutoReview(result),
     ...renderApprovalRequests(result),
     ...renderReleaseAdmission(result),
     ...renderPromotionCandidates(result),
@@ -57,6 +59,19 @@ export function renderIngestionReviewMarkdown(
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderAutoReview(result: RunIngestionResult): string[] {
+  if (result.autoReview.items.length === 0) return [];
+
+  return [
+    "",
+    "## Auto Review",
+    ...result.autoReview.items.map((item) => {
+      const reasons = item.human_review_reasons.length > 0 ? item.human_review_reasons.join(",") : "none";
+      return `- ${item.tool_id} source_record=${item.source_record_id} action=${item.suggested_action} score=${item.scorecard.total} confidence=${item.confidence} human_review_reasons=${reasons}`;
+    })
+  ];
 }
 
 function renderDiscoveryCandidates(result: RunIngestionResult): string[] {
@@ -120,7 +135,7 @@ function renderReleaseAdmission(result: RunIngestionResult): string[] {
     "## Release Admission",
     ...result.releaseAdmission.items.map((item) => {
       const blockingReasons = item.blocking_reasons.length > 0 ? item.blocking_reasons.join(",") : "none";
-      return `- ${item.tool_id} source_record=${item.source_record_id} status=${item.status} blocking_reasons=${blockingReasons}`;
+      return `- ${item.tool_id} source_record=${item.source_record_id} status=${item.status} gate=${item.gate} blocking_reasons=${blockingReasons}`;
     })
   ];
 }
@@ -132,7 +147,7 @@ function renderPromotionCandidates(result: RunIngestionResult): string[] {
     "",
     "## Promotion Candidates",
     ...result.promotionCandidates.items.map((item) => {
-      return `- ${item.tool_id} (${item.draft.name}) source_record=${item.source_record_id} reviewer=${item.approval.reviewed_by} reviewed_at=${item.approval.reviewed_at} approval_reason=${item.approval.reason}`;
+      return `- ${item.tool_id} (${item.draft.name}) source_record=${item.source_record_id} gate=${item.review.gate} reviewer=${item.review.reviewed_by} reviewed_at=${item.review.reviewed_at} review_reason=${item.review.reason}`;
     })
   ];
 }

@@ -20,6 +20,15 @@ export interface IngestionCliSummaryInput {
       field_values: number;
     };
   };
+  autoReview: {
+    summary: {
+      promote: number;
+      keep_draft: number;
+      needs_review: number;
+      reject: number;
+      retire: number;
+    };
+  };
   releaseAdmission: {
     summary: {
       eligible_for_publish: number;
@@ -65,6 +74,13 @@ export interface IngestionCliSummary {
     tool_cards: number;
     field_values: number;
   };
+  auto_review: {
+    promote: number;
+    keep_draft: number;
+    needs_review: number;
+    reject: number;
+    retire: number;
+  };
   release_admission: {
     eligible_for_publish: number;
     blocked: number;
@@ -100,6 +116,13 @@ export function formatIngestionCliSummary(result: IngestionCliSummaryInput): Ing
     field_value_provenance: {
       tool_cards: result.fieldProvenance.summary.tool_cards,
       field_values: result.fieldProvenance.summary.field_values
+    },
+    auto_review: {
+      promote: result.autoReview.summary.promote,
+      keep_draft: result.autoReview.summary.keep_draft,
+      needs_review: result.autoReview.summary.needs_review,
+      reject: result.autoReview.summary.reject,
+      retire: result.autoReview.summary.retire
     },
     release_admission: {
       eligible_for_publish: result.releaseAdmission.summary.eligible_for_publish,

@@ -1,4 +1,4 @@
-import type { SourceRecord, ToolCard } from "../schema.js";
+import type { SourceRecord, ToolCard, ToolType } from "../schema.js";
 
 export interface OverrideRecord {
   id: string;
@@ -18,8 +18,11 @@ export function normalizeToolCardDrafts(sourceRecords: SourceRecord[], overrideR
   const overridesByToolId = groupOverridesByToolId(overrideRecords);
 
   return sourceRecords
-    .filter((record) => record.record_type === "manual" && !record.warnings?.length)
-    .map((record) => normalizeManualToolCardDraft(record, overridesByToolId.get(readToolId(record))))
+    .flatMap((record) => {
+      if (record.record_type === "manual" && !record.warnings?.length) return [normalizeManualToolCardDraft(record, overridesByToolId.get(readToolId(record)))];
+      if (record.record_type === "repository") return [normalizeRepositoryToolCardDraft(record, overridesByToolId)];
+      return [];
+    })
     .filter((draft): draft is ToolCard => Boolean(draft));
 }
 
@@ -34,6 +37,70 @@ function normalizeManualToolCardDraft(record: SourceRecord, overrideRecords: Ove
   };
 
   for (const override of overrideRecords ?? []) {
+    draft[override.field] = override.new_value as never;
+    draft.evidence_refs = [...new Set([...draft.evidence_refs, override.id])];
+  }
+
+  return draft;
+}
+
+function normalizeRepositoryToolCardDraft(record: SourceRecord, overridesByToolId: Map<string, OverrideRecord[]>): ToolCard | undefined {
+  const repoUrl = readString(record.parsed_fields.repo_url) ?? record.urls.find((url) => url.includes("github.com"));
+  const summary = record.description?.trim();
+  if (!repoUrl || !summary) return undefined;
+
+  const topics = readStringArray(record.parsed_fields.topics);
+  const toolType = inferToolType(record, topics);
+  const toolId = `${toolType}-${slugify(record.name)}`;
+  const license = readString(record.parsed_fields.license);
+  const lastCommitAt = readString(record.parsed_fields.last_commit_at);
+
+  const draft: ToolCard = {
+    id: toolId,
+    schema_version: "tool_card.v1",
+    name: record.name,
+    type: toolType,
+    secondary_types: inferSecondaryTypes(topics, toolType),
+    summary,
+    source_urls: [repoUrl],
+    repo_url: repoUrl,
+    license,
+    primary_purpose: inferPrimaryPurpose(toolType, topics),
+    use_cases: [`Evaluate ${record.name} for ${toolType} workflows.`],
+    not_for: ["Production use before reviewing the repository, license, permissions, and install instructions."],
+    tags: [...new Set([toolType, ...topics])].slice(0, 12),
+    install_methods: [{ method: "source", command: "", docs_url: repoUrl, confidence: record.source_confidence }],
+    auth_required: "none",
+    permissions: [{ scope: "network", access: "read", required: false, notes: "Reviewing or cloning the public repository requires network access." }],
+    maintenance: {
+      status: lastCommitAt ? "active" : "unknown",
+      last_commit_at: lastCommitAt,
+      issue_activity: "unknown",
+      maintainer_type: "community",
+      signals: buildMaintenanceSignals(record)
+    },
+    security: {
+      risk_level: "medium",
+      trust_level: "active_open_source",
+      known_risks: ["unreviewed_open_source_code"],
+      requires_human_approval: false,
+      security_notes: "Generated from public GitHub metadata only; review code, permissions, and install path before use."
+    },
+    maturity: "unknown",
+    evidence_refs: [record.id],
+    last_checked_at: record.parsed_at,
+    confidence: record.source_confidence === "high" ? "high" : "medium",
+    created_at: record.parsed_at,
+    updated_at: record.parsed_at,
+    ai_decision_notes: {
+      when_to_use: [`Use as a discovery candidate when evaluating ${toolType} tooling.`],
+      when_to_avoid: ["Avoid recommending as reliable until docs, permissions, and install method are reviewed."],
+      questions_to_ask_human: ["Should this repository be trusted for the current environment?"],
+      safe_defaults: ["Inspect README and permissions before installation", "Prefer read-only evaluation first"]
+    }
+  };
+
+  for (const override of overridesByToolId.get(draft.id) ?? []) {
     draft[override.field] = override.new_value as never;
     draft.evidence_refs = [...new Set([...draft.evidence_refs, override.id])];
   }
@@ -63,6 +130,51 @@ function groupOverridesByToolId(overrideRecords: OverrideRecord[]): Map<string, 
 function readToolId(record: SourceRecord): string {
   const parsedToolId = record.parsed_fields.tool_id;
   return typeof parsedToolId === "string" ? parsedToolId : "";
+}
+
+function readString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+function inferToolType(record: SourceRecord, topics: string[]): ToolType {
+  const haystack = `${record.source_id} ${record.name} ${record.description ?? ""} ${topics.join(" ")}`.toLowerCase();
+  if (haystack.includes("mcp") || haystack.includes("model-context-protocol")) return "mcp";
+  if (haystack.includes("cli")) return "cli";
+  if (haystack.includes("framework")) return "framework";
+  return "agent";
+}
+
+function inferSecondaryTypes(topics: string[], primaryType: ToolType): ToolType[] | undefined {
+  const secondary = new Set<ToolType>();
+  if (topics.some((topic) => topic.includes("cli"))) secondary.add("cli");
+  if (topics.some((topic) => topic.includes("framework"))) secondary.add("framework");
+  if (primaryType !== "agent" && topics.some((topic) => topic.includes("agent"))) secondary.add("agent");
+  secondary.delete(primaryType);
+  return secondary.size > 0 ? [...secondary] : undefined;
+}
+
+function inferPrimaryPurpose(toolType: ToolType, topics: string[]): string {
+  if (toolType === "mcp") return "mcp_server_or_tooling";
+  if (toolType === "cli") return "command_line_ai_tooling";
+  if (toolType === "framework") return "agent_framework";
+  const firstTopic = topics[0]?.replace(/[^a-z0-9]+/gi, "_").toLowerCase();
+  return firstTopic ? `${firstTopic}_tooling` : "ai_agent_tooling";
+}
+
+function buildMaintenanceSignals(record: SourceRecord): string[] {
+  const signals = ["github_repository_metadata"];
+  if (typeof record.parsed_fields.stars === "number") signals.push(`stars:${record.parsed_fields.stars}`);
+  if (typeof record.parsed_fields.last_commit_at === "string") signals.push("recent_commit_metadata_present");
+  if (typeof record.parsed_fields.license === "string") signals.push("license_metadata_present");
+  return signals;
+}
+
+function slugify(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 function isToolCard(value: unknown): value is ToolCard {

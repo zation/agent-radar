@@ -38,19 +38,19 @@ export const sourceRegistry: SourceDefinition[] = [
     trust_level: "active_open_source",
     field_coverage: ["name", "description", "repo_url", "stars", "license", "last_commit_at"],
     rate_limits: "GitHub API rate limits",
-    terms_notes: "Public API only; disabled for MVP to avoid noisy community discovery.",
+    terms_notes: "Public GitHub Search API only; results enter auto review and promotion gates before reliable release.",
     access_review: {
       robots_txt: "reviewed",
       terms: "reviewed",
       reviewed_by: "agent-radar",
-      reviewed_at: "2026-07-07T00:00:00Z",
-      notes: "Disabled discovery source; use public GitHub topic/API surfaces only after noise review."
+      reviewed_at: "2026-07-08T00:00:00Z",
+      notes: "Enabled for controlled public metadata discovery; no Authorization header, cookies, private repositories, or bypassed surfaces."
     },
     parser: "github_topic_parser",
     failure_policy: "skip this source and preserve previous stable data",
-    enabled: false,
+    enabled: true,
     owner: "agent-radar",
-    last_reviewed_at: "2026-07-07T00:00:00Z"
+    last_reviewed_at: "2026-07-08T00:00:00Z"
   }
 ];
 
