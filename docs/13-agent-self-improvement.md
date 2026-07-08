@@ -24,7 +24,7 @@
 | 推荐误判 | 高风险工具排第一 | 新增 eval case，修评分 |
 | 评分异常 | deprecated 工具仍 recommended | 修规则或数据 |
 | schema 缺口 | 无法表达 hosted 数据外传 | 提出 schema 变更 |
-| 用户反馈 | 工具分类错误 | MVP 不支持；v0.3 后再转为待审核任务 |
+| 用户反馈 | 工具分类错误、推荐无用、权限提示缺失、安装失败 | 转为反馈汇总、Review Summary 或待审核任务；不能直接改分或提升信任 |
 | 安全评测失败 | payment 工具未要求审批 | 修安全规则 |
 
 ## 可自动处理的任务
@@ -85,6 +85,22 @@
 - 不为当前实现硬编码 expected。
 - 说明样例代表的真实场景。
 
+### 反馈处理
+
+允许：
+
+- 将 Web UI、MCP/API 或 agent runtime 的反馈聚合为 `feedback_summary.v1`。
+- 根据负反馈生成 data quality、recommendation misrank 或 safety eval task。
+- 把高价值反馈样例转为 golden query 或 safety assertion。
+- 为 Tool Card draft 或 promotion candidate 生成 `review_summary.v1`。
+
+要求：
+
+- 不保存用户私有代码、邮件内容、token、secret、完整 prompt 或浏览器内容。
+- 小样本反馈只能作为弱信号，不能直接提升评分、降低风险或提升 trust level。
+- `unsafe`、权限遗漏、生产数据、支付、邮件、数据库、云账号相关反馈必须进入人工异常队列。
+- LLM 可以总结反馈和来源证据，但不能把未引用的外部知识写成事实。
+
 ## 需要人类确认的任务
 
 - 删除大量历史数据。
@@ -130,6 +146,7 @@ verification:
 发现问题
   -> 分类问题类型
   -> 判断是否允许自动处理
+  -> 汇总来源证据、Review Summary 和用户反馈
   -> 生成任务记录
   -> 建分支或工作区
   -> 最小改动
@@ -219,6 +236,7 @@ Agent 不得：
 - 删除来源证据。
 - 静默修改 expected result。
 - 把用户本地文件、邮件或浏览器数据写入数据集。
+- 根据用户反馈直接自动安装工具、提升来源信任、降低风险等级或发布未知来源 Tool Card。
 
 Agent 应：
 
@@ -226,6 +244,7 @@ Agent 应：
 - 标记不确定性。
 - 请求人类确认高风险变更。
 - 给出最小可验证改动。
+- 将用户反馈作为点评和评测输入，而不是单独作为事实来源。
 
 ## 人类审批接口
 
@@ -255,9 +274,14 @@ Agent 应：
 - 自动生成误判任务。
 - 自动补充 eval cases。
 - 推荐变化报告。
+- 设计反馈记录格式和最小反馈汇总报告。
+- 用 Review Summary 降低人工逐条审核成本，但不自动解除安全 gate。
 
 ### v0.3
 
+- Web UI 和 MCP/API 接收结构化反馈。
+- 反馈汇总进入 eval report、preview review 和自迭代任务生成。
+- 人工审核聚焦高风险、争议、负反馈异常和自动审核冲突项。
 - CI 中生成改进建议。
 - 将用户反馈转换为待审核任务。
 - 数据质量趋势分析。

@@ -229,12 +229,13 @@ MVP baseline 已完成。当前完成标准为：
 
 ### 建议拆分
 
-v0.2 建议拆成 4 条并行但有优先级的工作线：
+v0.2 建议拆成 5 条并行但有优先级的工作线：
 
 1. 推荐质量线：真实 LLM golden eval、prompt 版本化、provider 错误分类、`no_reliable_match` 和 `ask_human` 质量抽查。
-2. 数据覆盖线：把首批 6 张扩到 20-50 张，优先覆盖 OpenAI/Codex、Claude Code、Cursor、OpenCode、Gemini CLI、常见 MCP server、测试/浏览器/支付/邮件/数据库类工具。
-3. API/MCP 线：把 HTTP JSON API 包装为 agent 可调用的 MCP 工具定义，补充 contract tests 和示例请求。
-4. 本地/部署线：完善 BYOK dev/prod 配置、Cloudflare Worker 部署说明、provider key 不落盘检查和日志脱敏。
+2. 审核自动化线：把 `draft -> approval -> promotion candidates` 从人工逐条批准升级为自动证据汇总、规则/LLM Review Summary、发布准入评分卡和人工异常队列。
+3. 数据覆盖线：把首批 20 张扩到 20-50 张，优先覆盖 OpenAI/Codex、Claude Code、Cursor、OpenCode、Gemini CLI、常见 MCP server、测试/浏览器/支付/邮件/数据库类工具。
+4. API/MCP 线：把 HTTP JSON API 包装为 agent 可调用的 MCP 工具定义，补充 contract tests 和示例请求，并预留只写反馈接口设计。
+5. 本地/部署线：完善 BYOK dev/prod 配置、Cloudflare Worker 部署说明、provider key 不落盘检查和日志脱敏。
 
 ## v0.3
 
@@ -247,7 +248,8 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 - 安全风险评分 v1。
 - Human Approval 规则接入推荐输出。
 - Eval Diff 报告。
-- 用户反馈记录格式。
+- 用户反馈记录格式、反馈汇总和最小 Web UI/MCP 反馈入口。
+- 自动 Review Summary，将来源证据、规则检查、LLM 审核摘要和反馈摘要合并为发布点评材料。
 - 人工 override 机制。
 - 数据质量 dashboard 或报告。
 - 自迭代任务生成：
@@ -295,7 +297,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 
 - 稳定 Tool Card schema。
 - 稳定 Rating Result 和 Recommendation Result schema。
-- 稳定只读 API/MCP。
+- 稳定只读查询 API/MCP，以及独立受限的反馈写接口。
 - 可复现数据构建流水线。
 - 可公开引用的数据版本。
 - 可扩展来源 parser 规范。

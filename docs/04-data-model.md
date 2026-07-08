@@ -424,6 +424,122 @@ Override Record 记录人工修正。
 - 影响评分或推荐时必须运行相关评测。
 - 被应用到 Tool Card draft 时，Override Record id 必须进入 draft `evidence_refs`，以便 validator 校验 `override-*` evidence ref 是否有匹配 Override Record。
 
+## Review Summary
+
+Review Summary 是对 Tool Card draft、已发布 Tool Card 或 promotion candidate 的自动审核摘要。它用于减少人工逐条审核成本，但不替代安全 gate。
+
+```json
+{
+  "id": "review-summary:mcp-github:20260708",
+  "schema_version": "review_summary.v1",
+  "target_type": "tool_card_draft",
+  "target_id": "mcp-github",
+  "generated_by": "rules+llm",
+  "recommended_action": "needs_review",
+  "confidence": "medium",
+  "evidence": [
+    {
+      "kind": "official_docs",
+      "url": "https://github.com/modelcontextprotocol/servers",
+      "summary": "Official repository documents installation and permissions."
+    }
+  ],
+  "risk_findings": [
+    {
+      "scope": "cloud",
+      "severity": "high",
+      "reason": "GitHub write scopes may affect repositories."
+    }
+  ],
+  "missing_fields": ["security.data_flow"],
+  "duplicate_signals": ["same_repo_url:mcp-github-server"],
+  "feedback_summary_ref": "feedback-summary:mcp-github:20260708",
+  "review_required_reasons": ["high_risk_permissions", "possible_duplicate"],
+  "generated_at": "2026-07-08T00:00:00Z"
+}
+```
+
+字段说明：
+
+- `target_type`：`tool_card_draft`、`tool_card`、`promotion_candidate`、`source_record`。
+- `generated_by`：`rules`、`llm`、`rules+llm`、`human`。
+- `recommended_action`：`promote`、`keep_draft`、`needs_review`、`reject`、`retire`。
+- `evidence`：必须引用已采集来源或内部 artifact，不能写入无来源事实。
+- `feedback_summary_ref`：可选，引用同一工具或推荐场景的反馈汇总。
+
+要求：
+
+- LLM 生成的摘要必须保留输入 artifact id、来源 URL 或 evidence ref。
+- `recommended_action: promote` 不能绕过 validator、security gate、eval gate。
+- 涉及高风险权限、trust level 提升、风险等级降低或 retire 的结论必须进入人工异常队列。
+
+## Feedback Record
+
+Feedback Record 记录用户或 agent 对 Tool Card、推荐结果或实际使用结果的反馈。反馈是点评和评测输入，不直接改写 Tool Card。
+
+```json
+{
+  "id": "feedback-rec-20260708-abc123",
+  "schema_version": "feedback_record.v1",
+  "target_type": "recommendation_result",
+  "target_id": "rec-20260708-abc123",
+  "tool_id": "mcp-github",
+  "source": "web_ui",
+  "signal": "down",
+  "outcome": "failed",
+  "reason_codes": ["permission_too_broad", "install_failed"],
+  "notes": "Required broader GitHub token scopes than expected.",
+  "created_at": "2026-07-08T00:00:00Z"
+}
+```
+
+字段说明：
+
+- `target_type`：`tool_card`、`recommendation_result`、`eval_case`。
+- `source`：`web_ui`、`mcp_api`、`agent_runtime`、`maintainer`。
+- `signal`：`up`、`down`、`correction`、`issue`。
+- `outcome`：`worked`、`partial`、`failed`、`unsafe`、`not_tried`。
+- `reason_codes`：结构化原因，例如 `wrong_tool`、`permission_too_broad`、`docs_outdated`、`install_failed`、`risk_missing`、`better_alternative`。
+
+隐私要求：
+
+- 不保存用户私有代码、邮件内容、token、secret、完整 prompt 或浏览器内容。
+- `notes` 应限制为用户可公开分享的简短说明。
+- 反馈可用于聚合统计和待审核任务，不能作为唯一证据提升工具信任等级。
+
+## Feedback Summary
+
+Feedback Summary 是按工具、推荐场景或数据版本聚合后的反馈结果。
+
+```json
+{
+  "id": "feedback-summary:mcp-github:20260708",
+  "schema_version": "feedback_summary.v1",
+  "target_type": "tool_card",
+  "target_id": "mcp-github",
+  "window": {
+    "from": "2026-07-01T00:00:00Z",
+    "to": "2026-07-08T00:00:00Z"
+  },
+  "counts": {
+    "up": 12,
+    "down": 3,
+    "worked": 8,
+    "failed": 2,
+    "unsafe": 1
+  },
+  "top_reason_codes": ["permission_too_broad", "docs_outdated"],
+  "recommended_review_action": "needs_review",
+  "generated_at": "2026-07-08T00:00:00Z"
+}
+```
+
+要求：
+
+- 小样本反馈只能作为弱信号。
+- 负反馈或 `unsafe` 反馈可触发人工异常队列或新增 eval case。
+- 反馈汇总进入 Review Summary、eval report 和发布审核材料。
+
 ## Schema 版本与迁移
 
 ### 版本规则

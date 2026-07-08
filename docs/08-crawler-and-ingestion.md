@@ -81,6 +81,86 @@ npm run ingest
 
 因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。
 
+## 目标审核闭环
+
+当前 `draft -> approval -> promotion candidates` 链路提供了可审计的发布护栏，但如果每张 Tool Card 都依赖维护者手动填写 JSON、判断字段、再复制到 seed 数据，会限制覆盖规模。因此后续审核流程应从“人工逐条批准”调整为“自动证据审核 + 用户反馈闭环 + 人工异常处理”。
+
+目标流程：
+
+```text
+Source Records
+  -> 自动证据汇总
+  -> 规则审核和 LLM 审核摘要
+  -> Tool Card drafts
+  -> 用户反馈与推荐反馈汇总
+  -> 发布准入评分卡
+  -> promotion candidates
+  -> 人工只处理高风险、争议或低置信候选
+```
+
+### 自动证据审核
+
+系统应尽量用代码和 LLM 先完成初评，人工只复核结论和异常。
+
+自动证据包括：
+
+- 官方文档、README、registry entry、package metadata 和 release 信息。
+- GitHub stars、recent commits、release frequency、issue activity、license、topics。
+- 包管理源下载量、版本更新时间、维护信号。
+- 社区评价和引用，例如 issue、discussion、论坛或文章；这些只能作为弱信号，不能单独提升信任等级。
+- 已知风险信号，例如需要 token、文件写入、shell、邮箱、数据库、支付、云账号或生产环境权限。
+
+自动审核输出应生成 `review_summary`，至少包含：
+
+- 建议动作：`promote`、`keep_draft`、`needs_review`、`reject`、`retire`。
+- 主要证据和来源 URL。
+- 主要风险和缺失字段。
+- 重复项、parser warnings、validator warnings。
+- 置信度和需要人工处理的原因。
+
+LLM 审核只能基于已采集 Source Records、Tool Card draft、评分结果和反馈摘要生成判断，不得把未引用的外部知识写成事实。LLM 结论不得直接解除高风险发布阻断。
+
+### 用户反馈闭环
+
+推荐质量应从使用端持续回流，而不是只靠维护者一次性审核。Web UI 和 MCP/API 后续应支持反馈入口：
+
+- 对推荐结果点赞、点踩或标记“不适合”。
+- 对单个 Tool Card 反馈字段错误、安装失败、文档过期、权限超出预期。
+- 对实际使用结果标记 `worked`、`failed`、`partial`、`unsafe`。
+- 让 agent 在使用推荐后提交结构化 outcome，例如推荐是否有用、风险提示是否准确、实际遇到的权限或安装问题。
+
+反馈数据默认不直接修改 Tool Card、评分或推荐规则。它应先进入点评材料和 eval/report，用于发现误判、生成待审核任务、调整字段或新增 golden query。
+
+### 发布准入评分卡
+
+promotion candidates 不应只依赖人工 approval。后续应为每个候选生成发布准入评分卡，综合：
+
+- 证据质量和字段完整率。
+- 维护健康度和新鲜度。
+- 安全风险和权限明确度。
+- 用户反馈有用率、失败率、投诉原因。
+- 推荐命中/误判记录。
+- 重复项和来源冲突。
+
+建议动作：
+
+| 动作 | 含义 | 是否可自动进入可靠发布 |
+| --- | --- | --- |
+| `promote` | 证据充分、风险可解释、反馈健康 | 低/中风险可进入候选，但仍走发布 gate |
+| `keep_draft` | 信息基本可用但证据不足 | 否 |
+| `needs_review` | 风险、重复、反馈或来源存在争议 | 否，进入人工异常队列 |
+| `reject` | 不符合范围或风险不可接受 | 否 |
+| `retire` | 已发布工具失效或长期负反馈 | 否，需人工确认下线 |
+
+人工审核重点应改为：
+
+- 高风险权限或风险等级降低。
+- 来源 trust level 提升。
+- 负反馈明显上升。
+- LLM 审核和规则审核结论冲突。
+- 社区信号与官方来源冲突。
+- 大规模自动 promotion 或 retire。
+
 ## 流程总览
 
 ```text

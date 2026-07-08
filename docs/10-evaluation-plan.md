@@ -25,6 +25,7 @@
 | Explanation Eval | 检查解释是否可用 | 推荐输出变化 |
 | Safety Eval | 检查高风险工具是否被保守处理 | 安全规则或权限字段变化 |
 | Regression Eval | 比较版本变化 | 每次发布前 |
+| Feedback Eval | 检查用户/agent 反馈是否揭示推荐误判 | 每次反馈汇总或发布前 |
 | Human Review | 抽样审查争议案例 | 定期或评测失败 |
 
 ## LLM-backed 推荐评测
@@ -363,25 +364,63 @@ review_required:
 - Top 1 变化的 critical golden query。
 - 大量工具分数变化超过 10 分。
 
+## Feedback Eval
+
+Feedback Eval 将 Web UI、MCP/API 和 agent runtime 的反馈转化为可操作的质量信号。反馈不是评分真理，只是推荐质量和数据质量的观测输入。
+
+输入：
+
+- `feedback_record.v1`
+- `feedback_summary.v1`
+- Recommendation Result 和 query context。
+- Tool Card、Rating Result、Review Summary。
+
+检查项：
+
+| 检查项 | 处理 |
+| --- | --- |
+| 单个工具负反馈率持续上升 | 标记 `needs_review`，检查字段、权限、安装方式和文档新鲜度 |
+| `unsafe` 反馈 | 进入安全人工异常队列，必要时阻止风险等级降低 |
+| 推荐结果被频繁点踩 | 生成 recommendation misrank 任务或新增 golden query |
+| 安装失败集中出现 | 检查 install_methods、package metadata 和 docs_url |
+| 权限超预期 | 检查 permissions、security notes 和 `ask_human` guard |
+| 用户指出更好替代工具 | 进入 discovery candidate，不直接替换推荐 |
+
+发布前报告应展示：
+
+- 反馈样本窗口和样本量。
+- 高负反馈 Tool Cards。
+- 高价值正反馈 Tool Cards。
+- `unsafe` 或高风险反馈明细。
+- 由反馈触发的新增 eval case、数据修正或人工 review item。
+
+门槛：
+
+- 小样本反馈不阻断发布。
+- `unsafe` 或高风险权限遗漏反馈必须进入人工 review。
+- 反馈不得直接降低风险等级、提升 trust level 或自动发布未知来源工具。
+
 ## Human Review
 
-人工审核样本包括：
+人工审核应从“逐条批准所有 draft”转为“处理自动化无法安全判断的异常”。样本包括：
 
-- Top 推荐候选。
-- 高风险候选。
-- 低置信但被召回候选。
+- 高风险候选或风险等级降低的候选。
+- LLM Review Summary 与规则校验冲突的候选。
+- 低置信但被频繁召回或正反馈明显的候选。
 - possible duplicates。
-- 用户反馈误判。
+- 用户反馈误判、`unsafe` 反馈或负反馈异常上升。
 - 评分变化最大记录。
+- 来源 trust level 提升或高影响 Source Registry 变更。
 
 审核输出：
 
-- 通过。
+- 维持自动结论。
 - 修正数据。
 - 修正分类。
 - 修正评分规则。
 - 新增 eval case。
 - 标记来源不可信。
+- 要求补证据或拒绝 promotion。
 
 ## 评测报告格式
 
