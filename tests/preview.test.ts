@@ -30,6 +30,30 @@ const ingestionResult: RunIngestionResult = {
       }
     ]
   },
+  crawlAudit: {
+    schema_version: "crawl_audit.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    summary: {
+      total: 1,
+      success: 1,
+      partial: 0,
+      failed: 0
+    },
+    items: [
+      {
+        source_id: "manual-agent-radar-seed",
+        source_url: "internal://manual-review/seed-tool-cards",
+        snapshot_id: "manual-agent-radar-seed-20260707-abc123",
+        fetched_at: "2026-07-07T00:00:00Z",
+        fetch_method: "manual",
+        status: "success",
+        http_status: 200,
+        content_hash: "sha256:abc123",
+        content_path: "data/raw/manual-agent-radar-seed/2026-07-07/abc123.json",
+        request_meta: {}
+      }
+    ]
+  },
   snapshots: [
     {
       id: "manual-agent-radar-seed-20260707-abc123",

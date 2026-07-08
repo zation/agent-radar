@@ -122,6 +122,38 @@ test("ingestion writes a crawl plan for enabled sources", async () => {
   }
 });
 
+test("ingestion writes crawl audit log from snapshots", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
+
+  try {
+    const result = await runIngestion({
+      outputDir,
+      now: "2026-07-08T00:00:00Z",
+      fetchImpl: () =>
+        Promise.resolve(new Response(JSON.stringify({ tools: [] }), { status: 200, headers: { "content-type": "application/json", etag: "audit-v1" } }))
+    });
+
+    assert.equal(result.crawlAudit.schema_version, "crawl_audit.v1");
+    assert.equal(result.crawlAudit.summary.success, 1);
+    assert.equal(result.crawlAudit.items[0]?.source_id, "manual-agent-radar-seed");
+    assert.equal(result.crawlAudit.items[0]?.status, "success");
+    assert.equal(result.crawlAudit.items[0]?.fetch_method, "manual");
+    assert.match(result.crawlAudit.items[0]?.content_hash ?? "", /^sha256:/);
+    assert.deepEqual(result.crawlAudit.items[0]?.request_meta, { etag: "audit-v1" });
+
+    const audit = JSON.parse(await readFile(join(outputDir, "data", "crawl_audit", "crawl_audit.json"), "utf8")) as {
+      schema_version: string;
+      summary: { success: number };
+      items: Array<{ source_id: string; status: string }>;
+    };
+    assert.equal(audit.schema_version, "crawl_audit.v1");
+    assert.equal(audit.summary.success, 1);
+    assert.equal(audit.items[0]?.source_id, "manual-agent-radar-seed");
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 test("ingestion parses manual seed snapshots into source records", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
 

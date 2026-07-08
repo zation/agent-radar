@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildApprovalArtifact, type ApprovalArtifact, type ApprovalRecord } from "./approval.js";
+import { buildCrawlAudit, type CrawlAudit } from "./crawl-audit.js";
 import { buildSourceCrawlPlan, type SourceCrawlPlan } from "./crawl-plan.js";
 import { crawlEnabledSources } from "./crawler.js";
 import { buildToolCardDuplicateReport, type ToolCardDuplicateReport } from "./deduper.js";
@@ -23,6 +24,7 @@ export interface RunIngestionOptions {
 
 export interface RunIngestionResult {
   crawlPlan: SourceCrawlPlan;
+  crawlAudit: CrawlAudit;
   snapshots: RawSourceSnapshot[];
   sourceRecords: SourceRecord[];
   toolCardDrafts: ToolCard[];
@@ -44,6 +46,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     now,
     fetchImpl: options.fetchImpl
   });
+  const crawlAudit = buildCrawlAudit(snapshots, now);
+  await writeCrawlAudit(options.outputDir, crawlAudit);
   const recordsBySource = new Map<string, SourceRecord[]>();
 
   for (const snapshot of snapshots) {
@@ -73,6 +77,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
 
   return {
     crawlPlan,
+    crawlAudit,
     snapshots,
     sourceRecords,
     toolCardDrafts,
@@ -82,6 +87,12 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     reviewQueue,
     releaseAdmission
   };
+}
+
+async function writeCrawlAudit(outputDir: string, crawlAudit: CrawlAudit): Promise<void> {
+  const crawlAuditDir = join(outputDir, "data", "crawl_audit");
+  await mkdir(crawlAuditDir, { recursive: true });
+  await writeFile(join(crawlAuditDir, "crawl_audit.json"), JSON.stringify(crawlAudit, null, 2), "utf8");
 }
 
 async function writeCrawlPlan(outputDir: string, crawlPlan: SourceCrawlPlan): Promise<void> {
