@@ -32,12 +32,26 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult, source
       const urls = record.urls.length ? ` urls=${record.urls.join(", ")}` : "";
       return `- ${record.name} (${record.record_type}, confidence=${record.source_confidence}) source=${record.source_id}${warnings}${urls}`;
     }),
+    ...renderApprovalRequests(result),
     ...renderReleaseAdmission(result),
     ...renderPromotionCandidates(result),
     ...renderSourceRegistryReviewRequirements(sourceRegistryReviewRequirements)
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderApprovalRequests(result: RunIngestionResult): string[] {
+  if (result.approvalRequests.items.length === 0) return [];
+
+  return [
+    "",
+    "## Approval Requests",
+    ...result.approvalRequests.items.map((item) => {
+      const duplicates = item.duplicate_of_tool_ids.length > 0 ? item.duplicate_of_tool_ids.join(",") : "none";
+      return `- ${item.tool_id} (${item.name}) source_record=${item.source_record_id} review_status=${item.review_status} duplicates=${duplicates} template_id=${item.approval_record_template.id} decision_options=${item.decision_options.join(",")} required_fields=${item.approval_record_template.required_fields.join(",")}`;
+    })
+  ];
 }
 
 function renderReleaseAdmission(result: RunIngestionResult): string[] {

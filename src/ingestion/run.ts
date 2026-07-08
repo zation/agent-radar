@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildApprovalArtifact, type ApprovalArtifact, type ApprovalRecord } from "./approval.js";
+import { buildToolCardApprovalRequests, type ToolCardApprovalRequests } from "./approval-requests.js";
 import { buildCrawlAudit, type CrawlAudit } from "./crawl-audit.js";
 import { buildSourceCrawlPlan, type SourceCrawlPlan } from "./crawl-plan.js";
 import { crawlEnabledSources } from "./crawler.js";
@@ -31,6 +32,7 @@ export interface RunIngestionResult {
   toolCardDrafts: ToolCard[];
   overrideRecords: OverrideRecord[];
   approvalArtifact: ApprovalArtifact;
+  approvalRequests: ToolCardApprovalRequests;
   duplicateReport: ToolCardDuplicateReport;
   reviewQueue: ToolCardReviewQueue;
   releaseAdmission: ToolCardReleaseAdmission;
@@ -74,6 +76,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeDuplicateReport(options.outputDir, duplicateReport);
   const reviewQueue = buildToolCardReviewQueue(toolCardDrafts, sourceRecords, existingToolCards, now, approvalRecords);
   await writeReviewQueue(options.outputDir, reviewQueue);
+  const approvalRequests = buildToolCardApprovalRequests(reviewQueue, now);
+  await writeApprovalRequests(options.outputDir, approvalRequests);
   const releaseAdmission = buildToolCardReleaseAdmission(reviewQueue, now);
   await writeReleaseAdmission(options.outputDir, releaseAdmission);
   const promotionCandidates = buildToolCardPromotionCandidates(toolCardDrafts, releaseAdmission, approvalRecords, now);
@@ -87,6 +91,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     toolCardDrafts,
     overrideRecords,
     approvalArtifact,
+    approvalRequests,
     duplicateReport,
     reviewQueue,
     releaseAdmission,
@@ -158,6 +163,12 @@ async function writeReviewQueue(outputDir: string, reviewQueue: ToolCardReviewQu
   const reviewQueueDir = join(outputDir, "data", "review_queue");
   await mkdir(reviewQueueDir, { recursive: true });
   await writeFile(join(reviewQueueDir, "tool_card_drafts.json"), JSON.stringify(reviewQueue, null, 2), "utf8");
+}
+
+async function writeApprovalRequests(outputDir: string, approvalRequests: ToolCardApprovalRequests): Promise<void> {
+  const approvalRequestsDir = join(outputDir, "data", "approval_requests");
+  await mkdir(approvalRequestsDir, { recursive: true });
+  await writeFile(join(approvalRequestsDir, "tool_card_drafts.json"), JSON.stringify(approvalRequests, null, 2), "utf8");
 }
 
 async function writeReleaseAdmission(outputDir: string, releaseAdmission: ToolCardReleaseAdmission): Promise<void> {

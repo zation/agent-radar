@@ -345,6 +345,20 @@ test("ingestion writes tool card drafts from complete manual source records", as
     assert.equal(result.reviewQueue.items[0]?.status, "ready_for_review");
     assert.equal(result.reviewQueue.items[0]?.tool_id, "agent-codex");
     assert.deepEqual(result.reviewQueue.items[0]?.duplicate_of_tool_ids, ["agent-codex"]);
+    assert.equal(result.approvalRequests.schema_version, "tool_card_approval_requests.v1");
+    assert.equal(result.approvalRequests.summary.pending_approval, 1);
+    assert.equal(result.approvalRequests.items[0]?.tool_id, "agent-codex");
+    assert.equal(result.approvalRequests.items[0]?.source_record_id, "manual-agent-radar-seed-agent-codex-20260708");
+    assert.deepEqual(result.approvalRequests.items[0]?.duplicate_of_tool_ids, ["agent-codex"]);
+    assert.deepEqual(result.approvalRequests.items[0]?.decision_options, ["approved", "rejected", "needs_changes"]);
+    assert.deepEqual(result.approvalRequests.items[0]?.approval_record_template, {
+      id: "approval-agent-codex-manual-agent-radar-seed-agent-codex-20260708",
+      schema_version: "approval_record.v1",
+      target_type: "tool_card_draft",
+      target_id: "agent-codex",
+      source_record_id: "manual-agent-radar-seed-agent-codex-20260708",
+      required_fields: ["decision", "reason", "reviewer", "reviewed_at"]
+    });
     assert.equal(result.toolCardDrafts[0]?.id, "agent-codex");
     assert.deepEqual(result.toolCardDrafts[0]?.evidence_refs, ["manual-agent-radar-seed-agent-codex-20260708"]);
 
@@ -361,6 +375,15 @@ test("ingestion writes tool card drafts from complete manual source records", as
     assert.equal(duplicateReport.schema_version, "tool_card_duplicate_report.v1");
     assert.equal(duplicateReport.summary.possible_duplicates, 1);
     assert.deepEqual(duplicateReport.items[0].duplicate_of_tool_ids, ["agent-codex"]);
+
+    const approvalRequests = JSON.parse(await readFile(join(outputDir, "data", "approval_requests", "tool_card_drafts.json"), "utf8")) as {
+      schema_version: string;
+      summary: { pending_approval: number };
+      items: Array<{ tool_id: string; approval_record_template: { target_id: string } }>;
+    };
+    assert.equal(approvalRequests.schema_version, "tool_card_approval_requests.v1");
+    assert.equal(approvalRequests.summary.pending_approval, 1);
+    assert.equal(approvalRequests.items[0]?.approval_record_template.target_id, "agent-codex");
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

@@ -47,12 +47,14 @@
 - Preview artifact manifest 已汇总 eval failure categories，便于发布审核快速判断失败类型。
 - GitHub Actions preview summary 已展示 eval failure categories，便于 reviewer 不打开 JSON 也能看到失败类型分布。
 - Preview artifact manifest 已汇总 ingestion approval summary，便于发布审核快速确认 draft 审核状态。
+- Preview artifact manifest 已汇总 approval requests summary，便于维护者确认还有多少 draft 缺真实 approval、多少需要重复项审核或 validation 修复。
 - Preview artifact manifest 和 ingestion review 已汇总 release admission summary，便于发布审核快速确认草稿发布准入状态。
 - 无 `AGENT_RADAR_LLM_API_KEY` 时，pipeline/eval 会生成 blocked eval summary，而不是运行旧本地推荐引擎。
 - 已用真实 provider key 跑通 5 个 MVP golden queries，并通过 release gate。
 - `npm run ingest` 已提供 v0.2 最小采集草稿链路：读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records，并为完整且无 parser warnings 的 manual 记录经 normalizer 生成待审核 Tool Card drafts 和 review queue。
 - 采集草稿链路已支持最小 Override Record artifact，可对待审核 draft 应用有证据的人工修正，同时保留 override 审计记录。
 - 采集草稿链路已支持最小 Approval Record artifact，可记录 draft 的 `approved`、`rejected` 和 `needs_changes` 审核决定，但不会自动发布。
+- 采集草稿链路已支持 Approval Request artifact，为缺少 approval 的 draft 输出 approval record template、decision options、duplicate review 背景和 validation 背景，但模板本身不会解除发布阻断。
 - 采集草稿链路已输出最小 dedup report，按 draft id 和 canonical URL 标注可能重复项，供人工审核参考。
 - review queue 已包含最小重复信号和 approval decision，可标注 draft 可能对应的已发布 `tool_id` 及人工审核决定，但不会自动合并或发布。
 - 采集草稿链路已输出 release admission artifact，只有 ready、approved 且无重复信号的 draft 会标为 `eligible_for_publish`，但不会自动发布。
@@ -360,7 +362,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 ### P0：v0.2 数据接入
 
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
-- 把 `npm run ingest` 输出的 promotion candidates 接入人工审核 UI 或可靠发布提升流程；当前 preview review markdown 已展示 release admission blocked reasons，以及候选 tool id、Source Record id、reviewer、review time 和 approval reason，可靠发布提升仍待做。
+- 把 `npm run ingest` 输出的 approval requests 和 promotion candidates 接入人工审核 UI 或可靠发布提升流程；当前 preview review markdown 已展示 approval record 模板、release admission blocked reasons，以及候选 tool id、Source Record id、reviewer、review time 和 approval reason，可靠发布提升仍待做。
 - 将 Source Registry review confirmation artifact 接入可操作审核 UI；当前 preview markdown 已展示 requirements，artifact manifest 已汇总确认状态。
 - 将 Tool Card 字段 provenance 继续细化到 Source Record 字段和值，并决定是否在 CI 默认启用 URL 可达性检查；schema-level `tool_card_field_provenance.json` artifact 已实现。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。

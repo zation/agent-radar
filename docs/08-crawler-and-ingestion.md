@@ -36,17 +36,20 @@ npm run ingest
   -> data/source_records/<source_id>.jsonl
   -> data/tool_card_drafts/<source_id>.jsonl
   -> data/approvals/approval_records.json
+  -> data/approval_requests/tool_card_drafts.json
   -> data/dedup/tool_card_duplicates.json
   -> data/review_queue/tool_card_drafts.json
   -> data/release_admission/tool_card_drafts.json
   -> data/promotion_candidates/tool_cards.json
 ```
 
-当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Crawl Plan、Crawl Audit、Raw Snapshot、Source Record、Tool Card draft、dedup report、approval record、review queue、release admission 和 promotion candidates 契约。完整且无 parser warnings 的 manual Source Records 会经过最小 normalizer 生成待审核 Tool Card drafts，并输出最小 duplicate report；review queue 也会标注与已发布 Tool Cards 的最小重复信号和已记录的 approval decision。release admission 会把 `ready_for_review`、`approved` 且无重复信号的 draft 标为 `eligible_for_publish`。Preview review markdown 会列出每个 release admission item 的 status 和 blocking reasons，帮助维护者判断 blocked draft 需要补 approval、修 validation 还是处理 duplicate；promotion candidates 会把 eligible drafts 连同 approval evidence 复制到独立候选 artifact，供后续人工提升到可靠发布数据。Preview review markdown 也会列出每个 promotion candidate 的 tool id、Source Record id、reviewer、review time 和 approval reason，方便维护者审核候选而不自动发布。该步骤仍不会自动合并或发布，这些草稿仍不进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
+当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Crawl Plan、Crawl Audit、Raw Snapshot、Source Record、Tool Card draft、dedup report、approval record、approval request、review queue、release admission 和 promotion candidates 契约。完整且无 parser warnings 的 manual Source Records 会经过最小 normalizer 生成待审核 Tool Card drafts，并输出最小 duplicate report；review queue 也会标注与已发布 Tool Cards 的最小重复信号和已记录的 approval decision。approval requests 会为尚未审核的 draft 输出 approval record 模板、decision options、重复信号和 validation 背景，供维护者填入真实 reviewer/reason/reviewed_at 后再进入 approval records。release admission 会把 `ready_for_review`、`approved` 且无重复信号的 draft 标为 `eligible_for_publish`。Preview review markdown 会列出每个 approval request、release admission item 的 status 和 blocking reasons，帮助维护者判断 blocked draft 需要补 approval、修 validation 还是处理 duplicate；promotion candidates 会把 eligible drafts 连同 approval evidence 复制到独立候选 artifact，供后续人工提升到可靠发布数据。Preview review markdown 也会列出每个 promotion candidate 的 tool id、Source Record id、reviewer、review time 和 approval reason，方便维护者审核候选而不自动发布。该步骤仍不会自动合并或发布，这些草稿仍不进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
 
 `npm run ingest` 已支持最小 Override Record artifact：人工修正只作用于待审核 draft normalization，不覆盖 Raw Snapshot 或 Source Record，也不会自动发布到可靠 Tool Cards。Override Record 必须包含 `reason`、`created_by` 和至少一个 `evidence_urls`。
 
 `npm run ingest` 也已支持最小 Approval Record artifact：人工审核决定会记录为 `approved`、`rejected` 或 `needs_changes`，并要求 `reviewer`、`reason`、`source_record_id` 和 `reviewed_at`。Approval Record 只作为审核证据和发布准入输入，不会自动把 draft 发布为可靠 Tool Card。
+
+`npm run ingest` 会为缺少 approval 的 draft 输出 `tool_card_approval_requests.v1`，包含 `pending_approval`、`duplicate_review_required` 和 `blocked_validation` summary。每个 item 包含 approval record template、decision options、duplicate ids、validation errors/warnings 和 Source Record id，帮助维护者生成真实 Approval Record；模板本身不是 approval，不会解除发布阻断。
 
 发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 preview/release 审核源配置；同时输出 `data/source_registry_diff.json`，记录来源配置 added、removed 和 changed 摘要。changed source 会附带字段级 `review_requirements`，标出启用状态、访问边界、parser、频率、可信度等变更为何需要维护者确认。发布流水线也会输出 `data/source_registry_review.json`，记录这些 requirements 的 pending、confirmed、rejected 和 needs_changes 状态；没有确认记录时保持 pending，不会自动启用来源或提升可信度。
 
@@ -59,7 +62,7 @@ npm run ingest
 - 更多来源专属 parser。
 - 完整跨来源 deduper、跨来源 normalizer 和人工 override 审核 UI。
 - 更完整的 Source Registry validator；当前已检查 enabled source 的 parser 覆盖、owner、`last_reviewed_at` 和 robots/terms 审核记录，并输出带字段级 review requirements 和确认状态 summary 的来源变更审核 artifacts。
-- 完整的人工审核 UI，以及 promotion candidates 到可靠发布 artifacts 的人工提升流程；当前 preview review markdown 已展示 release admission blocked reasons 和 promotion candidate 明细。
+- 完整的人工审核 UI，以及 promotion candidates 到可靠发布 artifacts 的人工提升流程；当前 preview review markdown 已展示 approval request、release admission blocked reasons 和 promotion candidate 明细。
 - 更完整的 Tool Card validator 字段 provenance；当前已输出 schema 级 `tool_card_field_provenance.json`，支持 override evidence ref 对应 Override Record 的审计检查，要求 `docs_url`、`repo_url`、`homepage_url`、`package_urls` 和 `install_methods.docs_url` 被 `source_urls` 覆盖，并对非人工审核来源缺少 `permissions`、`security`、`maintenance` 字段级 evidence refs 的 Tool Card 输出 warning。可通过 `AGENT_RADAR_CHECK_URLS=true` 运行 URL 可达性检查。
 
 因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。

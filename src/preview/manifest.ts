@@ -52,6 +52,11 @@ export interface ArtifactManifest {
       needs_changes: number;
     };
   };
+  approval_requests?: {
+    pending_approval: number;
+    duplicate_review_required: number;
+    blocked_validation: number;
+  };
   release_admission?: {
     eligible_for_publish: number;
     blocked: number;

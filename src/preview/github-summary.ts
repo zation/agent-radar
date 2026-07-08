@@ -13,6 +13,7 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     ...(manifest.crawl_audit ? [`- Crawl audit: ${formatCrawlAudit(manifest.crawl_audit)}`] : []),
     ...(manifest.source_registry_review ? [`- Source registry review: ${formatSourceRegistryReview(manifest.source_registry_review)}`] : []),
     ...(manifest.ingestion_review ? [`- Ingestion approvals: ${formatIngestionApprovals(manifest.ingestion_review.approvals)}`] : []),
+    ...(manifest.approval_requests ? [`- Approval requests: ${formatApprovalRequests(manifest.approval_requests)}`] : []),
     ...(manifest.release_admission ? [`- Release admission: ${formatReleaseAdmission(manifest.release_admission)}`] : []),
     ...(manifest.promotion_candidates ? [`- Promotion candidates: ${manifest.promotion_candidates.candidates}`] : []),
     `- Checksums: ${Object.keys(manifest.checksums).length} files`
@@ -41,6 +42,10 @@ function formatSourceRegistryReview(review: NonNullable<ArtifactManifest["source
 
 function formatIngestionApprovals(approvals: NonNullable<ArtifactManifest["ingestion_review"]>["approvals"]): string {
   return `${approvals.approved} approved, ${approvals.rejected} rejected, ${approvals.needs_changes} needs changes`;
+}
+
+function formatApprovalRequests(requests: NonNullable<ArtifactManifest["approval_requests"]>): string {
+  return `${requests.pending_approval} pending, ${requests.duplicate_review_required} duplicate review, ${requests.blocked_validation} blocked validation`;
 }
 
 function formatReleaseAdmission(admission: NonNullable<ArtifactManifest["release_admission"]>): string {

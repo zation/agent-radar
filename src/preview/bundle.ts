@@ -37,6 +37,11 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
       needs_changes: options.ingestion.approvalArtifact.summary.needs_changes
     }
   };
+  manifest.approval_requests = {
+    pending_approval: options.ingestion.approvalRequests.summary.pending_approval,
+    duplicate_review_required: options.ingestion.approvalRequests.summary.duplicate_review_required,
+    blocked_validation: options.ingestion.approvalRequests.summary.blocked_validation
+  };
   manifest.release_admission = {
     eligible_for_publish: options.ingestion.releaseAdmission.summary.eligible_for_publish,
     blocked: options.ingestion.releaseAdmission.summary.blocked
