@@ -25,6 +25,12 @@ export interface IngestionCliSummaryInput {
       candidates: number;
     };
   };
+  promotionPlan: {
+    summary: {
+      candidates: number;
+      manual_merge_required: boolean;
+    };
+  };
 }
 
 export interface IngestionCliSummary {
@@ -45,6 +51,10 @@ export interface IngestionCliSummary {
     blocked: number;
   };
   promotion_candidates: number;
+  promotion_plan: {
+    candidates: number;
+    manual_merge_required: boolean;
+  };
 }
 
 export function formatIngestionCliSummary(result: IngestionCliSummaryInput): IngestionCliSummary {
@@ -65,6 +75,10 @@ export function formatIngestionCliSummary(result: IngestionCliSummaryInput): Ing
       eligible_for_publish: result.releaseAdmission.summary.eligible_for_publish,
       blocked: result.releaseAdmission.summary.blocked
     },
-    promotion_candidates: result.promotionCandidates.summary.candidates
+    promotion_candidates: result.promotionCandidates.summary.candidates,
+    promotion_plan: {
+      candidates: result.promotionPlan.summary.candidates,
+      manual_merge_required: result.promotionPlan.summary.manual_merge_required
+    }
   };
 }

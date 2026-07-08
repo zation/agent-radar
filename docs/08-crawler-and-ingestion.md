@@ -42,9 +42,10 @@ npm run ingest
   -> data/review_queue/tool_card_drafts.json
   -> data/release_admission/tool_card_drafts.json
   -> data/promotion_candidates/tool_cards.json
+  -> data/promotion_candidates/promotion_plan.json
 ```
 
-当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Crawl Plan、Crawl Audit、Raw Snapshot、Source Record、Tool Card draft、dedup report、approval record、approval request、field value provenance、review queue、release admission 和 promotion candidates 契约。完整且无 parser warnings 的 manual Source Records 会经过最小 normalizer 生成待审核 Tool Card drafts，并输出最小 duplicate report；review queue 也会标注与已发布 Tool Cards 以及同批 incoming drafts 的最小重复信号和已记录的 approval decision。approval requests 会为尚未审核的 draft 输出 approval record 模板、decision options、重复信号和 validation 背景，并在 preview markdown 中区分 `published_duplicates` 和 `draft_duplicates`，供维护者填入真实 reviewer/reason/reviewed_at 后再进入 approval records。field value provenance 会把 draft 顶层字段映射回 `raw_fields.<field>`、Source Record id 和截断后的原始/标准化值预览，方便维护者检查字段和值来源。release admission 会把 `ready_for_review`、`approved` 且无已发布/同批 draft 重复信号的 draft 标为 `eligible_for_publish`。Preview review markdown 会列出字段值 provenance 样例、每个 approval request、release admission item 的 status 和 blocking reasons，帮助维护者判断 blocked draft 需要补 approval、修 validation 还是处理 duplicate；promotion candidates 会把 eligible drafts 连同 approval evidence 复制到独立候选 artifact，供后续人工提升到可靠发布数据。Preview review markdown 也会列出每个 promotion candidate 的 tool id、Source Record id、reviewer、review time 和 approval reason，方便维护者审核候选而不自动发布。该步骤仍不会自动合并或发布，这些草稿仍不进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
+当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Crawl Plan、Crawl Audit、Raw Snapshot、Source Record、Tool Card draft、dedup report、approval record、approval request、field value provenance、review queue、release admission、promotion candidates 和 promotion plan 契约。完整且无 parser warnings 的 manual Source Records 会经过最小 normalizer 生成待审核 Tool Card drafts，并输出最小 duplicate report；review queue 也会标注与已发布 Tool Cards 以及同批 incoming drafts 的最小重复信号和已记录的 approval decision。approval requests 会为尚未审核的 draft 输出 approval record 模板、decision options、重复信号和 validation 背景，并在 preview markdown 中区分 `published_duplicates` 和 `draft_duplicates`，供维护者填入真实 reviewer/reason/reviewed_at 后再进入 approval records。field value provenance 会把 draft 顶层字段映射回 `raw_fields.<field>`、Source Record id 和截断后的原始/标准化值预览，方便维护者检查字段和值来源。release admission 会把 `ready_for_review`、`approved` 且无已发布/同批 draft 重复信号的 draft 标为 `eligible_for_publish`。Preview review markdown 会列出字段值 provenance 样例、每个 approval request、release admission item 的 status 和 blocking reasons，帮助维护者判断 blocked draft 需要补 approval、修 validation 还是处理 duplicate；promotion candidates 会把 eligible drafts 连同 approval evidence 复制到独立候选 artifact，promotion plan 会为这些候选输出目标文件、候选 artifact 路径、推荐人工动作和发布前检查项，供后续人工提升到可靠发布数据。Preview review markdown 也会列出每个 promotion candidate 的 tool id、Source Record id、reviewer、review time、approval reason 和 promotion plan 明细，方便维护者审核候选而不自动发布。该步骤仍不会自动合并或发布，这些草稿仍不进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
 
 `npm run ingest` 已支持最小 Override Record artifact：人工修正只作用于待审核 draft normalization，不覆盖 Raw Snapshot 或 Source Record，也不会自动发布到可靠 Tool Cards。Override Record 必须包含 `reason`、`created_by` 和至少一个 `evidence_urls`。
 
@@ -54,7 +55,7 @@ npm run ingest
 
 `npm run ingest` 会输出 `tool_card_field_value_provenance.v1`，包含 `tool_cards` 和 `field_values` summary。每个 item 包含 Tool Card field、Source Record id、`source_field_path`、`source_value_preview` 和 `normalized_value_preview`。该 artifact 用于审查字段和值来源，不替代发布前的人工 approval。
 
-`npm run ingest` 的终端 JSON summary 会包含 snapshots、source records、source ids、approval requests、field value provenance、release admission 和 promotion candidates 摘要，便于本地或 CI 快速判断采集审核状态。
+`npm run ingest` 的终端 JSON summary 会包含 snapshots、source records、source ids、approval requests、field value provenance、release admission、promotion candidates 和 promotion plan 摘要，便于本地或 CI 快速判断采集审核状态。
 
 发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 preview/release 审核源配置；同时输出 `data/source_registry_diff.json`，记录来源配置 added、removed 和 changed 摘要。changed source 会附带字段级 `review_requirements`，标出启用状态、访问边界、parser、频率、可信度等变更为何需要维护者确认。发布流水线也会输出 `data/source_registry_review.json`，记录这些 requirements 的 pending、confirmed、rejected 和 needs_changes 状态；没有确认记录时保持 pending，不会自动启用来源或提升可信度。
 
@@ -67,7 +68,7 @@ npm run ingest
 - 更多来源专属 parser。
 - 完整跨来源 deduper、跨来源 normalizer 和人工 override 审核 UI；当前只实现 draft id、canonical URL 对已发布 Tool Cards 和同批 incoming drafts 的最小重复信号与发布阻断。
 - 更完整的 Source Registry validator；当前已检查 enabled source 的 parser 覆盖、owner、`last_reviewed_at` 和 robots/terms 审核记录，并输出带字段级 review requirements 和确认状态 summary 的来源变更审核 artifacts。
-- 完整的人工审核 UI，以及 promotion candidates 到可靠发布 artifacts 的人工提升流程；当前 preview review markdown 已展示 approval request、release admission blocked reasons 和 promotion candidate 明细。
+- 完整的人工审核 UI，以及 promotion candidates 到可靠发布 artifacts 的人工提升流程；当前 preview review markdown 已展示 approval request、release admission blocked reasons、promotion candidate 明细和 promotion plan 人工合并提示。
 - 更完整的 Tool Card validator 字段 provenance；当前已输出 schema 级 `tool_card_field_provenance.json` 和 ingest-time `tool_card_field_value_provenance.v1`，支持 override evidence ref 对应 Override Record 的审计检查，要求 `docs_url`、`repo_url`、`homepage_url`、`package_urls` 和 `install_methods.docs_url` 被 `source_urls` 覆盖，并对非人工审核来源缺少 `permissions`、`security`、`maintenance` 字段级 evidence refs 的 Tool Card 输出 warning。可通过 `AGENT_RADAR_CHECK_URLS=true` 运行 URL 可达性检查。
 
 因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。

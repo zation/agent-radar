@@ -25,7 +25,8 @@ test("ingestion CLI summary includes approval and release gates", () => {
     approvalRequests: { summary: { pending_approval: 2, duplicate_review_required: 1, blocked_validation: 0 } },
     fieldProvenance: { summary: { tool_cards: 2, field_values: 24 } },
     releaseAdmission: { summary: { eligible_for_publish: 1, blocked: 1 } },
-    promotionCandidates: { summary: { candidates: 1 } }
+    promotionCandidates: { summary: { candidates: 1 } },
+    promotionPlan: { summary: { candidates: 1, manual_merge_required: true } }
   });
 
   assert.deepEqual(summary, {
@@ -45,7 +46,11 @@ test("ingestion CLI summary includes approval and release gates", () => {
       eligible_for_publish: 1,
       blocked: 1
     },
-    promotion_candidates: 1
+    promotion_candidates: 1,
+    promotion_plan: {
+      candidates: 1,
+      manual_merge_required: true
+    }
   });
 });
 
@@ -623,6 +628,11 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.equal(result.promotionCandidates.items[0]?.tool_id, "agent-new-tool");
     assert.equal(result.promotionCandidates.items[0]?.approval.reviewed_by, "maintainer");
     assert.equal(result.promotionCandidates.items[0]?.draft.id, "agent-new-tool");
+    assert.equal(result.promotionPlan.schema_version, "tool_card_promotion_plan.v1");
+    assert.deepEqual(result.promotionPlan.summary, { candidates: 1, manual_merge_required: true });
+    assert.equal(result.promotionPlan.items[0]?.tool_id, "agent-new-tool");
+    assert.equal(result.promotionPlan.items[0]?.target_file, "src/data/seed-tool-cards.ts");
+    assert.equal(result.promotionPlan.items[0]?.recommended_action, "manual_merge_to_seed_tool_cards");
 
     const admission = JSON.parse(await readFile(join(outputDir, "data", "release_admission", "tool_card_drafts.json"), "utf8")) as {
       schema_version: string;
@@ -639,6 +649,16 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.equal(promotionCandidates.schema_version, "tool_card_promotion_candidates.v1");
     assert.equal(promotionCandidates.summary.candidates, 1);
     assert.equal(promotionCandidates.items[0]?.draft.id, "agent-new-tool");
+    const promotionPlan = JSON.parse(await readFile(join(outputDir, "data", "promotion_candidates", "promotion_plan.json"), "utf8")) as {
+      schema_version: string;
+      summary: { candidates: number; manual_merge_required: boolean };
+      items: Array<{ tool_id: string; target_file: string; candidate_artifact_path: string }>;
+    };
+    assert.equal(promotionPlan.schema_version, "tool_card_promotion_plan.v1");
+    assert.deepEqual(promotionPlan.summary, { candidates: 1, manual_merge_required: true });
+    assert.equal(promotionPlan.items[0]?.tool_id, "agent-new-tool");
+    assert.equal(promotionPlan.items[0]?.target_file, "src/data/seed-tool-cards.ts");
+    assert.equal(promotionPlan.items[0]?.candidate_artifact_path, "data/promotion_candidates/tool_cards.json");
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

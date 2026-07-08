@@ -53,6 +53,10 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
   manifest.promotion_candidates = {
     candidates: options.ingestion.promotionCandidates.summary.candidates
   };
+  manifest.promotion_plan = {
+    candidates: options.ingestion.promotionPlan.summary.candidates,
+    manual_merge_required: options.ingestion.promotionPlan.summary.manual_merge_required
+  };
   await writeFile(join(options.distDir, "artifact-manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
 }
 

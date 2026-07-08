@@ -17,6 +17,7 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     ...(manifest.field_value_provenance ? [`- Field value provenance: ${formatFieldValueProvenance(manifest.field_value_provenance)}`] : []),
     ...(manifest.release_admission ? [`- Release admission: ${formatReleaseAdmission(manifest.release_admission)}`] : []),
     ...(manifest.promotion_candidates ? [`- Promotion candidates: ${manifest.promotion_candidates.candidates}`] : []),
+    ...(manifest.promotion_plan ? [`- Promotion plan: ${formatPromotionPlan(manifest.promotion_plan)}`] : []),
     `- Checksums: ${Object.keys(manifest.checksums).length} files`
   ];
   return `${lines.join("\n")}\n`;
@@ -55,4 +56,9 @@ function formatFieldValueProvenance(provenance: NonNullable<ArtifactManifest["fi
 
 function formatReleaseAdmission(admission: NonNullable<ArtifactManifest["release_admission"]>): string {
   return `${admission.eligible_for_publish} eligible, ${admission.blocked} blocked`;
+}
+
+function formatPromotionPlan(plan: NonNullable<ArtifactManifest["promotion_plan"]>): string {
+  const mergeStatus = plan.manual_merge_required ? "manual merge required" : "no manual merge required";
+  return `${plan.candidates} candidates, ${mergeStatus}`;
 }

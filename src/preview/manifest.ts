@@ -68,6 +68,10 @@ export interface ArtifactManifest {
   promotion_candidates?: {
     candidates: number;
   };
+  promotion_plan?: {
+    candidates: number;
+    manual_merge_required: boolean;
+  };
   checksums: Record<string, string>;
 }
 

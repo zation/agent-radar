@@ -258,6 +258,29 @@ const ingestionResult: RunIngestionResult = {
         promotion_status: "candidate"
       }
     ]
+  },
+  promotionPlan: {
+    schema_version: "tool_card_promotion_plan.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    summary: {
+      candidates: 1,
+      manual_merge_required: true
+    },
+    items: [
+      {
+        tool_id: "agent-codex",
+        source_record_id: "manual-agent-radar-seed-agent-codex-20260707",
+        recommended_action: "manual_merge_to_seed_tool_cards",
+        target_file: "src/data/seed-tool-cards.ts",
+        candidate_artifact_path: "data/promotion_candidates/tool_cards.json",
+        approval: {
+          reviewed_by: "maintainer",
+          reviewed_at: "2026-07-07T12:00:00Z",
+          reason: "Reviewed for preview."
+        },
+        checks: ["Run npm run pipeline after manual merge."]
+      }
+    ]
   }
 };
 
@@ -281,9 +304,12 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /agent-codex source_record=manual-agent-radar-seed-agent-codex-20260707 status=eligible_for_publish blocking_reasons=none/);
   assert.match(markdown, /agent-blocked source_record=manual-agent-radar-seed-agent-blocked-20260707 status=blocked blocking_reasons=approval_not_approved,possible_duplicate/);
   assert.match(markdown, /Promotion candidates: 1/);
+  assert.match(markdown, /Promotion plan: 1 candidates, manual merge required/);
   assert.match(markdown, /## Promotion Candidates/);
   assert.match(markdown, /agent-codex \(Codex\) source_record=manual-agent-radar-seed-agent-codex-20260707 reviewer=maintainer reviewed_at=2026-07-07T12:00:00Z/);
   assert.match(markdown, /approval_reason=Reviewed for preview\./);
+  assert.match(markdown, /## Promotion Plan/);
+  assert.match(markdown, /agent-codex target=src\/data\/seed-tool-cards\.ts action=manual_merge_to_seed_tool_cards candidate_artifact=data\/promotion_candidates\/tool_cards\.json/);
 });
 
 test("builds artifact manifest with checksums and eval summary", async () => {
@@ -386,6 +412,10 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
     promotion_candidates: {
       candidates: 2
     },
+    promotion_plan: {
+      candidates: 2,
+      manual_merge_required: true
+    },
     checksums: {
       "data/manifest.json": "sha256:manifest",
       "data/provider_registry.json": "sha256:provider"
@@ -404,6 +434,7 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
   assert.match(markdown, /- Field value provenance: 240 field values across 20 Tool Cards/);
   assert.match(markdown, /- Release admission: 2 eligible, 18 blocked/);
   assert.match(markdown, /- Promotion candidates: 2/);
+  assert.match(markdown, /- Promotion plan: 2 candidates, manual merge required/);
   assert.match(markdown, /- Checksums: 2 files/);
 });
 
@@ -481,6 +512,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       field_value_provenance: { tool_cards: number; field_values: number };
       release_admission: { eligible_for_publish: number; blocked: number };
       promotion_candidates: { candidates: number };
+      promotion_plan: { candidates: number; manual_merge_required: boolean };
     };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
@@ -497,6 +529,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.deepEqual(artifactManifest.field_value_provenance, { tool_cards: 1, field_values: 2 });
     assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 1 });
     assert.deepEqual(artifactManifest.promotion_candidates, { candidates: 1 });
+    assert.deepEqual(artifactManifest.promotion_plan, { candidates: 1, manual_merge_required: true });
     await assert.rejects(() => stat(join(outputDir, "review", "ingestion.md")));
   } finally {
     await rm(outputDir, { recursive: true, force: true });

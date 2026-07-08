@@ -21,6 +21,7 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult, source
     `- Approvals: ${result.approvalArtifact.summary.approved} approved, ${result.approvalArtifact.summary.rejected} rejected, ${result.approvalArtifact.summary.needs_changes} needs changes`,
     `- Release admission: ${result.releaseAdmission.summary.eligible_for_publish} eligible, ${result.releaseAdmission.summary.blocked} blocked`,
     `- Promotion candidates: ${result.promotionCandidates.summary.candidates}`,
+    `- Promotion plan: ${formatPromotionPlanSummary(result.promotionPlan.summary)}`,
     `- Failed snapshots: ${result.snapshots.filter((snapshot) => snapshot.status === "failed").length}`,
     "",
     "## Sources",
@@ -36,6 +37,7 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult, source
     ...renderApprovalRequests(result),
     ...renderReleaseAdmission(result),
     ...renderPromotionCandidates(result),
+    ...renderPromotionPlan(result),
     ...renderSourceRegistryReviewRequirements(sourceRegistryReviewRequirements)
   ];
 
@@ -91,6 +93,23 @@ function renderPromotionCandidates(result: RunIngestionResult): string[] {
       return `- ${item.tool_id} (${item.draft.name}) source_record=${item.source_record_id} reviewer=${item.approval.reviewed_by} reviewed_at=${item.approval.reviewed_at} approval_reason=${item.approval.reason}`;
     })
   ];
+}
+
+function renderPromotionPlan(result: RunIngestionResult): string[] {
+  if (result.promotionPlan.items.length === 0) return [];
+
+  return [
+    "",
+    "## Promotion Plan",
+    ...result.promotionPlan.items.map((item) => {
+      return `- ${item.tool_id} target=${item.target_file} action=${item.recommended_action} candidate_artifact=${item.candidate_artifact_path}`;
+    })
+  ];
+}
+
+function formatPromotionPlanSummary(summary: RunIngestionResult["promotionPlan"]["summary"]): string {
+  const mergeStatus = summary.manual_merge_required ? "manual merge required" : "no manual merge required";
+  return `${summary.candidates} candidates, ${mergeStatus}`;
 }
 
 function renderSourceRegistryReviewRequirements(requirements: SourceRegistryReviewRequirementSummary[]): string[] {
