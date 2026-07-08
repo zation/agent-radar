@@ -3,6 +3,7 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { formatIngestionCliSummary } from "../src/cli/ingest-summary.js";
 import { crawlEnabledSources } from "../src/ingestion/crawler.js";
 import { runIngestion } from "../src/ingestion/run.js";
 import { buildSourceRegistryReviewArtifact } from "../src/ingestion/source-review.js";
@@ -14,6 +15,32 @@ test("source registry exposes only enabled MVP sources", () => {
   assert.deepEqual(enabled.map((source) => source.id), ["manual-agent-radar-seed"]);
   assert.equal(enabled[0]?.collection_method, "manual");
   assert.equal(enabled[0]?.trust_level, "official");
+});
+
+test("ingestion CLI summary includes approval and release gates", () => {
+  const summary = formatIngestionCliSummary({
+    snapshots: [{ source_id: "manual-agent-radar-seed" }],
+    sourceRecords: [{}, {}],
+    approvalRequests: { summary: { pending_approval: 2, duplicate_review_required: 1, blocked_validation: 0 } },
+    releaseAdmission: { summary: { eligible_for_publish: 1, blocked: 1 } },
+    promotionCandidates: { summary: { candidates: 1 } }
+  });
+
+  assert.deepEqual(summary, {
+    snapshots: 1,
+    source_records: 2,
+    source_ids: ["manual-agent-radar-seed"],
+    approval_requests: {
+      pending_approval: 2,
+      duplicate_review_required: 1,
+      blocked_validation: 0
+    },
+    release_admission: {
+      eligible_for_publish: 1,
+      blocked: 1
+    },
+    promotion_candidates: 1
+  });
 });
 
 test("source registry validator rejects unsafe enabled sources", () => {

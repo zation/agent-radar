@@ -51,6 +51,8 @@ npm run ingest
 
 `npm run ingest` 会为缺少 approval 的 draft 输出 `tool_card_approval_requests.v1`，包含 `pending_approval`、`duplicate_review_required` 和 `blocked_validation` summary。每个 item 包含 approval record template、decision options、duplicate ids、validation errors/warnings 和 Source Record id，帮助维护者生成真实 Approval Record；模板本身不是 approval，不会解除发布阻断。
 
+`npm run ingest` 的终端 JSON summary 会包含 snapshots、source records、source ids、approval requests、release admission 和 promotion candidates 摘要，便于本地或 CI 快速判断采集审核状态。
+
 发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 preview/release 审核源配置；同时输出 `data/source_registry_diff.json`，记录来源配置 added、removed 和 changed 摘要。changed source 会附带字段级 `review_requirements`，标出启用状态、访问边界、parser、频率、可信度等变更为何需要维护者确认。发布流水线也会输出 `data/source_registry_review.json`，记录这些 requirements 的 pending、confirmed、rejected 和 needs_changes 状态；没有确认记录时保持 pending，不会自动启用来源或提升可信度。
 
 发布流水线也会输出 `data/tool_card_validation.json` 和 `data/tool_card_field_provenance.json`，并在 Tool Card validation 失败时阻断 artifacts 生成，避免低置信、缺证据或风险未知的 Tool Card 进入可靠发布数据。字段 provenance artifact 会按 `permissions`、`security` 和 `maintenance` 统计字段级证据、人工审核覆盖和缺失项。
