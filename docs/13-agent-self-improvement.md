@@ -26,6 +26,30 @@
 | schema 缺口 | 无法表达 hosted 数据外传 | 提出 schema 变更 |
 | 用户反馈 | 工具分类错误、推荐无用、权限提示缺失、安装失败 | 转为反馈汇总、Review Summary 或待审核任务；不能直接改分或提升信任 |
 | 安全评测失败 | payment 工具未要求审批 | 修安全规则 |
+| CI 失败 | test failed、eval failed、preview gate failed | 收集项目 GitHub link、失败 job、脱敏 CI log 和相关 artifact 摘要，交给 LLM 生成修复分支和 PR 草稿；PR 必须包含复现步骤、修改说明和验证结果 |
+
+## 后续想法：CI 失败自动修复 PR
+
+当 GitHub Actions 中测试、评测或发布 gate 失败时，后续可以引入受控的自动修复工作流：
+
+```text
+CI failure
+  -> 收集 repo link、commit SHA、workflow/job id、失败命令、脱敏 CI log、相关 artifact 摘要
+  -> 分类失败类型：test_failure、eval_failure、schema_failure、pipeline_failure、preview_failure
+  -> 调用 LLM 生成问题诊断和最小修复计划
+  -> 在独立分支应用低风险修复
+  -> 运行对应测试或 eval
+  -> 自动创建 draft PR
+  -> 人类 review 后合并
+```
+
+安全边界：
+
+- 只发送公开 repo link、失败日志、命令输出和必要 artifact 摘要；不得发送 secret、token、`.env`、私有数据、本地文件、浏览器数据或邮件内容。
+- 自动 PR 默认只能处理低风险改动，例如测试修复、parser fixture、字段映射、文档、eval case 补充和明显的 pipeline bug。
+- schema 语义变化、评分权重大改、安全风险降低、来源 trust level 提升、自动发布策略变化和依赖/基础设施变更必须转为人工审批任务。
+- LLM 只能基于 CI log、仓库内容和已生成 artifacts 诊断，不得把未引用的外部知识写成项目事实。
+- PR 描述必须包含触发来源、失败摘要、修复范围、运行过的验证命令、剩余风险和是否需要人工确认。
 
 ## 可自动处理的任务
 
