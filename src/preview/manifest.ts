@@ -12,6 +12,7 @@ export interface ArtifactManifest {
     passed: number;
     total: number;
     model: string;
+    failure_categories: Record<string, number>;
   };
   checksums: Record<string, string>;
 }
@@ -35,10 +36,19 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
     eval: {
       passed: evalSummary.passed,
       total: evalSummary.total,
-      model: options.providerModel
+      model: options.providerModel,
+      failure_categories: countEvalFailureCategories(evalSummary)
     },
     checksums: await checksumFiles(options.distDir)
   };
+}
+
+function countEvalFailureCategories(summary: EvalSummary): Record<string, number> {
+  return summary.results.reduce<Record<string, number>>((counts, result) => {
+    const category = result.failure_category;
+    counts[category] = (counts[category] ?? 0) + 1;
+    return counts;
+  }, {});
 }
 
 async function checksumFiles(rootDir: string): Promise<Record<string, string>> {

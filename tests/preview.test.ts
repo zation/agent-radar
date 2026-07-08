@@ -72,7 +72,19 @@ test("builds artifact manifest with checksums and eval summary", async () => {
     await mkdir(join(outputDir, "data"), { recursive: true });
     await writeFile(join(outputDir, "index.html"), "<html></html>", "utf8");
     await writeFile(join(outputDir, "data", "manifest.json"), JSON.stringify({ data_version: "data-test" }), "utf8");
-    await writeFile(join(outputDir, "data", "eval_summary.json"), JSON.stringify({ passed: 5, total: 5, results: [] }), "utf8");
+    await writeFile(
+      join(outputDir, "data", "eval_summary.json"),
+      JSON.stringify({
+        passed: 1,
+        total: 3,
+        results: [
+          { case_id: "a", passed: true, failure_category: "none", failures: [], recommended_action: "use", top_tool_ids: ["tool-a"] },
+          { case_id: "b", passed: false, failure_category: "blocked_no_key", failures: ["missing key"], recommended_action: "blocked", top_tool_ids: [] },
+          { case_id: "c", passed: false, failure_category: "quality_failure", failures: ["missing tag"], recommended_action: "use", top_tool_ids: ["tool-c"] }
+        ]
+      }),
+      "utf8"
+    );
 
     const manifest = await buildArtifactManifest({
       distDir: outputDir,
@@ -84,8 +96,9 @@ test("builds artifact manifest with checksums and eval summary", async () => {
     assert.equal(manifest.schema_version, "artifact_manifest.v1");
     assert.equal(manifest.git_sha, "abc123");
     assert.equal(manifest.data_version, "data-test");
-    assert.equal(manifest.eval.passed, 5);
+    assert.equal(manifest.eval.passed, 1);
     assert.equal(manifest.eval.model, "deepseek-v4-flash");
+    assert.deepEqual(manifest.eval.failure_categories, { none: 1, blocked_no_key: 1, quality_failure: 1 });
     assert.match(manifest.checksums["index.html"] ?? "", /^sha256:/);
     assert.match(manifest.checksums["data/manifest.json"] ?? "", /^sha256:/);
   } finally {
