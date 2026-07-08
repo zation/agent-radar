@@ -33,6 +33,11 @@ const handler = createApiHandler(repository, {
   }
 });
 
+interface McpManifestResponse {
+  schema_version: string;
+  tools: Array<{ name: string; read_only: boolean }>;
+}
+
 test("search_tools returns summaries with match reasons", async () => {
   const response = await handler(
     new Request("https://agent-radar.test/api/search_tools", {
@@ -92,6 +97,19 @@ test("explain_rating returns dimension explanations", async () => {
   const body = await response.json();
   assert.equal(body.tool_id, "skill-test-driven-development");
   assert.ok(body.explanations.length > 0);
+});
+
+test("mcp_manifest exposes read-only tool definitions", async () => {
+  const response = await handler(new Request("https://agent-radar.test/api/mcp_manifest"));
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as McpManifestResponse;
+  assert.equal(body.schema_version, "mcp_tool_manifest.v1");
+  assert.deepEqual(
+    body.tools.map((tool: { name: string }) => tool.name),
+    ["search_tools", "get_tool_card", "recommend_tools", "explain_rating"]
+  );
+  assert.equal(body.tools.every((tool: { read_only: boolean }) => tool.read_only), true);
 });
 
 test("rejects unsupported writes and unknown routes", async () => {

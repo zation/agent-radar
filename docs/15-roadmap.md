@@ -44,6 +44,7 @@
 - review queue 已包含最小重复信号，可标注 draft 可能对应的已发布 `tool_id`，但不会自动合并。
 - 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
 - 发布流水线已输出 `tool_card_validation.json` artifact，并在 Tool Card validator 失败时阻断可靠 artifacts 生成。
+- 发布流水线已输出 `mcp_tools.json`，Workers API 也提供 `/api/mcp_manifest` 返回只读工具定义。
 - Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
 
 当前主要缺口：
@@ -51,7 +52,7 @@
 - Tool Card 覆盖仍是 MVP 小样本，尚未达到 v0.2 的 20-50 张。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 review queue 尚未进入人工批准记录、normalizer、deduper 和发布数据。
 - 完整 Source Registry validator、完整 Tool Card validator、完整 deduper、normalizer 和人工 override 尚未完成。
-- Workers API 当前是 HTTP/JSON 风格实现，尚未包装成完整 MCP server/tool manifest。
+- Workers API 当前是 HTTP/JSON 风格实现，并已提供只读 MCP tool manifest；尚未实现完整 MCP server 协议包装。
 - BYOK 模式已经可用，但还缺 provider 配置 UI、错误提示分层和 direct-to-provider/proxy 模式决策。
 
 ## MVP
@@ -343,7 +344,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
   - 记录 production deployment id、manifest checksum 和 D1 seed checksum。
 - 增加 1-2 个官方来源的 crawler/parser，保持 GitHub topics disabled 直到噪声评估完成。
 - 建立 provider registry，避免 provider endpoint/model label 分散在代码常量里。
-- 补齐 MCP tool 定义和 agent-facing 示例。
+- 补齐完整 MCP server 协议包装和 agent-facing 示例。
 - 让 eval report 区分 `blocked_no_key`、`provider_error`、`schema_error`、`quality_failure`。
 
 ### P2：可信度增强

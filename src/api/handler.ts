@@ -1,5 +1,6 @@
 import { recommendTools, type RecommendationLlmClient } from "../recommendation/engine.js";
 import type { RecommendationQuery, SearchDocument } from "../schema.js";
+import { buildMcpToolManifest } from "./mcp-manifest.js";
 import type { ToolRepository } from "./repository.js";
 
 export interface ApiHandlerOptions {
@@ -25,6 +26,7 @@ export function createApiHandler(repository: ToolRepository, options: ApiHandler
       if (url.pathname === "/api/get_tool_card") return json(getToolCard(repository, getRequiredToolId(await readInput(request, url))));
       if (url.pathname === "/api/recommend_tools") return json(await recommend(repository, (await readInput(request, url)) as unknown as RecommendToolsInput, options));
       if (url.pathname === "/api/explain_rating") return json(explainRating(repository, getRequiredToolId(await readInput(request, url))));
+      if (url.pathname === "/api/mcp_manifest") return json(buildMcpToolManifest());
 
       return json({ error: "not_found", message: "Unknown route." }, 404);
     } catch (error) {

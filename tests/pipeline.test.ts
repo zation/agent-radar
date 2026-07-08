@@ -32,6 +32,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.schema_versions.source_registry, "source_registry.v1");
     assert.equal(manifest.source_registry, "data/source_registry.json");
     assert.equal(manifest.tool_card_validation, "data/tool_card_validation.json");
+    assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
 
     const sourceRegistry = JSON.parse(await readFile(join(outputDir, "data", "source_registry.json"), "utf8"));
     assert.equal(sourceRegistry.schema_version, "source_registry.v1");
@@ -43,6 +44,10 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(toolCardValidation.schema_version, "tool_card_validation.v1");
     assert.equal(toolCardValidation.passed, true);
     assert.equal(toolCardValidation.checked_count, summary.toolCount);
+
+    const mcpTools = JSON.parse(await readFile(join(outputDir, "data", "mcp_tools.json"), "utf8"));
+    assert.equal(mcpTools.schema_version, "mcp_tool_manifest.v1");
+    assert.equal(mcpTools.tools.length, 4);
 
     const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
     assert.ok(searchIndex.documents.length >= 5);
