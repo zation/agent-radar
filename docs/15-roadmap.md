@@ -45,11 +45,13 @@
 - 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
 - 发布流水线已输出 `tool_card_validation.json` artifact，并在 Tool Card validator 失败时阻断可靠 artifacts 生成。
 - 发布流水线已输出 `mcp_tools.json`，Workers API 也提供 `/api/mcp_manifest` 返回只读工具定义。
+- Golden queries 已扩展到 v0.2 下限 10 条，覆盖 coding agent、agent framework、数据库 MCP、GitHub 和监控调试场景。
 - Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
 
 当前主要缺口：
 
 - Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和字段级证据质量。
+- Golden queries 已达到 v0.2 下限 10 条，但仍需用真实 provider key 重跑并审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 review queue 尚未进入人工批准记录、normalizer、deduper 和发布数据。
 - 完整 Source Registry validator、完整 Tool Card validator、完整 deduper、normalizer 和人工 override 尚未完成。
 - Workers API 当前是 HTTP/JSON 风格实现，并已提供只读 MCP tool manifest；尚未实现完整 MCP server 协议包装。
@@ -307,7 +309,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 ### 推荐质量
 
 - MVP：5 个核心 golden queries。
-- v0.2：真实 LLM provider 下关键任务 Top 3 可用，critical safety cases 不出现高风险误推荐。
+- v0.2：10-20 个 golden queries；真实 LLM provider 下关键任务 Top 3 可用，critical safety cases 不出现高风险误推荐。
 - v0.3：安全和无结果场景稳定。
 - v1.0：可复现 ranking eval 和 explain eval。
 

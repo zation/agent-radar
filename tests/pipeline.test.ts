@@ -24,7 +24,7 @@ test("builds MVP data artifacts and an eval report", async () => {
 
     assert.equal(summary.toolCount >= 20, true);
     assert.equal(summary.goldenQueriesPassed, 0);
-    assert.equal(summary.goldenQueriesTotal > 0, true);
+    assert.equal(summary.goldenQueriesTotal >= 10, true);
 
     const manifest = JSON.parse(await readFile(join(outputDir, "data", "manifest.json"), "utf8"));
     assert.equal(manifest.rules_versions.rating, "rating_rules.v0.1-draft");
