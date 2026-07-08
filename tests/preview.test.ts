@@ -143,6 +143,25 @@ const ingestionResult: RunIngestionResult = {
       }
     ]
   },
+  fieldProvenance: {
+    schema_version: "tool_card_field_value_provenance.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    summary: {
+      tool_cards: 1,
+      field_values: 2
+    },
+    items: [
+      {
+        tool_id: "agent-codex",
+        source_record_id: "manual-agent-radar-seed-agent-codex-20260707",
+        tool_card_field: "summary",
+        source_field_path: "raw_fields.summary",
+        source_value_preview: "Cloud coding agent for software development tasks.",
+        normalized_value_preview: "Cloud coding agent for software development tasks.",
+        provenance_type: "source_record"
+      }
+    ]
+  },
   duplicateReport: {
     schema_version: "tool_card_duplicate_report.v1",
     generated_at: "2026-07-07T00:00:00Z",
@@ -251,6 +270,8 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /Review ready: 0/);
   assert.match(markdown, /Crawl audit: 1 success, 0 partial, 0 failed/);
   assert.match(markdown, /Approvals: 1 approved, 0 rejected, 0 needs changes/);
+  assert.match(markdown, /## Field Value Provenance/);
+  assert.match(markdown, /agent-codex summary source=raw_fields\.summary source_record=manual-agent-radar-seed-agent-codex-20260707 value=Cloud coding agent for software development tasks\./);
   assert.match(markdown, /## Approval Requests/);
   assert.match(markdown, /agent-blocked \(Blocked Agent\) source_record=manual-agent-radar-seed-agent-blocked-20260707 review_status=ready_for_review duplicates=agent-codex template_id=approval-agent-blocked-manual-agent-radar-seed-agent-blocked-20260707/);
   assert.match(markdown, /decision_options=approved,rejected,needs_changes required_fields=decision,reason,reviewer,reviewed_at/);
@@ -353,6 +374,10 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
       duplicate_review_required: 12,
       blocked_validation: 1
     },
+    field_value_provenance: {
+      tool_cards: 20,
+      field_values: 240
+    },
     release_admission: {
       eligible_for_publish: 2,
       blocked: 18
@@ -375,6 +400,7 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
   assert.match(markdown, /- Source registry review: 1\/2 confirmed, 1 pending, 0 rejected, 0 needs changes/);
   assert.match(markdown, /- Ingestion approvals: 2 approved, 1 rejected, 1 needs changes/);
   assert.match(markdown, /- Approval requests: 18 pending, 12 duplicate review, 1 blocked validation/);
+  assert.match(markdown, /- Field value provenance: 240 field values across 20 Tool Cards/);
   assert.match(markdown, /- Release admission: 2 eligible, 18 blocked/);
   assert.match(markdown, /- Promotion candidates: 2/);
   assert.match(markdown, /- Checksums: 2 files/);
@@ -451,6 +477,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       tool_card_field_provenance: { cards_checked: number; fields_checked: number; covered: number; covered_by_manual_review: number; missing: number };
       ingestion_review: { approvals: { approved: number; rejected: number; needs_changes: number } };
       approval_requests: { pending_approval: number; duplicate_review_required: number; blocked_validation: number };
+      field_value_provenance: { tool_cards: number; field_values: number };
       release_admission: { eligible_for_publish: number; blocked: number };
       promotion_candidates: { candidates: number };
     };
@@ -466,6 +493,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.deepEqual(artifactManifest.tool_card_field_provenance, { cards_checked: 20, fields_checked: 60, covered: 0, covered_by_manual_review: 60, missing: 0 });
     assert.deepEqual(artifactManifest.ingestion_review.approvals, { approved: 1, rejected: 0, needs_changes: 0 });
     assert.deepEqual(artifactManifest.approval_requests, { pending_approval: 1, duplicate_review_required: 1, blocked_validation: 0 });
+    assert.deepEqual(artifactManifest.field_value_provenance, { tool_cards: 1, field_values: 2 });
     assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 1 });
     assert.deepEqual(artifactManifest.promotion_candidates, { candidates: 1 });
     await assert.rejects(() => stat(join(outputDir, "review", "ingestion.md")));

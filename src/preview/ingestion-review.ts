@@ -32,6 +32,7 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult, source
       const urls = record.urls.length ? ` urls=${record.urls.join(", ")}` : "";
       return `- ${record.name} (${record.record_type}, confidence=${record.source_confidence}) source=${record.source_id}${warnings}${urls}`;
     }),
+    ...renderFieldValueProvenance(result),
     ...renderApprovalRequests(result),
     ...renderReleaseAdmission(result),
     ...renderPromotionCandidates(result),
@@ -39,6 +40,18 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult, source
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderFieldValueProvenance(result: RunIngestionResult): string[] {
+  if (result.fieldProvenance.items.length === 0) return [];
+
+  return [
+    "",
+    "## Field Value Provenance",
+    ...result.fieldProvenance.items.slice(0, 20).map((item) => {
+      return `- ${item.tool_id} ${item.tool_card_field} source=${item.source_field_path} source_record=${item.source_record_id} value=${item.source_value_preview}`;
+    })
+  ];
 }
 
 function renderApprovalRequests(result: RunIngestionResult): string[] {

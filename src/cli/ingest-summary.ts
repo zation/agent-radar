@@ -8,6 +8,12 @@ export interface IngestionCliSummaryInput {
       blocked_validation: number;
     };
   };
+  fieldProvenance: {
+    summary: {
+      tool_cards: number;
+      field_values: number;
+    };
+  };
   releaseAdmission: {
     summary: {
       eligible_for_publish: number;
@@ -30,6 +36,10 @@ export interface IngestionCliSummary {
     duplicate_review_required: number;
     blocked_validation: number;
   };
+  field_value_provenance: {
+    tool_cards: number;
+    field_values: number;
+  };
   release_admission: {
     eligible_for_publish: number;
     blocked: number;
@@ -46,6 +56,10 @@ export function formatIngestionCliSummary(result: IngestionCliSummaryInput): Ing
       pending_approval: result.approvalRequests.summary.pending_approval,
       duplicate_review_required: result.approvalRequests.summary.duplicate_review_required,
       blocked_validation: result.approvalRequests.summary.blocked_validation
+    },
+    field_value_provenance: {
+      tool_cards: result.fieldProvenance.summary.tool_cards,
+      field_values: result.fieldProvenance.summary.field_values
     },
     release_admission: {
       eligible_for_publish: result.releaseAdmission.summary.eligible_for_publish,

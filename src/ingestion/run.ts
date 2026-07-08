@@ -6,6 +6,7 @@ import { buildCrawlAudit, type CrawlAudit } from "./crawl-audit.js";
 import { buildSourceCrawlPlan, type SourceCrawlPlan } from "./crawl-plan.js";
 import { crawlEnabledSources } from "./crawler.js";
 import { buildToolCardDuplicateReport, type ToolCardDuplicateReport } from "./deduper.js";
+import { buildToolCardFieldValueProvenance, type ToolCardFieldValueProvenance } from "./field-provenance.js";
 import { normalizeToolCardDrafts, type OverrideRecord } from "./normalizer.js";
 import { parseSnapshot } from "./parser.js";
 import { buildToolCardPromotionCandidates, type ToolCardPromotionCandidates } from "./promotion-candidates.js";
@@ -33,6 +34,7 @@ export interface RunIngestionResult {
   overrideRecords: OverrideRecord[];
   approvalArtifact: ApprovalArtifact;
   approvalRequests: ToolCardApprovalRequests;
+  fieldProvenance: ToolCardFieldValueProvenance;
   duplicateReport: ToolCardDuplicateReport;
   reviewQueue: ToolCardReviewQueue;
   releaseAdmission: ToolCardReleaseAdmission;
@@ -71,6 +73,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeToolCardDrafts(options.outputDir, draftsBySource);
   const sourceRecords = [...recordsBySource.values()].flat();
   const toolCardDrafts = [...draftsBySource.values()].flat();
+  const fieldProvenance = buildToolCardFieldValueProvenance(toolCardDrafts, sourceRecords, now);
+  await writeFieldProvenance(options.outputDir, fieldProvenance);
   const existingToolCards = options.existingToolCards ?? seedToolCards;
   const duplicateReport = buildToolCardDuplicateReport(toolCardDrafts, existingToolCards, now);
   await writeDuplicateReport(options.outputDir, duplicateReport);
@@ -92,6 +96,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     overrideRecords,
     approvalArtifact,
     approvalRequests,
+    fieldProvenance,
     duplicateReport,
     reviewQueue,
     releaseAdmission,
@@ -169,6 +174,12 @@ async function writeApprovalRequests(outputDir: string, approvalRequests: ToolCa
   const approvalRequestsDir = join(outputDir, "data", "approval_requests");
   await mkdir(approvalRequestsDir, { recursive: true });
   await writeFile(join(approvalRequestsDir, "tool_card_drafts.json"), JSON.stringify(approvalRequests, null, 2), "utf8");
+}
+
+async function writeFieldProvenance(outputDir: string, fieldProvenance: ToolCardFieldValueProvenance): Promise<void> {
+  const fieldProvenanceDir = join(outputDir, "data", "field_provenance");
+  await mkdir(fieldProvenanceDir, { recursive: true });
+  await writeFile(join(fieldProvenanceDir, "tool_card_fields.json"), JSON.stringify(fieldProvenance, null, 2), "utf8");
 }
 
 async function writeReleaseAdmission(outputDir: string, releaseAdmission: ToolCardReleaseAdmission): Promise<void> {

@@ -14,6 +14,7 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     ...(manifest.source_registry_review ? [`- Source registry review: ${formatSourceRegistryReview(manifest.source_registry_review)}`] : []),
     ...(manifest.ingestion_review ? [`- Ingestion approvals: ${formatIngestionApprovals(manifest.ingestion_review.approvals)}`] : []),
     ...(manifest.approval_requests ? [`- Approval requests: ${formatApprovalRequests(manifest.approval_requests)}`] : []),
+    ...(manifest.field_value_provenance ? [`- Field value provenance: ${formatFieldValueProvenance(manifest.field_value_provenance)}`] : []),
     ...(manifest.release_admission ? [`- Release admission: ${formatReleaseAdmission(manifest.release_admission)}`] : []),
     ...(manifest.promotion_candidates ? [`- Promotion candidates: ${manifest.promotion_candidates.candidates}`] : []),
     `- Checksums: ${Object.keys(manifest.checksums).length} files`
@@ -46,6 +47,10 @@ function formatIngestionApprovals(approvals: NonNullable<ArtifactManifest["inges
 
 function formatApprovalRequests(requests: NonNullable<ArtifactManifest["approval_requests"]>): string {
   return `${requests.pending_approval} pending, ${requests.duplicate_review_required} duplicate review, ${requests.blocked_validation} blocked validation`;
+}
+
+function formatFieldValueProvenance(provenance: NonNullable<ArtifactManifest["field_value_provenance"]>): string {
+  return `${provenance.field_values} field values across ${provenance.tool_cards} Tool Cards`;
 }
 
 function formatReleaseAdmission(admission: NonNullable<ArtifactManifest["release_admission"]>): string {

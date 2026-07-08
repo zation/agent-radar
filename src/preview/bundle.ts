@@ -42,6 +42,10 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     duplicate_review_required: options.ingestion.approvalRequests.summary.duplicate_review_required,
     blocked_validation: options.ingestion.approvalRequests.summary.blocked_validation
   };
+  manifest.field_value_provenance = {
+    tool_cards: options.ingestion.fieldProvenance.summary.tool_cards,
+    field_values: options.ingestion.fieldProvenance.summary.field_values
+  };
   manifest.release_admission = {
     eligible_for_publish: options.ingestion.releaseAdmission.summary.eligible_for_publish,
     blocked: options.ingestion.releaseAdmission.summary.blocked

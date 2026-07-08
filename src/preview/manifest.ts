@@ -57,6 +57,10 @@ export interface ArtifactManifest {
     duplicate_review_required: number;
     blocked_validation: number;
   };
+  field_value_provenance?: {
+    tool_cards: number;
+    field_values: number;
+  };
   release_admission?: {
     eligible_for_publish: number;
     blocked: number;

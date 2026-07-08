@@ -22,6 +22,7 @@ test("ingestion CLI summary includes approval and release gates", () => {
     snapshots: [{ source_id: "manual-agent-radar-seed" }],
     sourceRecords: [{}, {}],
     approvalRequests: { summary: { pending_approval: 2, duplicate_review_required: 1, blocked_validation: 0 } },
+    fieldProvenance: { summary: { tool_cards: 2, field_values: 24 } },
     releaseAdmission: { summary: { eligible_for_publish: 1, blocked: 1 } },
     promotionCandidates: { summary: { candidates: 1 } }
   });
@@ -34,6 +35,10 @@ test("ingestion CLI summary includes approval and release gates", () => {
       pending_approval: 2,
       duplicate_review_required: 1,
       blocked_validation: 0
+    },
+    field_value_provenance: {
+      tool_cards: 2,
+      field_values: 24
     },
     release_admission: {
       eligible_for_publish: 1,
@@ -386,6 +391,21 @@ test("ingestion writes tool card drafts from complete manual source records", as
       source_record_id: "manual-agent-radar-seed-agent-codex-20260708",
       required_fields: ["decision", "reason", "reviewer", "reviewed_at"]
     });
+    assert.equal(result.fieldProvenance.schema_version, "tool_card_field_value_provenance.v1");
+    assert.equal(result.fieldProvenance.summary.tool_cards, 1);
+    assert.ok(result.fieldProvenance.summary.field_values >= 3);
+    assert.deepEqual(
+      result.fieldProvenance.items.find((item) => item.tool_card_field === "summary"),
+      {
+        tool_id: "agent-codex",
+        source_record_id: "manual-agent-radar-seed-agent-codex-20260708",
+        tool_card_field: "summary",
+        source_field_path: "raw_fields.summary",
+        source_value_preview: "A coding agent that can inspect workspaces, edit files, and run tests.",
+        normalized_value_preview: "A coding agent that can inspect workspaces, edit files, and run tests.",
+        provenance_type: "source_record"
+      }
+    );
     assert.equal(result.toolCardDrafts[0]?.id, "agent-codex");
     assert.deepEqual(result.toolCardDrafts[0]?.evidence_refs, ["manual-agent-radar-seed-agent-codex-20260708"]);
 
@@ -411,6 +431,16 @@ test("ingestion writes tool card drafts from complete manual source records", as
     assert.equal(approvalRequests.schema_version, "tool_card_approval_requests.v1");
     assert.equal(approvalRequests.summary.pending_approval, 1);
     assert.equal(approvalRequests.items[0]?.approval_record_template.target_id, "agent-codex");
+
+    const fieldProvenance = JSON.parse(await readFile(join(outputDir, "data", "field_provenance", "tool_card_fields.json"), "utf8")) as {
+      schema_version: string;
+      summary: { tool_cards: number; field_values: number };
+      items: Array<{ tool_id: string; tool_card_field: string; source_value_preview: string }>;
+    };
+    assert.equal(fieldProvenance.schema_version, "tool_card_field_value_provenance.v1");
+    assert.equal(fieldProvenance.summary.tool_cards, 1);
+    assert.ok(fieldProvenance.summary.field_values >= 3);
+    assert.equal(fieldProvenance.items.find((item) => item.tool_card_field === "summary")?.source_value_preview, "A coding agent that can inspect workspaces, edit files, and run tests.");
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
