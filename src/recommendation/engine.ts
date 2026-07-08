@@ -148,22 +148,7 @@ export function createOpenAiRecommendationClient(fetchImpl: typeof fetch = fetch
           Authorization: `Bearer ${normalizeApiKey(input.apiKey)}`,
           "content-type": "application/json"
         },
-        body: JSON.stringify({
-          model: modelRequest.model,
-          messages: [
-            {
-              role: modelRequest.instructionRole,
-              content:
-                "You are Agent Radar's recommendation engine. Return only JSON. Recommend only tool_id values present in the supplied catalog. Preserve safety concerns, evidence limits, and high-risk human approval boundaries."
-            },
-            {
-              role: "user",
-              content: input.prompt
-            }
-          ],
-          response_format: { type: "json_object" },
-          temperature: 0.2
-        })
+        body: JSON.stringify(buildProviderRequestBody(modelRequest, input.prompt))
       });
 
       if (!response.ok) {
@@ -197,7 +182,7 @@ export function createOpenAiRecommendationClient(fetchImpl: typeof fetch = fetch
         });
       }
       try {
-        return JSON.parse(content) as RecommendationLlmOutput;
+        return JSON.parse(normalizeProviderJsonContent(content)) as RecommendationLlmOutput;
       } catch {
         throw new RecommendationProviderError({
           code: "provider_schema_error",
@@ -206,6 +191,32 @@ export function createOpenAiRecommendationClient(fetchImpl: typeof fetch = fetch
         });
       }
     }
+  };
+}
+
+function normalizeProviderJsonContent(content: string): string {
+  const trimmed = content.trim();
+  const fencedJson = trimmed.match(/^```(?:json)?\s*\n([\s\S]*?)\n```$/i);
+  return fencedJson ? fencedJson[1].trim() : trimmed;
+}
+
+function buildProviderRequestBody(modelRequest: ModelRequest, prompt: string): Record<string, unknown> {
+  return {
+    model: modelRequest.model,
+    messages: [
+      {
+        role: modelRequest.instructionRole,
+        content:
+          "You are Agent Radar's recommendation engine. Return only JSON. Recommend only tool_id values present in the supplied catalog. Preserve safety concerns, evidence limits, and high-risk human approval boundaries."
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ],
+    response_format: { type: "json_object" },
+    temperature: 0.2,
+    ...(modelRequest.provider === "minimax" ? { thinking: { type: "disabled" } } : {})
   };
 }
 
@@ -280,13 +291,17 @@ interface ModelRequest {
 }
 
 export function resolveModelRequest(model: string): ModelRequest {
-  const providerModel = resolveRecommendationProviderModel(model);
+  const providerModel = resolveRecommendationProviderModel(model, { baseUrl: readEnv("AGENT_RADAR_LLM_BASE_URL") });
   return {
     endpoint: providerModel.endpoint,
     instructionRole: providerModel.instructionRole,
     model: providerModel.apiModel,
     provider: providerModel.provider
   };
+}
+
+function readEnv(name: string): string | undefined {
+  return typeof process === "undefined" ? undefined : process.env[name];
 }
 
 function sanitizeProviderErrorBody(body: string): string {

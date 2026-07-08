@@ -11,6 +11,10 @@ export interface RecommendationProviderModel {
   provider: RecommendationProvider;
 }
 
+export interface ResolveRecommendationProviderModelOptions {
+  baseUrl?: string;
+}
+
 export interface ProviderRegistryArtifact {
   schema_version: "provider_registry.v1";
   registry_version: typeof PROVIDER_REGISTRY_VERSION;
@@ -85,15 +89,16 @@ export function buildProviderRegistryArtifact(): ProviderRegistryArtifact {
   };
 }
 
-export function resolveRecommendationProviderModel(model: string): RecommendationProviderModel {
+export function resolveRecommendationProviderModel(model: string, options: ResolveRecommendationProviderModelOptions = {}): RecommendationProviderModel {
   const trimmedModel = model.trim();
   const knownModel = providerModels.find((entry) => entry.label === trimmedModel || entry.apiModel === trimmedModel);
-  if (knownModel) return { ...knownModel };
+  if (knownModel) return { ...knownModel, endpoint: resolveEndpoint(knownModel.provider, knownModel.endpoint, options.baseUrl) };
 
   const provider = inferProvider(trimmedModel);
+  const defaultEndpoint = provider === "minimax" ? "https://api.minimax.io/v1/chat/completions" : provider === "deepseek" ? "https://api.deepseek.com/chat/completions" : "https://api.openai.com/v1/chat/completions";
   return {
     apiModel: trimmedModel,
-    endpoint: provider === "minimax" ? "https://api.minimax.io/v1/chat/completions" : provider === "deepseek" ? "https://api.deepseek.com/chat/completions" : "https://api.openai.com/v1/chat/completions",
+    endpoint: resolveEndpoint(provider, defaultEndpoint, options.baseUrl),
     instructionRole: provider === "openai" ? "developer" : "system",
     label: trimmedModel,
     provider
@@ -104,4 +109,18 @@ function inferProvider(model: string): RecommendationProvider {
   if (model.startsWith("MiniMax-")) return "minimax";
   if (model.startsWith("deepseek-")) return "deepseek";
   return "openai";
+}
+
+function resolveEndpoint(provider: RecommendationProvider, defaultEndpoint: string, baseUrl?: string): string {
+  if (!baseUrl?.trim()) return defaultEndpoint;
+  return joinBaseUrl(baseUrl, providerPath(provider));
+}
+
+function providerPath(provider: RecommendationProvider): string {
+  if (provider === "deepseek") return "/chat/completions";
+  return "/v1/chat/completions";
+}
+
+function joinBaseUrl(baseUrl: string, path: string): string {
+  return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
 }

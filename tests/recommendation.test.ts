@@ -15,6 +15,24 @@ test("routes MiniMax model labels to the MiniMax chat completions endpoint", () 
   });
 });
 
+test("uses AGENT_RADAR_LLM_BASE_URL to override the selected provider endpoint", () => {
+  const originalBaseUrl = process.env.AGENT_RADAR_LLM_BASE_URL;
+
+  try {
+    process.env.AGENT_RADAR_LLM_BASE_URL = "https://api.minimaxi.com";
+
+    assert.deepEqual(resolveModelRequest("MiniMax M3"), {
+      endpoint: "https://api.minimaxi.com/v1/chat/completions",
+      instructionRole: "system",
+      model: "MiniMax-M3",
+      provider: "minimax"
+    });
+  } finally {
+    if (originalBaseUrl === undefined) delete process.env.AGENT_RADAR_LLM_BASE_URL;
+    else process.env.AGENT_RADAR_LLM_BASE_URL = originalBaseUrl;
+  }
+});
+
 test("keeps OpenAI model labels on the OpenAI chat completions endpoint", () => {
   assert.deepEqual(resolveModelRequest("OpenAI GPT-4.1"), {
     endpoint: "https://api.openai.com/v1/chat/completions",
@@ -45,7 +63,7 @@ test("normalizes provider API keys before building authorization headers", () =>
 });
 
 test("sends MiniMax requests with a single bearer authorization header", async () => {
-  const calls: Array<{ url: string; authorization: string | null; body: { model?: string; messages?: Array<{ role: string }> } }> = [];
+  const calls: Array<{ url: string; authorization: string | null; body: { model?: string; messages?: Array<{ role: string }>; thinking?: { type?: string } } }> = [];
   const fetchImpl: typeof fetch = (url, init) => {
     const headers = new Headers(init?.headers);
     const requestUrl = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
@@ -69,6 +87,57 @@ test("sends MiniMax requests with a single bearer authorization header", async (
   assert.equal(calls[0]?.authorization, "Bearer minimax-secret");
   assert.equal(calls[0]?.body.model, "MiniMax-M3");
   assert.equal(calls[0]?.body.messages?.[0]?.role, "system");
+  assert.deepEqual(calls[0]?.body.thinking, { type: "disabled" });
+});
+
+test("does not send MiniMax thinking controls to non-MiniMax providers", async () => {
+  const calls: Array<{ body: { thinking?: { type?: string } } }> = [];
+  const fetchImpl: typeof fetch = (_url, init) => {
+    const requestBody = typeof init?.body === "string" ? init.body : "{}";
+    calls.push({ body: JSON.parse(requestBody) as { thinking?: { type?: string } } });
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: JSON.stringify({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] }) } }]
+        })
+      )
+    );
+  };
+  const client = createOpenAiRecommendationClient(fetchImpl);
+
+  await client.recommend({ apiKey: "openai-secret", model: "OpenAI GPT-4.1", prompt: "{}" });
+
+  assert.equal(calls[0]?.body.thinking, undefined);
+});
+
+test("parses fenced JSON provider responses", async () => {
+  const fetchImpl: typeof fetch = () =>
+    Promise.resolve(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: [
+                  "```json",
+                  "{\"recommended_action\":\"no_reliable_match\",\"candidates\":[],\"rejected_candidates\":[]}",
+                  "```"
+                ].join("\n")
+              }
+            }
+          ]
+        })
+      )
+    );
+  const client = createOpenAiRecommendationClient(fetchImpl);
+
+  const output = await client.recommend({ apiKey: "sk-test", model: "OpenAI GPT-4.1", prompt: "{}" });
+
+  assert.deepEqual(output, {
+    recommended_action: "no_reliable_match",
+    candidates: [],
+    rejected_candidates: []
+  });
 });
 
 test("builds recommendations from an LLM client response", async () => {

@@ -31,6 +31,23 @@ test("resolves provider labels to request configuration", () => {
   });
 });
 
+test("overrides provider endpoint with a shared LLM base URL", () => {
+  assert.deepEqual(resolveRecommendationProviderModel("MiniMax M3", { baseUrl: "https://api.minimaxi.com" }), {
+    apiModel: "MiniMax-M3",
+    endpoint: "https://api.minimaxi.com/v1/chat/completions",
+    instructionRole: "system",
+    label: "MiniMax M3",
+    provider: "minimax"
+  });
+  assert.deepEqual(resolveRecommendationProviderModel("DeepSeek V4 Flash", { baseUrl: "https://proxy.example/llm/" }), {
+    apiModel: "deepseek-v4-flash",
+    endpoint: "https://proxy.example/llm/chat/completions",
+    instructionRole: "system",
+    label: "DeepSeek V4 Flash",
+    provider: "deepseek"
+  });
+});
+
 test("keeps raw model ids compatible with provider prefixes", () => {
   assert.equal(resolveRecommendationProviderModel("deepseek-v4-flash").provider, "deepseek");
   assert.equal(resolveRecommendationProviderModel("MiniMax-M3").provider, "minimax");

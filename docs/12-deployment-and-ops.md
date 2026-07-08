@@ -177,6 +177,7 @@ LLM 推荐相关环境变量：
 | --- | --- | --- | --- |
 | `AGENT_RADAR_LLM_API_KEY` | eval 必填 | 无 | BYOK provider key，仅用于当前 eval/provider 请求 |
 | `AGENT_RADAR_LLM_MODEL` | 否 | `deepseek-v4-flash` | eval 使用的模型 ID 或已支持的 provider model label；本地 CLI 和 CI 使用同一默认值 |
+| `AGENT_RADAR_LLM_BASE_URL` | 否 | provider 默认值 | 覆盖当前 LLM provider 的 OpenAI-compatible base URL，不包含具体 path；例如国内 MiniMax 使用 `https://api.minimaxi.com` |
 | `AGENT_RADAR_CHECK_URLS` | 否 | `false` | 设置为 `true` 时，`npm run pipeline` 会对 Tool Card URL 执行 HEAD/GET 可达性检查；默认只输出 skipped artifact，避免本地/CI 偶发外网失败 |
 | `AGENT_RADAR_MCP_BASE_URL` | MCP smoke 必填 | 无 | `npm run mcp:smoke` 使用的已部署 MCP/Workers base URL，例如 `https://agent-radar-api.example.workers.dev`；命令会请求 `${base}/api/mcp` |
 
@@ -185,11 +186,12 @@ LLM 推荐相关环境变量：
 ```dotenv
 AGENT_RADAR_LLM_API_KEY=your-provider-key
 AGENT_RADAR_LLM_MODEL=MiniMax M3
+AGENT_RADAR_LLM_BASE_URL=https://api.minimaxi.com
 ```
 
 Node CLI 入口会在运行时加载 `.env`，包括 `npm run eval`、`npm run pipeline`、`npm run dev:with-data`、`npm run release:build` 和 `npm run preview:build`。系统环境变量优先级高于 `.env`，因此 CI secret 或 shell 中显式导出的变量不会被本地 `.env` 覆盖。
 
-本地/API 推荐调用中，如果请求体没有传 `api_key` 或 `model`，后端会回退到 `AGENT_RADAR_LLM_API_KEY`、`AGENT_RADAR_LLM_MODEL` 和 provider registry 默认模型。浏览器页面不会读取或显示 `.env` 内容，secret 只留在本地 Node/API 进程中。
+本地/API 推荐调用中，如果请求体没有传 `api_key` 或 `model`，后端会回退到 `AGENT_RADAR_LLM_API_KEY`、`AGENT_RADAR_LLM_MODEL` 和 provider registry 默认模型。`AGENT_RADAR_LLM_BASE_URL` 只覆盖当前 model 对应 provider 的 base URL；provider 仍由 model label 或 model id 决定。浏览器页面不会读取或显示 `.env` 内容，secret 只留在本地 Node/API 进程中。
 
 当前 Web UI 支持用户在 Recommend 表单中输入一次性 API key 和模型。请求路径为：
 

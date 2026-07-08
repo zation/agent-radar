@@ -53,9 +53,10 @@ npm run dev -- --port 4173
 ```dotenv
 AGENT_RADAR_LLM_API_KEY=your-provider-key
 AGENT_RADAR_LLM_MODEL=MiniMax M3
+AGENT_RADAR_LLM_BASE_URL=https://api.minimaxi.com
 ```
 
-`npm run eval`、`npm run pipeline` 和依赖 pipeline 的本地命令会自动加载 `.env`。显式 shell 环境变量或 CI secret 优先于 `.env`。
+`npm run eval`、`npm run pipeline` 和依赖 pipeline 的本地命令会自动加载 `.env`。显式 shell 环境变量或 CI secret 优先于 `.env`。`AGENT_RADAR_LLM_BASE_URL` 用于覆盖当前 provider 的 base URL，例如国内 MiniMax key 使用 `https://api.minimaxi.com`。
 
 `npm run preview:build` 在 `release:build` 后生成 `dist-pages/artifact-manifest.json`，并把审核材料写入 `artifacts/review/ingestion.md`。Cloudflare Pages preview 应部署 `dist-pages`；GitHub Actions 应把 `artifacts/review/ingestion.md` 追加到 step summary 供审核。生产发布应 promote 已审核的 preview deployment，而不是重新生成产物。
 
