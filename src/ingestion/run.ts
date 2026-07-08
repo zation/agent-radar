@@ -50,7 +50,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeSourceRecords(options.outputDir, recordsBySource);
   const overrideRecords = options.overrideRecords ?? [];
   await writeOverrideRecords(options.outputDir, overrideRecords);
-  const approvalArtifact = buildApprovalArtifact(options.approvalRecords ?? [], now);
+  const approvalRecords = options.approvalRecords ?? [];
+  const approvalArtifact = buildApprovalArtifact(approvalRecords, now);
   await writeApprovalArtifact(options.outputDir, approvalArtifact);
   const draftsBySource = buildToolCardDrafts(recordsBySource, overrideRecords);
   await writeToolCardDrafts(options.outputDir, draftsBySource);
@@ -59,7 +60,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   const existingToolCards = options.existingToolCards ?? seedToolCards;
   const duplicateReport = buildToolCardDuplicateReport(toolCardDrafts, existingToolCards, now);
   await writeDuplicateReport(options.outputDir, duplicateReport);
-  const reviewQueue = buildToolCardReviewQueue(toolCardDrafts, sourceRecords, existingToolCards, now);
+  const reviewQueue = buildToolCardReviewQueue(toolCardDrafts, sourceRecords, existingToolCards, now, approvalRecords);
   await writeReviewQueue(options.outputDir, reviewQueue);
 
   return {

@@ -38,7 +38,7 @@ npm run ingest
   -> data/review_queue/tool_card_drafts.json
 ```
 
-当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Raw Snapshot、Source Record、Tool Card draft、dedup report 和 review queue 契约。完整且无 parser warnings 的 manual Source Records 会经过最小 normalizer 生成待审核 Tool Card drafts，并输出最小 duplicate report；review queue 也会标注与已发布 Tool Cards 的最小重复信号，但不会自动合并。这些草稿仍不进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
+当前 enabled source 只有 `manual-agent-radar-seed`，用于验证 Raw Snapshot、Source Record、Tool Card draft、dedup report、approval record 和 review queue 契约。完整且无 parser warnings 的 manual Source Records 会经过最小 normalizer 生成待审核 Tool Card drafts，并输出最小 duplicate report；review queue 也会标注与已发布 Tool Cards 的最小重复信号和已记录的 approval decision，但不会自动合并或发布。这些草稿仍不进入可靠发布 artifacts。`github-topic-mcp` 已登记但保持 disabled，避免 MVP 后立即引入社区来源噪声。
 
 `npm run ingest` 已支持最小 Override Record artifact：人工修正只作用于待审核 draft normalization，不覆盖 Raw Snapshot 或 Source Record，也不会自动发布到可靠 Tool Cards。Override Record 必须包含 `reason`、`created_by` 和至少一个 `evidence_urls`。
 

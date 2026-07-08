@@ -278,11 +278,21 @@ test("ingestion applies override records to draft normalization artifacts", asyn
     assert.equal(result.toolCardDrafts[0]?.summary, "Override summary for review queue.");
     assert.equal(result.overrideRecords.length, 1);
     assert.equal(result.approvalArtifact.summary.approved, 1);
+    assert.deepEqual(result.reviewQueue.items[0]?.approval, {
+      decision: "approved",
+      reviewer: "maintainer",
+      reviewed_at: "2026-07-08T13:00:00Z",
+      reason: "Reviewed draft and override evidence."
+    });
 
     const overrides = JSON.parse(await readFile(join(outputDir, "data", "overrides", "override_records.json"), "utf8")) as { records: Array<{ id: string }> };
     assert.equal(overrides.records[0]?.id, "override-agent-codex-summary-20260708");
     const approvals = JSON.parse(await readFile(join(outputDir, "data", "approvals", "approval_records.json"), "utf8")) as { summary: { approved: number } };
     assert.equal(approvals.summary.approved, 1);
+    const reviewQueue = JSON.parse(await readFile(join(outputDir, "data", "review_queue", "tool_card_drafts.json"), "utf8")) as {
+      items: Array<{ approval?: { decision: string } }>;
+    };
+    assert.equal(reviewQueue.items[0]?.approval?.decision, "approved");
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
