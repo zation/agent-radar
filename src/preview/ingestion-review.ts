@@ -32,11 +32,25 @@ export function renderIngestionReviewMarkdown(result: RunIngestionResult, source
       const urls = record.urls.length ? ` urls=${record.urls.join(", ")}` : "";
       return `- ${record.name} (${record.record_type}, confidence=${record.source_confidence}) source=${record.source_id}${warnings}${urls}`;
     }),
+    ...renderReleaseAdmission(result),
     ...renderPromotionCandidates(result),
     ...renderSourceRegistryReviewRequirements(sourceRegistryReviewRequirements)
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderReleaseAdmission(result: RunIngestionResult): string[] {
+  if (result.releaseAdmission.items.length === 0) return [];
+
+  return [
+    "",
+    "## Release Admission",
+    ...result.releaseAdmission.items.map((item) => {
+      const blockingReasons = item.blocking_reasons.length > 0 ? item.blocking_reasons.join(",") : "none";
+      return `- ${item.tool_id} source_record=${item.source_record_id} status=${item.status} blocking_reasons=${blockingReasons}`;
+    })
+  ];
 }
 
 function renderPromotionCandidates(result: RunIngestionResult): string[] {

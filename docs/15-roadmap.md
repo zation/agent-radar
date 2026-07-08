@@ -360,7 +360,7 @@ v0.2 建议拆成 4 条并行但有优先级的工作线：
 ### P0：v0.2 数据接入
 
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
-- 把 `npm run ingest` 输出的 promotion candidates 接入人工审核 UI 或可靠发布提升流程；当前 preview review markdown 已展示候选 tool id、Source Record id、reviewer、review time 和 approval reason，可靠发布提升仍待做。
+- 把 `npm run ingest` 输出的 promotion candidates 接入人工审核 UI 或可靠发布提升流程；当前 preview review markdown 已展示 release admission blocked reasons，以及候选 tool id、Source Record id、reviewer、review time 和 approval reason，可靠发布提升仍待做。
 - 将 Source Registry review confirmation artifact 接入可操作审核 UI；当前 preview markdown 已展示 requirements，artifact manifest 已汇总确认状态。
 - 将 Tool Card 字段 provenance 继续细化到 Source Record 字段和值，并决定是否在 CI 默认启用 URL 可达性检查；schema-level `tool_card_field_provenance.json` artifact 已实现。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。

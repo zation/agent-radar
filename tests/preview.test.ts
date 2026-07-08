@@ -136,9 +136,9 @@ const ingestionResult: RunIngestionResult = {
     schema_version: "tool_card_release_admission.v1",
     generated_at: "2026-07-07T00:00:00Z",
     summary: {
-      total: 1,
+      total: 2,
       eligible_for_publish: 1,
-      blocked: 0
+      blocked: 1
     },
     items: [
       {
@@ -146,6 +146,12 @@ const ingestionResult: RunIngestionResult = {
         source_record_id: "manual-agent-radar-seed-agent-codex-20260707",
         status: "eligible_for_publish",
         blocking_reasons: []
+      },
+      {
+        tool_id: "agent-blocked",
+        source_record_id: "manual-agent-radar-seed-agent-blocked-20260707",
+        status: "blocked",
+        blocking_reasons: ["approval_not_approved", "possible_duplicate"]
       }
     ]
   },
@@ -215,7 +221,10 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /Review ready: 0/);
   assert.match(markdown, /Crawl audit: 1 success, 0 partial, 0 failed/);
   assert.match(markdown, /Approvals: 1 approved, 0 rejected, 0 needs changes/);
-  assert.match(markdown, /Release admission: 1 eligible, 0 blocked/);
+  assert.match(markdown, /Release admission: 1 eligible, 1 blocked/);
+  assert.match(markdown, /## Release Admission/);
+  assert.match(markdown, /agent-codex source_record=manual-agent-radar-seed-agent-codex-20260707 status=eligible_for_publish blocking_reasons=none/);
+  assert.match(markdown, /agent-blocked source_record=manual-agent-radar-seed-agent-blocked-20260707 status=blocked blocking_reasons=approval_not_approved,possible_duplicate/);
   assert.match(markdown, /Promotion candidates: 1/);
   assert.match(markdown, /## Promotion Candidates/);
   assert.match(markdown, /agent-codex \(Codex\) source_record=manual-agent-radar-seed-agent-codex-20260707 reviewer=maintainer reviewed_at=2026-07-07T12:00:00Z/);
@@ -384,7 +393,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.deepEqual(artifactManifest.tool_card_url_validation, { checked: 0, reachable: 0, failed: 0, skipped: 12 });
     assert.deepEqual(artifactManifest.tool_card_field_provenance, { cards_checked: 20, fields_checked: 60, covered: 0, covered_by_manual_review: 60, missing: 0 });
     assert.deepEqual(artifactManifest.ingestion_review.approvals, { approved: 1, rejected: 0, needs_changes: 0 });
-    assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 0 });
+    assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 1 });
     assert.deepEqual(artifactManifest.promotion_candidates, { candidates: 1 });
     await assert.rejects(() => stat(join(outputDir, "review", "ingestion.md")));
   } finally {
