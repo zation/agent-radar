@@ -87,7 +87,7 @@
 - Tool Card 覆盖已达到 v0.2 下限 20 张，但仍需继续提升覆盖广度和更细字段级证据质量。
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 仍从人工维护的 `src/data/seed-tool-cards.ts` 生成可靠发布 artifacts；`npm run ingest` 生成的 promotion candidates 只进入人工 promotion plan，尚未自动进入可靠发布数据。
-- 更细的 Tool Card 字段 provenance 已绑定具体 Source Record 字段和值，并会为已应用的 Override Record 输出 `override_record` 字段值 provenance；最小 incoming draft duplicate gates 已接入 dedup report、review queue、approval requests、auto review 和 release admission；GitHub topic source 已启用为受控公共 metadata 来源，repository drafts 会进入 preview 审核材料和 promotion candidate gate；完整跨来源 normalizer、完整跨来源 deduper 和人工 override/发现候选审核 UI 尚未完成；Source Registry review confirmation 已有 request 模板和 Review 页面草稿生成流程，仍缺写入真实 review record artifact 的持久化流程。
+- 更细的 Tool Card 字段 provenance 已绑定具体 Source Record 字段和值，并会为已应用的 Override Record 输出 `override_record` 字段值 provenance；最小 incoming draft duplicate gates 已接入 dedup report、review queue、approval requests、auto review 和 release admission；GitHub topic source 已启用为受控公共 metadata 来源，repository drafts 会进入 preview 审核材料和 promotion candidate gate；完整跨来源 normalizer、完整跨来源 deduper 尚未完成；Source Registry review confirmation 已有 request 模板和 Review 页面草稿生成流程，仍缺写入真实 review record artifact 的持久化流程。
 - Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact、MCP deployment smoke checklist 和可配置的部署后 smoke 命令；后续仍需完成 MCP server 的 Cloudflare Workers 或 Pages Functions 部署，并把 smoke test 改为从部署成功输出自动获取刚部署的 MCP/API base URL。
 - BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；还缺更完整的 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
 
@@ -368,7 +368,7 @@ v0.2 建议拆成 5 条并行但有优先级的工作线：
 ### P0：v0.2 数据接入
 
 - 继续增加高价值 Tool Cards，从当前 20 张扩展到更稳健的 30-50 张覆盖。
-- 把 `npm run ingest` 输出的 approval requests、auto review 和 promotion candidates 接入人工审核 UI 或可靠发布提升流程；当前 preview review markdown 已展示 approval record 模板、auto review 建议动作、release admission blocked reasons，以及候选 tool id、Source Record id、review gate、reviewer、review time、review reason、seed candidate snippet 路径和 promotion check 状态，approval requests 也已输出逐行 JSONL 模板，可靠发布提升仍待做。
+- 把 `npm run ingest` 输出的 approval requests、auto review 和 promotion candidates 继续推进到可靠发布提升流程；当前 preview review markdown 已展示 approval record 模板、auto review 建议动作、release admission blocked reasons，以及候选 tool id、Source Record id、review gate、reviewer、review time、review reason、seed candidate snippet 路径和 promotion check 状态，approval requests 也已输出逐行 JSONL 模板，可靠发布提升仍待做。
 - 将 Source Registry review confirmation requests 从本地 JSON 草稿生成推进到真实 review record artifact 导入/持久化流程；当前 preview markdown 已展示 requirements 和 confirmation record 模板，artifact manifest 已汇总确认状态与 pending request summary，Web UI 已可结构化查看 pending request 并复制 review record 草稿。
 - 将 Tool Card 字段 provenance 继续细化到 Source Record 字段和值，并决定是否在 CI 默认启用 URL 可达性检查；schema-level `tool_card_field_provenance.json` 和 ingest-time `tool_card_field_value_provenance.v1` artifact 已实现，且 ingest-time artifact 已覆盖已应用 Override Record 的字段值 provenance。
 - 补齐跨来源 deduper、跨来源 normalizer 和 Tool Card drafts 发布准入。
@@ -389,7 +389,6 @@ v0.2 建议拆成 5 条并行但有优先级的工作线：
 
 - 为 LLM prompt 和 provider routing 增加版本号。
 - 增加 eval diff，比较同一 golden query 在不同 prompt/provider 下的动作、候选和风险提示变化。
-- 设计人工 override record 的最小格式。
 - 评估是否支持 browser direct provider mode；若支持，必须把前端 schema 校验和安全归一化同步搬到浏览器端。
 
 ## 明确不做清单
