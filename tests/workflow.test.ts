@@ -2,29 +2,33 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("pages preview workflow gates promotion candidates before deployment", async () => {
-  const workflow = await readFile(".github/workflows/pages-preview.yml", "utf8");
+test("all release workflow gates promotion candidates before Worker validation", async () => {
+  const workflow = await readFile(".github/workflows/release-all.yml", "utf8");
   const promotionCheckStepIndex = workflow.indexOf("- name: Check promotion candidates");
-  const deployStepIndex = workflow.indexOf("- name: Deploy Cloudflare Pages preview");
+  const dryRunStepIndex = workflow.indexOf("- name: Validate Worker bundle");
 
   assert.notEqual(promotionCheckStepIndex, -1);
-  assert.notEqual(deployStepIndex, -1);
-  assert.equal(promotionCheckStepIndex < deployStepIndex, true);
+  assert.notEqual(dryRunStepIndex, -1);
+  assert.equal(promotionCheckStepIndex < dryRunStepIndex, true);
   assert.match(workflow, /run:\s*npm run promotion:check/);
+  assert.match(workflow, /tags:\s*\n\s+- "all-v\*"/);
 });
 
-test("pages preview workflow uses environment approval before production promotion", async () => {
-  const workflow = await readFile(".github/workflows/pages-preview.yml", "utf8");
-  const previewJobIndex = workflow.indexOf("preview:");
-  const promoteJobIndex = workflow.indexOf("promote-production:");
+test("all release workflow uses environment approval before Worker deploy", async () => {
+  const workflow = await readFile(".github/workflows/release-all.yml", "utf8");
+  const buildJobIndex = workflow.indexOf("build-reviewed-bundle:");
+  const deployJobIndex = workflow.indexOf("deploy-production:");
 
-  assert.notEqual(previewJobIndex, -1);
-  assert.notEqual(promoteJobIndex, -1);
-  assert.equal(previewJobIndex < promoteJobIndex, true);
-  assert.match(workflow, /promote-production:[\s\S]*needs:\s*preview/);
-  assert.match(workflow, /promote-production:[\s\S]*environment:\s*\n\s*name:\s*production/);
-  assert.match(workflow, /promote-production:[\s\S]*Download reviewed preview bundle/);
-  assert.match(workflow, /promote-production:[\s\S]*Deploy Cloudflare Pages production/);
-  assert.match(workflow, /promote-production:[\s\S]*pages deploy reviewed-preview\/dist-pages --project-name=\$\{\{ vars\.CLOUDFLARE_PAGES_PROJECT_NAME \}\} --branch=main/);
-  assert.equal(workflow.indexOf("- name: Download reviewed preview bundle") < workflow.indexOf("- name: Deploy Cloudflare Pages production"), true);
+  assert.notEqual(buildJobIndex, -1);
+  assert.notEqual(deployJobIndex, -1);
+  assert.equal(buildJobIndex < deployJobIndex, true);
+  assert.match(workflow, /deploy-production:[\s\S]*needs:\s*build-reviewed-bundle/);
+  assert.match(workflow, /deploy-production:[\s\S]*environment:\s*\n\s*name:\s*production/);
+  assert.match(workflow, /deploy-production:[\s\S]*Download reviewed bundle/);
+  assert.match(workflow, /deploy-production:[\s\S]*Deploy Cloudflare Worker/);
+  assert.match(workflow, /deploy-production:[\s\S]*command: >\s*\n\s*deploy/);
+  assert.match(workflow, /deploy-production:[\s\S]*--name=\$\{\{ vars\.CLOUDFLARE_WORKER_NAME \|\| 'agent-radar' \}\}/);
+  assert.match(workflow, /deploy-production:[\s\S]*Smoke test deployed Worker MCP/);
+  assert.match(workflow, /deploy-production:[\s\S]*AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);
+  assert.equal(workflow.indexOf("- name: Download reviewed bundle") < workflow.indexOf("- name: Deploy Cloudflare Worker"), true);
 });
