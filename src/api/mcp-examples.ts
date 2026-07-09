@@ -42,7 +42,7 @@ export function buildMcpExamplesArtifact(): McpExamplesArtifact {
       },
       {
         name: "tools/call:get_tool_card",
-        description: "Fetch one Tool Card and its Rating Result by stable tool_id.",
+        description: "Fetch one Tool Card and its Rating Result by a tool_id discovered from search_tools.",
         request: {
           jsonrpc: "2.0",
           id: "get-tool-card-example",
@@ -50,7 +50,7 @@ export function buildMcpExamplesArtifact(): McpExamplesArtifact {
           params: {
             name: "get_tool_card",
             arguments: {
-              tool_id: "skill-openai-docs"
+              tool_id: "<tool_id from tools/call:search_tools>"
             }
           }
         }

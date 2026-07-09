@@ -43,6 +43,10 @@ interface McpToolCallResult {
   content?: Array<{ type?: string; text?: string }>;
 }
 
+interface SearchToolsResult {
+  results?: Array<{ tool_id?: string }>;
+}
+
 interface ToolCardLookupResult {
   schema_version?: string;
   tool_card?: { id?: string };
@@ -103,6 +107,7 @@ async function checkToolsList(endpoint: string, fetchImpl: typeof fetch): Promis
 }
 
 async function checkGetToolCard(endpoint: string, fetchImpl: typeof fetch): Promise<string> {
+  const toolId = await discoverSmokeToolId(endpoint, fetchImpl);
   const response = await postJsonRpc(endpoint, fetchImpl, {
     jsonrpc: "2.0",
     id: "get-tool-card-smoke",
@@ -110,17 +115,43 @@ async function checkGetToolCard(endpoint: string, fetchImpl: typeof fetch): Prom
     params: {
       name: "get_tool_card",
       arguments: {
-        tool_id: "skill-openai-docs"
+        tool_id: toolId
       }
     }
   });
-  const result = response.result as McpToolCallResult | undefined;
-  const text = result?.content?.find((item) => item.type === "text")?.text;
-  if (!text) throw new Error("get_tool_card call must return text content.");
+  const text = readTextContent(response, "get_tool_card");
   const payload = JSON.parse(text) as ToolCardLookupResult;
   if (payload.schema_version !== "tool_card_lookup_result.v1") throw new Error("get_tool_card content must contain tool_card_lookup_result.v1 JSON.");
-  if (payload.tool_card?.id !== "skill-openai-docs") throw new Error("get_tool_card content must return skill-openai-docs.");
-  return "tools/call get_tool_card returned the expected Tool Card lookup payload.";
+  if (payload.tool_card?.id !== toolId) throw new Error(`get_tool_card content must return discovered tool_id=${toolId}.`);
+  return `tools/call get_tool_card returned the expected Tool Card lookup payload for ${toolId}.`;
+}
+
+async function discoverSmokeToolId(endpoint: string, fetchImpl: typeof fetch): Promise<string> {
+  const response = await postJsonRpc(endpoint, fetchImpl, {
+    jsonrpc: "2.0",
+    id: "search-tools-smoke",
+    method: "tools/call",
+    params: {
+      name: "search_tools",
+      arguments: {
+        query: "",
+        top_k: 1
+      }
+    }
+  });
+  const text = readTextContent(response, "search_tools");
+  const payload = JSON.parse(text) as SearchToolsResult;
+  const toolId = payload.results?.find((result) => typeof result.tool_id === "string" && result.tool_id.length > 0)?.tool_id;
+  if (!toolId) throw new Error("search_tools smoke discovery must return at least one tool_id.");
+  return toolId;
+}
+
+function readTextContent(response: JsonRpcResponse, toolName: string): string {
+  if (response.error) throw new Error(`${toolName} call failed: ${response.error.message ?? response.error.code ?? "unknown error"}.`);
+  const result = response.result as McpToolCallResult | undefined;
+  const text = result?.content?.find((item) => item.type === "text")?.text;
+  if (!text) throw new Error(`${toolName} call must return text content.`);
+  return text;
 }
 
 async function checkReadOnlyBoundary(endpoint: string, fetchImpl: typeof fetch): Promise<string> {

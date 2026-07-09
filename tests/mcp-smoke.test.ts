@@ -2,19 +2,30 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { runMcpSmokeTest } from "../src/api/mcp-smoke-runner.js";
 
+interface SmokeRequestBody {
+  id?: string | number;
+  method?: string;
+  params?: {
+    name?: string;
+    arguments?: {
+      tool_id?: string;
+    };
+  };
+}
+
 test("mcp smoke runner verifies the deployed JSON-RPC endpoint and read-only boundary", async () => {
-  const requests: Array<{ url: string; method: string; body?: unknown }> = [];
+  const requests: Array<{ url: string; method: string; body?: SmokeRequestBody }> = [];
   const fetchImpl: typeof fetch = (input, init) => {
     const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
     const method = init?.method ?? "GET";
-    const body = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
+    const body: SmokeRequestBody | undefined = typeof init?.body === "string" ? JSON.parse(init.body) : undefined;
     requests.push({ url, method, body });
 
     if (method === "DELETE") {
       return Promise.resolve(jsonResponse({ error: "method_not_allowed" }, 405));
     }
 
-    const rpcMethod = body?.method as string | undefined;
+    const rpcMethod = body?.method;
     if (rpcMethod === "initialize") {
       return Promise.resolve(jsonResponse({
         jsonrpc: "2.0",
@@ -41,7 +52,34 @@ test("mcp smoke runner verifies the deployed JSON-RPC endpoint and read-only bou
       }));
     }
 
+    if (rpcMethod === "tools/call" && body?.params?.name === "search_tools") {
+      return Promise.resolve(jsonResponse({
+        jsonrpc: "2.0",
+        id: body.id,
+        result: {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                schema_version: "search_tools_result.v1",
+                results: [{ tool_id: "mcp-live-catalog-tool" }]
+              })
+            }
+          ]
+        }
+      }));
+    }
+
     if (rpcMethod === "tools/call" && body?.params?.name === "get_tool_card") {
+      const toolId = body.params.arguments?.tool_id;
+      if (toolId !== "mcp-live-catalog-tool") {
+        return Promise.resolve(jsonResponse({
+          jsonrpc: "2.0",
+          id: body.id,
+          error: { code: -32000, message: `Tool card not found: ${String(toolId)}` }
+        }));
+      }
+
       return Promise.resolve(jsonResponse({
         jsonrpc: "2.0",
         id: body.id,
@@ -51,7 +89,7 @@ test("mcp smoke runner verifies the deployed JSON-RPC endpoint and read-only bou
               type: "text",
               text: JSON.stringify({
                 schema_version: "tool_card_lookup_result.v1",
-                tool_card: { id: "skill-openai-docs" }
+                tool_card: { id: "mcp-live-catalog-tool" }
               })
             }
           ]
@@ -82,7 +120,9 @@ test("mcp smoke runner verifies the deployed JSON-RPC endpoint and read-only bou
     ]
   );
   assert.equal(requests.every((request) => request.url === "https://agent-radar.example/api/mcp"), true);
-  assert.equal(requests.filter((request) => request.method === "POST").length, 4);
+  assert.equal(requests.filter((request) => request.method === "POST").length, 5);
+  const toolCardCall = requests.find((request) => request.body?.method === "tools/call" && request.body.params?.name === "get_tool_card");
+  assert.equal(toolCardCall?.body?.params?.arguments?.tool_id, "mcp-live-catalog-tool");
   assert.equal(requests.some((request) => request.method === "DELETE"), true);
 });
 

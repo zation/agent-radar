@@ -32,7 +32,7 @@ export function buildMcpSmokeChecklistArtifact(): McpSmokeChecklistArtifact {
       id: "mcp-tools-call-get-tool-card",
       required: true,
       method: "tools/call",
-      expected: "Calling get_tool_card with tool_id=skill-openai-docs returns text content containing tool_card_lookup_result.v1 JSON."
+      expected: "Calling search_tools discovers a current catalog tool_id, then get_tool_card returns text content containing tool_card_lookup_result.v1 JSON for that tool_id."
     },
     {
       id: "mcp-read-only-boundary",
