@@ -24,12 +24,12 @@ jobs:
       AGENT_RADAR_LLM_MODEL: ${{ vars.AGENT_RADAR_LLM_MODEL || 'deepseek-v4-flash' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -50,7 +50,7 @@ jobs:
         run: node dist/src/cli/render-review-summary.js >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload reviewed bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: agent-radar-all-${{ github.run_id }}
           path: |
@@ -67,12 +67,12 @@ jobs:
       name: production
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           cache: npm
@@ -81,7 +81,7 @@ jobs:
         run: npm ci
 
       - name: Download reviewed bundle
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: agent-radar-all-${{ github.run_id }}
           path: reviewed-bundle
@@ -133,7 +133,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload production smoke result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: agent-radar-mcp-smoke-${{ github.run_id }}
           path: mcp-smoke-result.json

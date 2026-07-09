@@ -43,3 +43,12 @@ test("all release workflow uses a Wrangler-compatible Node runtime", async () =>
     true,
   );
 });
+
+test("all release workflow uses Node 24-compatible GitHub actions", async () => {
+  const workflow = await readFile(".github/workflows/release-all.yml", "utf8");
+
+  assert.doesNotMatch(workflow, /actions\/checkout@v[1-5]\b/);
+  assert.doesNotMatch(workflow, /actions\/setup-node@v[1-5]\b/);
+  assert.doesNotMatch(workflow, /actions\/upload-artifact@v[1-6]\b/);
+  assert.doesNotMatch(workflow, /actions\/download-artifact@v[1-7]\b/);
+});
