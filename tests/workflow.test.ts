@@ -51,4 +51,5 @@ test("all release workflow uses Node 24-compatible GitHub actions", async () => 
   assert.doesNotMatch(workflow, /actions\/setup-node@v[1-5]\b/);
   assert.doesNotMatch(workflow, /actions\/upload-artifact@v[1-6]\b/);
   assert.doesNotMatch(workflow, /actions\/download-artifact@v[1-7]\b/);
+  assert.doesNotMatch(workflow, /cloudflare\/wrangler-action@v[1-3]\b/);
 });
