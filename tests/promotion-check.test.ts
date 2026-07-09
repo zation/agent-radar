@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
+import { formatPromotionCheckMessage } from "../src/cli/check-promotion-candidates.js";
 import { buildToolCardPromotionCheck } from "../src/ingestion/promotion-check.js";
 import type { ToolCardPromotionCandidates } from "../src/ingestion/promotion-candidates.js";
 
@@ -70,6 +71,28 @@ test("promotion check blocks duplicates and invalid candidate cards", () => {
   assert.match(check.items[0]?.blocking_reasons.join("\n") ?? "", /duplicate_existing_tool_id/);
   assert.match(check.items[0]?.validation_errors.join("\n") ?? "", /source_urls is required/);
   assert.match(check.items[0]?.validation_errors.join("\n") ?? "", /install_methods is required/);
+});
+
+test("promotion check CLI formats manual merge summary artifacts", () => {
+  const message = formatPromotionCheckMessage({
+    schema_version: "tool_card_promotion_check.v1",
+    generated_at: generatedAt,
+    passed: true,
+    summary: {
+      candidates: 19,
+      ready_for_manual_merge: 19,
+      blocked: 0,
+      duplicate_tool_ids: 0,
+      validation_errors: 0,
+      validation_warnings: 57
+    },
+    items: []
+  });
+
+  assert.equal(
+    message,
+    "promotion check passed: 19 ready, 0 blocked, 0 validation errors, 57 validation warnings"
+  );
 });
 
 function emptyCandidates(): ToolCardPromotionCandidates {
