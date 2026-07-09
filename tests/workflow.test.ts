@@ -27,7 +27,7 @@ test("all release workflow uses environment approval before Worker deploy", asyn
   assert.match(workflow, /deploy-production:[\s\S]*Download reviewed bundle/);
   assert.match(workflow, /deploy-production:[\s\S]*Deploy Cloudflare Worker/);
   assert.match(workflow, /deploy-production:[\s\S]*command: >\s*\n\s*deploy/);
-  assert.match(workflow, /deploy-production:[\s\S]*--name=\$\{\{ vars\.CLOUDFLARE_WORKER_NAME \|\| 'agent-radar' \}\}/);
+  assert.match(workflow, /deploy-production:[\s\S]*--name=\$\{\{ vars\.CLOUDFLARE_PROJECT_NAME \|\| 'agent-radar' \}\}/);
   assert.match(workflow, /deploy-production:[\s\S]*Smoke test deployed Worker MCP/);
   assert.match(workflow, /deploy-production:[\s\S]*AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);
   assert.equal(workflow.indexOf("- name: Download reviewed bundle") < workflow.indexOf("- name: Deploy Cloudflare Worker"), true);

@@ -334,7 +334,7 @@ GitHub 配置要求：
 | `AGENT_RADAR_LLM_MODEL` | repository variable | eval model；默认使用 `deepseek-v4-flash`。 |
 | `CLOUDFLARE_API_TOKEN` | secret | Wrangler Worker deploy 认证。 |
 | `CLOUDFLARE_ACCOUNT_ID` | secret | Cloudflare account id。 |
-| `CLOUDFLARE_WORKER_NAME` | repository variable | Cloudflare Worker name；默认使用 `agent-radar`。 |
+| `CLOUDFLARE_PROJECT_NAME` | repository variable | Cloudflare project name；默认使用 `agent-radar`。 |
 
 Workflow 上传的 artifact 包含：
 

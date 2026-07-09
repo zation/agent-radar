@@ -99,7 +99,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           command: >
             deploy
-            --name=${{ vars.CLOUDFLARE_WORKER_NAME || 'agent-radar' }}
+            --name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'agent-radar' }}
             --var AGENT_RADAR_RELEASE_ID:${{ github.ref_name }}
             --var AGENT_RADAR_API_VERSION:${{ github.ref_name }}
             --var AGENT_RADAR_WEB_VERSION:${{ github.ref_name }}
