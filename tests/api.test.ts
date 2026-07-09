@@ -14,6 +14,12 @@ const repository = createStaticRepository({
   index: buildSearchIndex(reviewedToolCardFixtures, ratings)
 });
 const handler = createApiHandler(repository, {
+  versionInfo: {
+    release_id: "all-v0.2.1",
+    data_version: "data-test",
+    api_version: "api-test",
+    web_version: "web-test"
+  },
   recommendationClient: {
     recommend() {
       return Promise.resolve({
@@ -66,6 +72,28 @@ interface ToolCardLookupPayload {
   schema_version: string;
   tool_card: { id: string };
 }
+
+test("version endpoint returns release and component versions", async () => {
+  const response = await handler(new Request("https://agent-radar.test/api/version"));
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    schema_version: string;
+    service: string;
+    release_id: string;
+    data_version: string;
+    api_version: string;
+    web_version: string;
+  };
+  assert.deepEqual(body, {
+    schema_version: "agent_radar_version.v1",
+    service: "agent-radar",
+    release_id: "all-v0.2.1",
+    data_version: "data-test",
+    api_version: "api-test",
+    web_version: "web-test"
+  });
+});
 
 test("search_tools returns summaries with match reasons", async () => {
   const response = await handler(

@@ -11,7 +11,15 @@ interface WorkerAssetsBinding {
 }
 
 interface AgentRadarWorker {
-  fetch(request: Request, env: { ASSETS: WorkerAssetsBinding }): Promise<Response>;
+  fetch(
+    request: Request,
+    env: {
+      ASSETS: WorkerAssetsBinding;
+      AGENT_RADAR_RELEASE_ID?: string;
+      AGENT_RADAR_API_VERSION?: string;
+      AGENT_RADAR_WEB_VERSION?: string;
+    }
+  ): Promise<Response>;
 }
 
 test("Worker serves API from same static assets deployment", async () => {
@@ -25,6 +33,28 @@ test("Worker serves API from same static assets deployment", async () => {
   const body = (await response.json()) as { tool_card?: { id?: string }; rating?: { tool_id?: string } };
   assert.equal(body.tool_card?.id, "skill-openai-docs");
   assert.equal(body.rating?.tool_id, "skill-openai-docs");
+});
+
+test("Worker version endpoint reports release and data versions", async () => {
+  const assets = createAssetsBinding(reviewedToolCardFixtures);
+  const response = await (worker as AgentRadarWorker).fetch(new Request("https://agent-radar.test/api/version"), {
+    ASSETS: assets,
+    AGENT_RADAR_RELEASE_ID: "all-v0.2.1",
+    AGENT_RADAR_API_VERSION: "api-v0.2.1",
+    AGENT_RADAR_WEB_VERSION: "web-v0.2.1"
+  });
+
+  assert.equal(response.status, 200);
+  const body = (await response.json()) as {
+    release_id: string;
+    data_version: string;
+    api_version: string;
+    web_version: string;
+  };
+  assert.equal(body.release_id, "all-v0.2.1");
+  assert.equal(body.data_version, "data-test");
+  assert.equal(body.api_version, "api-v0.2.1");
+  assert.equal(body.web_version, "web-v0.2.1");
 });
 
 test("Worker delegates non-API requests to static assets", async () => {
@@ -41,6 +71,7 @@ function createAssetsBinding(cards: ToolCard[]): WorkerAssetsBinding {
   const files = new Map<string, string>([
     ["/", "<!doctype html><title>Agent Radar</title>"],
     ["/index.html", "<!doctype html><title>Agent Radar</title>"],
+    ["/data/manifest.json", JSON.stringify({ data_version: "data-test" })],
     ["/data/tool_cards.jsonl", toJsonl(cards)],
     ["/data/ratings.jsonl", toJsonl(ratings)],
     ["/data/search_index.json", JSON.stringify(index)]

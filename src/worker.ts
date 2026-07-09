@@ -7,6 +7,13 @@ interface AssetsBinding {
 
 interface Env {
   ASSETS: AssetsBinding;
+  AGENT_RADAR_RELEASE_ID?: string;
+  AGENT_RADAR_API_VERSION?: string;
+  AGENT_RADAR_WEB_VERSION?: string;
+}
+
+interface DataManifest {
+  data_version?: string;
 }
 
 export default {
@@ -16,12 +23,20 @@ export default {
       return env.ASSETS.fetch(request);
     }
 
+    const manifest = JSON.parse(await fetchAsset(env, request, "/data/manifest.json")) as DataManifest;
     const repository = createArtifactRepositoryFromText({
       toolCardsJsonl: await fetchAsset(env, request, "/data/tool_cards.jsonl"),
       ratingsJsonl: await fetchAsset(env, request, "/data/ratings.jsonl"),
       searchIndexJson: await fetchAsset(env, request, "/data/search_index.json")
     });
-    const handleRequest = createApiHandler(repository);
+    const handleRequest = createApiHandler(repository, {
+      versionInfo: {
+        release_id: env.AGENT_RADAR_RELEASE_ID ?? "unknown",
+        data_version: manifest.data_version ?? "unknown",
+        api_version: env.AGENT_RADAR_API_VERSION ?? "unknown",
+        web_version: env.AGENT_RADAR_WEB_VERSION ?? "unknown"
+      }
+    });
     return handleRequest(request);
   }
 };

@@ -6,6 +6,16 @@ import type { ToolRepository } from "./repository.js";
 
 export interface ApiHandlerOptions {
   recommendationClient?: RecommendationLlmClient;
+  versionInfo?: Partial<ApiVersionInfo>;
+}
+
+export interface ApiVersionInfo {
+  schema_version: "agent_radar_version.v1";
+  service: "agent-radar";
+  release_id: string;
+  data_version: string;
+  api_version: string;
+  web_version: string;
 }
 
 interface RecommendToolsInput extends RecommendationQuery {
@@ -23,6 +33,7 @@ export function createApiHandler(repository: ToolRepository, options: ApiHandler
       }
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
 
+      if (url.pathname === "/api/version") return json(buildVersionInfo(options.versionInfo));
       if (url.pathname === "/api/search_tools") return json(searchTools(repository, await readInput(request, url)));
       if (url.pathname === "/api/get_tool_card") return json(getToolCard(repository, getRequiredToolId(await readInput(request, url))));
       if (url.pathname === "/api/recommend_tools") return json(await recommend(repository, (await readInput(request, url)) as unknown as RecommendToolsInput, options));
@@ -46,6 +57,17 @@ export function createApiHandler(repository: ToolRepository, options: ApiHandler
       const message = error instanceof Error ? error.message : "Unknown error";
       return json({ error: "bad_request", message }, 400);
     }
+  };
+}
+
+function buildVersionInfo(versionInfo: Partial<ApiVersionInfo> = {}): ApiVersionInfo {
+  return {
+    schema_version: "agent_radar_version.v1",
+    service: "agent-radar",
+    release_id: versionInfo.release_id ?? "unknown",
+    data_version: versionInfo.data_version ?? "unknown",
+    api_version: versionInfo.api_version ?? "unknown",
+    web_version: versionInfo.web_version ?? "unknown"
   };
 }
 
