@@ -32,3 +32,14 @@ test("all release workflow uses environment approval before Worker deploy", asyn
   assert.match(workflow, /deploy-production:[\s\S]*AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);
   assert.equal(workflow.indexOf("- name: Download reviewed bundle") < workflow.indexOf("- name: Deploy Cloudflare Worker"), true);
 });
+
+test("all release workflow uses a Wrangler-compatible Node runtime", async () => {
+  const workflow = await readFile(".github/workflows/release-all.yml", "utf8");
+  const nodeVersionMatches = [...workflow.matchAll(/node-version:\s*(\d+)/g)];
+
+  assert.equal(nodeVersionMatches.length, 2);
+  assert.equal(
+    nodeVersionMatches.every((match) => Number(match[1]) >= 22),
+    true,
+  );
+});
