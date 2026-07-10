@@ -296,7 +296,7 @@ Agent Radar 的数据发布流程采用“build once, review once, deploy the re
 当前实现使用 Worker 一体化发布 workflow。触发方式：
 
 ```bash
-git tag all-v0.2.5
+git tag -a all-v0.2.5 -m "Agent Radar v0.2 closeout"
 git push origin all-v0.2.5
 ```
 
