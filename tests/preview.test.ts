@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
-import { createPreviewBundle } from "../src/preview/bundle.js";
+import { createPreviewBundle, loadIngestionReviewEvidence } from "../src/preview/bundle.js";
 import { renderArtifactManifestSummaryMarkdown, renderCompactReviewSummaryMarkdown } from "../src/preview/github-summary.js";
 import { renderIngestionReviewMarkdown } from "../src/preview/ingestion-review.js";
 import { buildArtifactManifest } from "../src/preview/manifest.js";
@@ -920,15 +920,47 @@ test("rejects preview evidence that differs from the reviewed bundle artifacts",
   }
 });
 
-async function writeIngestionReviewEvidenceFixture(outputDir: string, result: RunIngestionResult): Promise<void> {
+test("preview validates published data trust artifacts separately from all draft evidence", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-preview-published-trust-"));
+  const publishedFieldProvenanceV2 = {
+    ...ingestionResult.fieldProvenanceV2,
+    summary: {
+      published_tool_count: 1,
+      required_selection_count: 10,
+      covered_selection_count: 10,
+      critical_coverage: 1
+    }
+  };
+
+  try {
+    await writeIngestionReviewEvidenceFixture(outputDir, ingestionResult, {
+      fieldProvenanceV2: publishedFieldProvenanceV2,
+      conflictReport: ingestionResult.conflictReport
+    });
+
+    const loaded = await loadIngestionReviewEvidence(outputDir);
+    assert.deepEqual(loaded, ingestionResult);
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+async function writeIngestionReviewEvidenceFixture(
+  outputDir: string,
+  result: RunIngestionResult,
+  publishedDataTrust?: {
+    fieldProvenanceV2: RunIngestionResult["fieldProvenanceV2"];
+    conflictReport: RunIngestionResult["conflictReport"];
+  }
+): Promise<void> {
   const artifacts: Array<[string, unknown]> = [
-    ["data/review/ingestion.json", { schema_version: "ingestion_review_evidence.v1", result }],
+    ["data/review/ingestion.json", { schema_version: "ingestion_review_evidence.v1", result, published_data_trust: publishedDataTrust }],
     ["data/crawl_audit/crawl_audit.json", result.crawlAudit],
     ["data/approvals/approval_records.json", result.approvalArtifact],
     ["data/intervention_requests/tool_card_drafts.json", result.interventionRequests],
     ["data/field_provenance/tool_card_fields.json", result.fieldProvenance],
-    ["data/field_provenance/tool_card_fields.v2.json", result.fieldProvenanceV2],
-    ["data/conflicts/tool_card_conflicts.json", result.conflictReport],
+    ["data/field_provenance/tool_card_fields.v2.json", publishedDataTrust?.fieldProvenanceV2 ?? result.fieldProvenanceV2],
+    ["data/conflicts/tool_card_conflicts.json", publishedDataTrust?.conflictReport ?? result.conflictReport],
     ["data/auto_review/tool_card_drafts.json", result.autoReview],
     ["data/release_admission/tool_card_drafts.json", result.releaseAdmission],
     ["data/discovery_candidates/tool_repositories.json", result.discoveryCandidates],

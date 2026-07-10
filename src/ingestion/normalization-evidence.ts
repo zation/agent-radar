@@ -31,6 +31,9 @@ export interface ToolCardFieldCandidate {
   source_record_id: string;
   source_id: string;
   source_field_path: string;
+  source_leaf_paths: string[];
+  input_source_field_paths?: string[];
+  evidence_state: "source_value" | "derived" | "inspected_absent";
   source_value_preview: unknown;
   source_value_hash: string;
   source_confidence: number;
@@ -48,6 +51,10 @@ export interface ToolCardFieldSelection {
   normalizer_version: typeof NORMALIZER_VERSION;
   selected_source_record_ids: string[];
   override_record_id?: string;
+  override_evidence_urls?: string[];
+  override_reason?: string;
+  override_created_by?: string;
+  override_created_at?: string;
   reason_code:
     | "explicit_override"
     | "official_direct_evidence"
@@ -83,12 +90,17 @@ export interface NormalizationOverride {
   id: string;
   target_id: string;
   field: keyof ToolCard;
+  reason?: string;
+  evidence_urls?: string[];
+  created_by?: string;
+  created_at?: string;
 }
 
 interface CandidateInput {
   field: string;
   path: string;
   value: unknown;
+  input_source_field_paths?: string[];
 }
 
 interface RecordRank {
@@ -179,6 +191,10 @@ export function buildNormalizationEvidence(
       normalizer_version: NORMALIZER_VERSION,
       selected_source_record_ids: selectedIds,
       override_record_id: override?.id,
+      override_evidence_urls: override?.evidence_urls,
+      override_reason: override?.reason,
+      override_created_by: override?.created_by,
+      override_created_at: override?.created_at,
       reason_code: override
         ? "explicit_override"
         : merged
@@ -197,6 +213,7 @@ export function buildNormalizationEvidence(
         field,
         path: `derived.${field}`,
         value: readDraftField(draft, field) ?? "unknown",
+        input_source_field_paths: fallbackDependencyPaths(field, fallbackRecord),
       });
       candidate.selected = true;
       candidates.push(candidate);
@@ -300,6 +317,11 @@ function toCandidate(toolId: string, record: SourceRecord, input: CandidateInput
     source_record_id: record.id,
     source_id: record.source_id,
     source_field_path: input.path,
+    source_leaf_paths: leafPaths(input.path, input.value),
+    input_source_field_paths: input.input_source_field_paths,
+    evidence_state: input.path.startsWith("derived.")
+      ? input.value === "unknown" ? "inspected_absent" : "derived"
+      : "source_value",
     source_value_preview: input.value,
     source_value_hash: createHash("sha256").update(stableSerialize(input.value)).digest("hex"),
     source_confidence: confidenceRank(record.source_confidence),
@@ -308,6 +330,29 @@ function toCandidate(toolId: string, record: SourceRecord, input: CandidateInput
     parser_version: record.parser_version,
     selected: false,
   };
+}
+
+function leafPaths(path: string, value: unknown): string[] {
+  if (Array.isArray(value)) return value.length === 0 ? [path] : value.flatMap((item, index) => leafPaths(`${path}[${index}]`, item));
+  if (value && typeof value === "object") {
+    const entries = Object.entries(value);
+    return entries.length === 0 ? [path] : entries.flatMap(([key, item]) => leafPaths(`${path}.${key}`, item));
+  }
+  return [path];
+}
+
+function fallbackDependencyPaths(field: string, record: SourceRecord): string[] {
+  const profile = isRecord(record.parsed_fields.source_profile) ? record.parsed_fields.source_profile : undefined;
+  if (profile && field in profile) return leafPaths(`parsed_fields.source_profile.${field}`, profile[field]);
+  if (field === "license") return ["raw_fields.license", "parsed_fields.license"];
+  if (field === "canonical_identity") return ["parsed_fields.repo_url", "parsed_fields.package_url", "parsed_fields.docs_url"];
+  if (field === "source_urls") return record.urls.map((_, index) => `urls[${index}]`);
+  if (field === "summary") return ["description"];
+  if (field === "confidence") return ["source_confidence"];
+  if (field === "install_methods") return ["parsed_fields.repo_url", "parsed_fields.package_url", "parsed_fields.docs_url", "urls"];
+  if (field === "maintenance") return ["parsed_fields.last_commit_at", "parsed_fields.last_release_at", "raw_fields.archived", "record_type"];
+  if (field === "permissions" || field === "security" || field === "type") return ["record_type", "source_id", "source_confidence"];
+  return ["record_type", "source_id"];
 }
 
 function buildConflict(

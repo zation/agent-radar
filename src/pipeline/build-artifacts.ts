@@ -5,7 +5,7 @@ import { buildMcpSmokeChecklistArtifact } from "../api/mcp-smoke-checklist.js";
 import { buildMcpToolManifest } from "../api/mcp-manifest.js";
 import { goldenQueries } from "../eval/golden-queries.js";
 import { createBlockedEvalSummary, runGoldenQueries, type EvalSummary } from "../eval/runner.js";
-import { runIngestion } from "../ingestion/run.js";
+import { runIngestion, writeIngestionReviewEvidence } from "../ingestion/run.js";
 import { buildToolCardConflictReport, type ToolCardConflictReport } from "../ingestion/field-conflicts.js";
 import {
   buildToolCardFieldValueProvenanceV2,
@@ -18,9 +18,10 @@ import { rateAllToolCards } from "../rating/engine.js";
 import { DEFAULT_RECOMMENDATION_MODEL, buildProviderRegistryArtifact } from "../recommendation/provider-registry.js";
 import { buildSearchIndex } from "../search/index-builder.js";
 import type { SourceRecord, ToolCard } from "../schema.js";
-import { buildSkippedToolCardUrlValidation, buildToolCardFieldProvenance, checkToolCardUrls, validateToolCards } from "../validation/tool-card-validator.js";
+import { buildSkippedToolCardUrlValidation, buildToolCardFieldProvenance, validateToolCards } from "../validation/tool-card-validator.js";
 import {
   buildSkippedToolCardUrlValidationV2,
+  buildToolCardUrlValidationV1FromV2,
   checkToolCardUrlsV2,
   type ToolCardUrlValidationArtifactV2,
 } from "../validation/url-checker.js";
@@ -37,6 +38,11 @@ export interface BuildArtifactsOptions {
   fetchImpl?: typeof fetch;
   previousUrlValidationV2?: ToolCardUrlValidationArtifactV2;
   previousDataQualityReport?: DataQualityReport;
+  previousSourceRegistry?: typeof sourceRegistry;
+  requireUrlValidation?: boolean;
+  generatedAt?: string;
+  previousSourceRecords?: SourceRecord[];
+  allowBenchmarkProxyDns?: boolean;
 }
 
 export interface BuildArtifactsSummary {
@@ -47,6 +53,7 @@ export interface BuildArtifactsSummary {
 }
 
 export async function buildArtifacts(options: BuildArtifactsOptions): Promise<BuildArtifactsSummary> {
+  const generatedAt = options.generatedAt ?? "2026-07-06T00:00:00Z";
   const publicDataDir = join(options.outputDir, "data");
   const reportsDir = join(options.outputDir, "reports");
   await rm(join(publicDataDir, "approval_requests"), { recursive: true, force: true });
@@ -54,31 +61,40 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await mkdir(reportsDir, { recursive: true });
 
   const reliableInput = options.toolCards
-    ? buildProvidedToolCardInput(options.toolCards)
+    ? buildProvidedToolCardInput(options.toolCards, generatedAt)
     : await buildReliableToolCardsFromIngestion(options);
   const toolCards = reliableInput.toolCards;
   const toolCardValidation = validateToolCards(toolCards);
-  const toolCardFieldProvenance = buildToolCardFieldProvenance(toolCards, "2026-07-06T00:00:00Z");
+  const toolCardFieldProvenance = buildToolCardFieldProvenance(toolCards, generatedAt);
   const dataVersion = "data-2026-07-06";
-  const sourceRegistryArtifact = buildSourceRegistryArtifact(sourceRegistry, "2026-07-06T00:00:00Z");
-  const sourceRegistryDiff = buildSourceRegistryDiff([], sourceRegistry, "2026-07-06T00:00:00Z");
-  const sourceRegistryReview = buildSourceRegistryReviewArtifact(sourceRegistryDiff, "2026-07-06T00:00:00Z");
-  const sourceRegistryReviewRequests = buildSourceRegistryReviewRequests(sourceRegistryReview, "2026-07-06T00:00:00Z");
+  const sourceRegistryArtifact = buildSourceRegistryArtifact(sourceRegistry, generatedAt);
+  const sourceRegistryDiff = buildSourceRegistryDiff(options.previousSourceRegistry ?? [], sourceRegistry, generatedAt);
+  const sourceRegistryReview = buildSourceRegistryReviewArtifact(sourceRegistryDiff, generatedAt);
+  const sourceRegistryReviewRequests = buildSourceRegistryReviewRequests(sourceRegistryReview, generatedAt);
   const shouldCheckUrls = options.checkUrlReachability ?? process.env.AGENT_RADAR_CHECK_URLS === "true";
-  const toolCardUrlValidation = shouldCheckUrls
-    ? await checkToolCardUrls(toolCards, { fetchImpl: options.fetchImpl, checkedAt: "2026-07-06T00:00:00Z" })
-    : buildSkippedToolCardUrlValidation(toolCards, "2026-07-06T00:00:00Z", "url_reachability_check_not_enabled");
   const toolCardUrlValidationV2 = shouldCheckUrls
     ? await checkToolCardUrlsV2(toolCards, {
         fetchImpl: options.fetchImpl,
-        checkedAt: "2026-07-06T00:00:00Z",
+        checkedAt: generatedAt,
         previousArtifact: options.previousUrlValidationV2,
+        allowBenchmarkProxyAddresses: options.allowBenchmarkProxyDns,
       })
     : buildSkippedToolCardUrlValidationV2(
         toolCards,
-        "2026-07-06T00:00:00Z",
+        generatedAt,
         "url_reachability_check_not_enabled",
       );
+  const toolCardUrlValidation = shouldCheckUrls
+    ? buildToolCardUrlValidationV1FromV2(toolCardUrlValidationV2)
+    : buildSkippedToolCardUrlValidation(toolCards, generatedAt, "url_reachability_check_not_enabled");
+  await writeFile(join(publicDataDir, "tool_card_validation.json"), JSON.stringify(toolCardValidation, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "tool_card_field_provenance.json"), JSON.stringify(toolCardFieldProvenance, null, 2), "utf8");
+  await mkdir(join(publicDataDir, "field_provenance"), { recursive: true });
+  await writeFile(join(publicDataDir, "field_provenance", "tool_card_fields.v2.json"), JSON.stringify(reliableInput.fieldProvenanceV2, null, 2), "utf8");
+  await mkdir(join(publicDataDir, "conflicts"), { recursive: true });
+  await writeFile(join(publicDataDir, "conflicts", "tool_card_conflicts.json"), JSON.stringify(reliableInput.conflictReport, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "tool_card_url_validation.json"), JSON.stringify(toolCardUrlValidation, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "tool_card_url_validation.v2.json"), JSON.stringify(toolCardUrlValidationV2, null, 2), "utf8");
   const dataQualityReport = buildDataQualityReport({
     toolCards,
     fieldProvenanceV2: reliableInput.fieldProvenanceV2,
@@ -91,9 +107,10 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
     interventions: reliableInput.interventions,
     promotionBlocked: reliableInput.promotionBlocked,
     dataVersion,
-    generatedAt: "2026-07-06T00:00:00Z",
+    generatedAt,
     previousReport: options.previousDataQualityReport,
     coverageRange: options.toolCards ? undefined : { min: 50, max: 150 },
+    requireUrlValidation: options.requireUrlValidation,
   });
   await writeFile(join(publicDataDir, "data_quality_report.json"), JSON.stringify(dataQualityReport, null, 2), "utf8");
   assertDataQualityReport(dataQualityReport);
@@ -116,14 +133,6 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await writeFile(join(publicDataDir, "source_registry_diff.json"), JSON.stringify(sourceRegistryDiff, null, 2), "utf8");
   await writeFile(join(publicDataDir, "source_registry_review.json"), JSON.stringify(sourceRegistryReview, null, 2), "utf8");
   await writeFile(join(publicDataDir, "source_registry_review_requests.json"), JSON.stringify(sourceRegistryReviewRequests, null, 2), "utf8");
-  await writeFile(join(publicDataDir, "tool_card_validation.json"), JSON.stringify(toolCardValidation, null, 2), "utf8");
-  await writeFile(join(publicDataDir, "tool_card_field_provenance.json"), JSON.stringify(toolCardFieldProvenance, null, 2), "utf8");
-  await mkdir(join(publicDataDir, "field_provenance"), { recursive: true });
-  await writeFile(join(publicDataDir, "field_provenance", "tool_card_fields.v2.json"), JSON.stringify(reliableInput.fieldProvenanceV2, null, 2), "utf8");
-  await mkdir(join(publicDataDir, "conflicts"), { recursive: true });
-  await writeFile(join(publicDataDir, "conflicts", "tool_card_conflicts.json"), JSON.stringify(reliableInput.conflictReport, null, 2), "utf8");
-  await writeFile(join(publicDataDir, "tool_card_url_validation.json"), JSON.stringify(toolCardUrlValidation, null, 2), "utf8");
-  await writeFile(join(publicDataDir, "tool_card_url_validation.v2.json"), JSON.stringify(toolCardUrlValidationV2, null, 2), "utf8");
   await writeFile(join(publicDataDir, "provider_registry.json"), JSON.stringify(providerRegistry, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_tools.json"), JSON.stringify(mcpToolManifest, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_examples.json"), JSON.stringify(mcpExamples, null, 2), "utf8");
@@ -165,7 +174,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         mcp_smoke_checklist: "data/mcp_smoke_checklist.json",
         d1_seed: "data/d1_seed.sql",
         eval_report: `reports/eval-${dataVersion}.md`,
-        published_at: "2026-07-06T00:00:00Z"
+        published_at: generatedAt
       },
       null,
       2
@@ -193,11 +202,13 @@ interface ReliableToolCardInput {
 }
 
 async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOptions): Promise<ReliableToolCardInput> {
+  const generatedAt = options.generatedAt ?? "2026-07-06T00:00:00Z";
   const ingestion = await runIngestion({
     outputDir: options.outputDir,
-    now: "2026-07-06T00:00:00Z",
+    now: generatedAt,
     fetchImpl: options.fetchImpl,
-    existingToolCards: []
+    existingToolCards: [],
+    previousSourceRecords: options.previousSourceRecords,
   });
 
   if (!ingestion.promotionCheck.passed) {
@@ -205,18 +216,21 @@ async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOption
   }
 
   const toolCards = ingestion.promotionCandidates.items.map((item) => item.draft);
+  const fieldProvenanceV2 = buildToolCardFieldValueProvenanceV2(
+    toolCards,
+    ingestion.normalizationEvidence,
+    generatedAt,
+  );
+  const conflictReport = buildToolCardConflictReport(
+    toolCards,
+    ingestion.normalizationEvidence,
+    generatedAt,
+  );
+  await writeIngestionReviewEvidence(options.outputDir, ingestion, { fieldProvenanceV2, conflictReport });
   return {
     toolCards,
-    fieldProvenanceV2: buildToolCardFieldValueProvenanceV2(
-      toolCards,
-      ingestion.normalizationEvidence,
-      "2026-07-06T00:00:00Z",
-    ),
-    conflictReport: buildToolCardConflictReport(
-      toolCards,
-      ingestion.normalizationEvidence,
-      "2026-07-06T00:00:00Z",
-    ),
+    fieldProvenanceV2,
+    conflictReport,
     duplicateCandidates: ingestion.duplicateReport.summary.possible_duplicates,
     unresolvedDuplicates: ingestion.promotionCheck.summary.duplicate_tool_ids,
     parserWarnings: ingestion.sourceRecords.reduce(
@@ -228,7 +242,7 @@ async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOption
   };
 }
 
-function buildProvidedToolCardInput(toolCards: ToolCard[]): ReliableToolCardInput {
+function buildProvidedToolCardInput(toolCards: ToolCard[], generatedAt: string): ReliableToolCardInput {
   const records: SourceRecord[] = toolCards.map((card) => ({
     id: `provided-${card.id}`,
     schema_version: "source_record.v1",
@@ -246,7 +260,6 @@ function buildProvidedToolCardInput(toolCards: ToolCard[]): ReliableToolCardInpu
     warnings: [],
   }));
   const normalized = normalizeToolCardDraftsWithEvidence(records);
-  const generatedAt = "2026-07-06T00:00:00Z";
   return {
     toolCards,
     fieldProvenanceV2: buildToolCardFieldValueProvenanceV2(

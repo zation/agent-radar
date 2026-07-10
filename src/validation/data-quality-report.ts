@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { ToolCard } from "../schema.js";
 
 export interface DataQualityGateItem {
@@ -12,7 +13,7 @@ export interface DataQualityReport {
   schema_version: "data_quality_report.v1";
   generated_at: string;
   data_version: string;
-  tool_cards: { total: number; by_type: Record<string, number> };
+  tool_cards: { total: number; by_type: Record<string, number>; fingerprints?: Record<string, string> };
   completeness: { required_field_rate: number; missing: string[] };
   provenance: { critical_coverage: number; missing: string[] };
   confidence: { low: number; medium: number; high: number; unknown: number };
@@ -42,6 +43,7 @@ export interface BuildDataQualityReportOptions {
     items: unknown[];
   };
   urlValidationV2: {
+    options?: { enabled: boolean };
     summary: Record<string, number> & { blocking: number; stale: number };
     items: unknown[];
   };
@@ -59,6 +61,7 @@ export interface BuildDataQualityReportOptions {
   generatedAt: string;
   previousReport?: DataQualityReport;
   coverageRange?: { min: number; max: number };
+  requireUrlValidation?: boolean;
 }
 
 const REQUIRED_FIELDS = [
@@ -103,11 +106,22 @@ export function buildDataQualityReport(options: BuildDataQualityReportOptions): 
     promotion_blocked: options.promotionBlocked,
   };
 
+  const fingerprints = Object.fromEntries(options.toolCards.map((card) => [card.id, fingerprint(card)]));
+  const comparison = options.previousReport
+    ? {
+        status: "compared" as const,
+        deltas: {
+          ...compareMetrics(baseMetrics, reportMetrics(options.previousReport)),
+          ...compareToolCardFingerprints(fingerprints, options.previousReport.tool_cards.fingerprints),
+        },
+      }
+    : { status: "no_baseline" as const, deltas: {} };
+
   return {
     schema_version: "data_quality_report.v1",
     generated_at: options.generatedAt,
     data_version: options.dataVersion,
-    tool_cards: { total: options.toolCards.length, by_type: byType },
+    tool_cards: { total: options.toolCards.length, by_type: byType, fingerprints },
     completeness: {
       required_field_rate: baseMetrics.required_field_rate,
       missing: missingRequired,
@@ -146,12 +160,7 @@ export function buildDataQualityReport(options: BuildDataQualityReportOptions): 
       interventions: options.interventions,
       promotion_blocked: options.promotionBlocked,
     },
-    comparison: options.previousReport
-      ? {
-          status: "compared",
-          deltas: compareMetrics(baseMetrics, reportMetrics(options.previousReport)),
-        }
-      : { status: "no_baseline", deltas: {} },
+    comparison,
     gates,
     status: gates.some((gate) => gate.severity === "blocking") ? "blocked" : "pass",
   };
@@ -180,6 +189,9 @@ function buildGates(options: BuildDataQualityReportOptions): DataQualityGateItem
   }
   if (options.unresolvedDuplicates > 0) {
     gates.push(gate("unresolved_duplicate", "tool_cards", "data/dedup/tool_card_duplicates.json", "Resolve duplicate identities before promotion."));
+  }
+  if (options.requireUrlValidation && options.urlValidationV2.options?.enabled !== true) {
+    gates.push(gate("url_validation_disabled", "tool_cards", "data/tool_card_url_validation.v2.json", "Enable URL validation for the reviewed release build."));
   }
   if (options.urlValidationV2.summary.blocking > 0) {
     gates.push(gate("blocking_url_validation", "tool_cards", "data/tool_card_url_validation.v2.json", "Repair or replace blocking evidence URLs."));
@@ -223,6 +235,28 @@ function compareMetrics(current: Record<string, number>, previous: Record<string
   return Object.fromEntries(
     Object.entries(current).map(([key, value]) => [key, value - (previous[key] ?? 0)]),
   );
+}
+
+function compareToolCardFingerprints(current: Record<string, string>, previous?: Record<string, string>): Record<string, number> {
+  if (!previous) return {};
+  const currentIds = new Set(Object.keys(current));
+  const previousIds = new Set(Object.keys(previous));
+  return {
+    tool_cards_added: [...currentIds].filter((id) => !previousIds.has(id)).length,
+    tool_cards_removed: [...previousIds].filter((id) => !currentIds.has(id)).length,
+    tool_cards_changed: [...currentIds].filter((id) => previous[id] !== undefined && previous[id] !== current[id]).length,
+  };
+}
+
+function fingerprint(card: ToolCard): string {
+  const {
+    created_at: _createdAt,
+    updated_at: _updatedAt,
+    last_checked_at: _lastCheckedAt,
+    evidence_refs: _evidenceRefs,
+    ...semanticCard
+  } = card;
+  return `sha256:${createHash("sha256").update(JSON.stringify(semanticCard)).digest("hex")}`;
 }
 
 function countBy(values: string[]): Record<string, number> {

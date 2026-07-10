@@ -94,6 +94,11 @@ test("field provenance v2 covers every critical field for a normalized card", ()
       item.candidates.every((candidate) => /^[a-f0-9]{64}$/.test(candidate.source_value_hash)),
     ),
   );
+  const permissionCandidate = artifact.items
+    .find((item) => item.tool_card_field === "permissions")
+    ?.candidates[0];
+  assert.ok(permissionCandidate?.source_leaf_paths.includes("raw_fields.permissions[0].scope"));
+  assert.ok(permissionCandidate?.source_leaf_paths.includes("raw_fields.permissions[0].required"));
 });
 
 test("field provenance v2 redacts credential-like values from previews", () => {

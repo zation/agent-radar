@@ -34,6 +34,7 @@ export interface RunIngestionOptions {
   existingToolCards?: ToolCard[];
   overrideRecords?: OverrideRecord[];
   approvalRecords?: ApprovalRecord[];
+  previousSourceRecords?: SourceRecord[];
 }
 
 export interface RunIngestionResult {
@@ -59,6 +60,11 @@ export interface RunIngestionResult {
   promotionCheck: ToolCardPromotionCheck;
 }
 
+export interface PublishedDataTrustEvidence {
+  fieldProvenanceV2: ToolCardFieldValueProvenanceV2;
+  conflictReport: ToolCardConflictReport;
+}
+
 export async function runIngestion(options: RunIngestionOptions): Promise<RunIngestionResult> {
   const now = options.now ?? new Date().toISOString();
   const registry = options.sources ?? sourceRegistry;
@@ -78,7 +84,10 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   for (const snapshot of snapshots) {
     const source = enabledSources.find((candidate) => candidate.id === snapshot.source_id);
     if (!source) continue;
-    const records = await parseSnapshot(snapshot, source, options.outputDir, now);
+    let records = await parseSnapshot(snapshot, source, options.outputDir, now);
+    if (snapshot.status !== "success" && records.length === 0 && source.failure_policy.includes("preserve previous stable data")) {
+      records = (options.previousSourceRecords ?? []).filter((record) => record.source_id === source.id);
+    }
     recordsBySource.set(source.id, records);
   }
 
@@ -145,12 +154,16 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   return result;
 }
 
-async function writeIngestionReviewEvidence(outputDir: string, result: RunIngestionResult): Promise<void> {
+export async function writeIngestionReviewEvidence(
+  outputDir: string,
+  result: RunIngestionResult,
+  publishedDataTrust?: PublishedDataTrustEvidence,
+): Promise<void> {
   const reviewDir = join(outputDir, "data", "review");
   await mkdir(reviewDir, { recursive: true });
   await writeFile(
     join(reviewDir, "ingestion.json"),
-    JSON.stringify({ schema_version: "ingestion_review_evidence.v1", result }, null, 2),
+    JSON.stringify({ schema_version: "ingestion_review_evidence.v1", result, published_data_trust: publishedDataTrust }, null, 2),
     "utf8"
   );
 }

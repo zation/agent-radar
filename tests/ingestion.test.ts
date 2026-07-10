@@ -645,6 +645,42 @@ test("ingestion writes a crawl plan for enabled sources", async () => {
   }
 });
 
+test("ingestion preserves previous reviewed Source Records when a source crawl fails", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-fallback-"));
+  const previousCard = reviewedToolCardFixtures[0];
+  const previousRecord = {
+    id: "manual-previous-agent-codex",
+    schema_version: "source_record.v1" as const,
+    snapshot_id: "snapshot-previous",
+    source_id: manualTestSource.id,
+    record_type: "manual" as const,
+    name: previousCard.name,
+    description: previousCard.summary,
+    urls: previousCard.source_urls,
+    raw_fields: previousCard as unknown as Record<string, unknown>,
+    parsed_fields: { tool_id: previousCard.id, type: previousCard.type },
+    source_confidence: "high" as const,
+    parsed_at: "2026-07-09T00:00:00Z",
+    parser_version: "manual_seed_parser.v1",
+    warnings: [],
+  };
+
+  try {
+    const result = await runIngestion({
+      outputDir,
+      now: "2026-07-10T00:00:00Z",
+      sources: [{ ...manualTestSource, failure_policy: "skip this source and preserve previous stable data" }],
+      previousSourceRecords: [previousRecord],
+      fetchImpl: () => Promise.reject(new Error("source unavailable")),
+    });
+
+    assert.equal(result.sourceRecords[0]?.id, previousRecord.id);
+    assert.equal(result.toolCardDrafts[0]?.id, previousCard.id);
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 test("ingestion writes crawl audit log from snapshots", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-ingest-"));
 

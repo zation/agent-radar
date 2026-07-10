@@ -7,6 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
   deployments: write
 
@@ -17,6 +18,11 @@ jobs:
     env:
       AGENT_RADAR_LLM_API_KEY: ${{ secrets.AGENT_RADAR_LLM_API_KEY }}
       AGENT_RADAR_LLM_MODEL: ${{ vars.AGENT_RADAR_LLM_MODEL || 'deepseek-v4-flash' }}
+      AGENT_RADAR_CHECK_URLS: "true"
+      AGENT_RADAR_PREVIOUS_URL_VALIDATION: previous-reviewed-bundle/dist-pages/data/tool_card_url_validation.v2.json
+      AGENT_RADAR_PREVIOUS_DATA_QUALITY_REPORT: previous-reviewed-bundle/dist-pages/data/data_quality_report.json
+      AGENT_RADAR_PREVIOUS_SOURCE_REGISTRY: previous-reviewed-bundle/dist-pages/data/source_registry.json
+      AGENT_RADAR_PREVIOUS_INGESTION_REVIEW: previous-reviewed-bundle/dist-pages/data/review/ingestion.json
     steps:
       - name: Validate immutable release tag
         run: |
@@ -38,6 +44,15 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Restore previous reviewed baselines
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PREVIOUS_RUN_ID="$(gh run list --workflow release-all.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if [[ -n "$PREVIOUS_RUN_ID" ]]; then
+            gh run download "$PREVIOUS_RUN_ID" --name "agent-radar-all-$PREVIOUS_RUN_ID" --dir previous-reviewed-bundle || true
+          fi
 
       - name: Build reviewed bundle
         run: npm run preview:build

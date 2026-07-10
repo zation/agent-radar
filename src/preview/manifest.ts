@@ -55,6 +55,7 @@ export interface ArtifactManifest {
       rejected: number;
       needs_changes: number;
     };
+    overrides?: number;
   };
   intervention_requests?: {
     pending_intervention: number;
@@ -256,7 +257,7 @@ function countEvalFailureCategories(summary: EvalSummary): Record<string, number
 }
 
 async function checksumFiles(rootDir: string): Promise<Record<string, string>> {
-  const files = (await listFiles(rootDir)).filter((file) => file !== "artifact-manifest.json");
+  const files = (await listArtifactFiles(rootDir)).filter((file) => file !== "artifact-manifest.json");
   const entries = await Promise.all(
     files.map(async (file) => {
       const content = await readFile(join(rootDir, file));
@@ -266,14 +267,14 @@ async function checksumFiles(rootDir: string): Promise<Record<string, string>> {
   return Object.fromEntries(entries.sort(([a], [b]) => a.localeCompare(b)));
 }
 
-async function listFiles(rootDir: string, currentDir = rootDir): Promise<string[]> {
+export async function listArtifactFiles(rootDir: string, currentDir = rootDir): Promise<string[]> {
   const entries = await readdir(currentDir, { withFileTypes: true });
   const files: string[] = [];
 
   for (const entry of entries) {
     const absolutePath = join(currentDir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...(await listFiles(rootDir, absolutePath)));
+      files.push(...(await listArtifactFiles(rootDir, absolutePath)));
     } else if (entry.isFile()) {
       files.push(relative(rootDir, absolutePath));
     }

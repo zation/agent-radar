@@ -135,7 +135,13 @@ export function buildToolCardFieldValueProvenanceV2(
   );
   const requiredSelectionCount = drafts.length * CRITICAL_TOOL_CARD_FIELDS.length;
   const coveredSelectionCount = items.filter(
-    (item) => item.candidates.length > 0 || item.override_record_id,
+    (item) => item.candidates.some((candidate) =>
+      candidate.source_leaf_paths.length > 0
+      && (!candidate.source_field_path.startsWith("derived.") || (
+        (candidate.input_source_field_paths?.length ?? 0) > 0
+        && candidate.input_source_field_paths?.every((path) => !path.startsWith("derived_dependencies.") && !path.startsWith("parser:"))
+      )),
+    ) || (item.override_record_id && (item.override_evidence_urls?.length ?? 0) > 0),
   ).length;
 
   return {

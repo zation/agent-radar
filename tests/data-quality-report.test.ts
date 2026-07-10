@@ -113,9 +113,60 @@ test("data quality report compares absolute metrics with the previous release", 
   assert.equal(report.comparison.deltas.tool_cards_total, 1);
 });
 
+test("data quality report records real same-id Tool Card changes", () => {
+  const previous = buildReport();
+  const report = buildReport({
+    toolCards: [{ ...reviewedToolCardFixtures[0], summary: `${reviewedToolCardFixtures[0].summary} Updated.` }],
+    previousReport: previous,
+  });
+
+  assert.equal(report.comparison.deltas.tool_cards_added, 0);
+  assert.equal(report.comparison.deltas.tool_cards_removed, 0);
+  assert.equal(report.comparison.deltas.tool_cards_changed, 1);
+});
+
+test("data quality report ignores build timestamp-only Tool Card changes", () => {
+  const previous = buildReport();
+  const report = buildReport({
+    toolCards: [{
+      ...reviewedToolCardFixtures[0],
+      created_at: "2026-07-11T00:00:00Z",
+      updated_at: "2026-07-11T00:00:00Z",
+      last_checked_at: "2026-07-11T00:00:00Z",
+      evidence_refs: ["record-refreshed-20260711"],
+    }],
+    previousReport: previous,
+  });
+
+  assert.equal(report.comparison.deltas.tool_cards_changed, 0);
+});
+
 test("data quality report blocks a release outside the configured coverage range", () => {
   const report = buildReport({ coverageRange: { min: 50, max: 150 } });
 
   assert.equal(report.status, "blocked");
   assert.equal(report.gates[0]?.reason_code, "tool_card_coverage_out_of_range");
+});
+
+test("data quality report blocks release mode when URL validation is disabled", () => {
+  const report = buildReport({
+    requireUrlValidation: true,
+    urlValidationV2: {
+      options: { enabled: false },
+      summary: {
+        reachable: 0,
+        permanent_failure: 0,
+        auth_required: 0,
+        rate_limited: 0,
+        transient_error: 0,
+        skipped: 1,
+        blocking: 0,
+        stale: 0,
+      },
+      items: [],
+    },
+  });
+
+  assert.equal(report.status, "blocked");
+  assert.equal(report.gates[0]?.reason_code, "url_validation_disabled");
 });

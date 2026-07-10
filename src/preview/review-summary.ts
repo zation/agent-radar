@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { DataQualityGateItem, DataQualityReport } from "../validation/data-quality-report.js";
-import type { ArtifactManifest } from "./manifest.js";
+import { listArtifactFiles, type ArtifactManifest } from "./manifest.js";
 
 export interface ReviewSummaryActionItem {
   reason_code: string;
@@ -69,9 +69,9 @@ export function buildReviewSummaryV2(options: BuildReviewSummaryV2Options): Revi
     changes: {
       source_registry: manifest.source_registry_diff ?? { added: 0, removed: 0, changed: 0 },
       tool_cards: {
-        added: Math.max(0, toolDelta),
-        removed: Math.max(0, -toolDelta),
-        changed: 0,
+        added: quality.comparison.deltas.tool_cards_added ?? Math.max(0, toolDelta),
+        removed: quality.comparison.deltas.tool_cards_removed ?? Math.max(0, -toolDelta),
+        changed: quality.comparison.deltas.tool_cards_changed ?? 0,
       },
     },
     summaries: {
@@ -157,6 +157,26 @@ export async function verifyReviewSummaryChecksums(
   }
 }
 
+export async function verifyFinalArtifactManifest(distDir: string): Promise<void> {
+  const manifest = JSON.parse(await readFile(join(distDir, "artifact-manifest.json"), "utf8")) as ArtifactManifest;
+  if (manifest.schema_version !== "artifact_manifest.v1") throw new Error("artifact_manifest_invalid_schema");
+  const actualFiles = (await listArtifactFiles(distDir)).filter((file) => file !== "artifact-manifest.json");
+  for (const file of actualFiles) {
+    if (!manifest.checksums[file]) throw new Error(`artifact_manifest_unexpected_file: ${file}`);
+  }
+  for (const [relativePath, expected] of Object.entries(manifest.checksums)) {
+    const actual = checksum(await readFile(join(distDir, relativePath)));
+    if (actual !== expected) throw new Error(`artifact_manifest_checksum_mismatch: ${relativePath}`);
+  }
+  for (const required of ["data/review_summary.v2.json", "reports/review_summary.v2.md"]) {
+    if (!manifest.checksums[required]) throw new Error(`artifact_manifest_missing_checksum: ${required}`);
+  }
+  const summary = JSON.parse(await readFile(join(distDir, "data", "review_summary.v2.json"), "utf8")) as ReviewSummaryV2;
+  for (const [relativePath, expected] of Object.entries(summary.artifact_checksums)) {
+    if (manifest.checksums[relativePath] !== expected) throw new Error(`review_summary_manifest_mismatch: ${relativePath}`);
+  }
+}
+
 function buildWarnings(quality: DataQualityReport, manifest: ArtifactManifest): ReviewSummaryActionItem[] {
   const warnings: ReviewSummaryActionItem[] = [];
   if (quality.review.parser_warnings > 0) {
@@ -168,10 +188,29 @@ function buildWarnings(quality: DataQualityReport, manifest: ArtifactManifest): 
   if ((quality.urls.by_status.transient_error ?? 0) > 0) {
     warnings.push(warning("transient_url_error", "tool_cards", "data/tool_card_url_validation.v2.json", "Review transient URL failures and their history."));
   }
+  if ((quality.urls.by_status.auth_required ?? 0) > 0) {
+    warnings.push(warning("auth_required_url", "tool_cards", "data/tool_card_url_validation.v2.json", "Confirm other public evidence remains available."));
+  }
+  if ((quality.urls.by_status.rate_limited ?? 0) > 0) {
+    warnings.push(warning("rate_limited_url", "tool_cards", "data/tool_card_url_validation.v2.json", "Review rate-limited URL evidence."));
+  }
+  if (quality.conflicts.unresolved > quality.conflicts.unresolved_critical) {
+    warnings.push(warning("noncritical_unresolved_conflict", "tool_cards", "data/conflicts/tool_card_conflicts.json", "Review unresolved non-critical display conflicts."));
+  }
+  if ((manifest.promotion_check?.validation_warnings ?? 0) > 0) {
+    warnings.push(warning("validation_warning", "tool_cards", "data/promotion_candidates/promotion_check.json", "Review promotion validation warnings."));
+  }
+  if ((manifest.ingestion_review?.overrides ?? 0) > 0) {
+    warnings.push(warning("override_applied", "tool_cards", "data/overrides/override_records.json", "Review evidence-backed overrides."));
+  }
   if ((manifest.source_registry_review_requests?.pending_review ?? 0) > 0) {
     warnings.push(warning("source_registry_review_pending", "source_registry", "data/source_registry_review_requests.json", "Complete Source Registry production review."));
   }
   return warnings;
+}
+
+function checksum(content: Buffer): string {
+  return `sha256:${createHash("sha256").update(content).digest("hex")}`;
 }
 
 function warning(reasonCode: string, objectId: string, evidencePath: string, suggestedAction: string): ReviewSummaryActionItem {

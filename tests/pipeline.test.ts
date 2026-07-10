@@ -323,7 +323,7 @@ test("pipeline rejects invalid tool cards before publishing artifacts", async ()
   try {
     await assert.rejects(
       () => buildArtifacts({ outputDir, toolCards: [invalidCard] }),
-      /data_quality_blocked: tool_card_validation_failed/
+      /data_quality_blocked: .*tool_card_validation_failed/
     );
   } finally {
     await rm(outputDir, { recursive: true, force: true });

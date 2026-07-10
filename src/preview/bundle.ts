@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import type { RunIngestionResult } from "../ingestion/run.js";
+import type { PublishedDataTrustEvidence, RunIngestionResult } from "../ingestion/run.js";
 import { renderIngestionReviewMarkdown, type SourceRegistryReviewRequestSummary, type SourceRegistryReviewRequirementSummary } from "./ingestion-review.js";
 import { buildArtifactManifest } from "./manifest.js";
 import type { DataQualityReport } from "../validation/data-quality-report.js";
@@ -26,6 +26,7 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
   const sourceRegistryReviewRequests = await readSourceRegistryReviewRequests(options.distDir);
   await writeFile(join(options.reviewDir, "ingestion.md"), renderIngestionReviewMarkdown(ingestion, sourceRegistryReviewRequirements, sourceRegistryReviewRequests), "utf8");
   await rm(join(options.distDir, "data", "review_summary.v2.json"), { force: true });
+  await rm(join(options.distDir, "reports", "review_summary.v2.md"), { force: true });
 
   const inputManifest = await buildArtifactManifest({
     distDir: options.distDir,
@@ -53,6 +54,12 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     renderReviewSummaryV2Markdown(reviewSummary),
     "utf8",
   );
+  await mkdir(join(options.distDir, "reports"), { recursive: true });
+  await writeFile(
+    join(options.distDir, "reports", "review_summary.v2.md"),
+    renderReviewSummaryV2Markdown(reviewSummary),
+    "utf8",
+  );
 
   const manifest = await buildArtifactManifest({
     distDir: options.distDir,
@@ -76,7 +83,8 @@ function enrichManifestWithIngestion(manifest: Awaited<ReturnType<typeof buildAr
       approved: ingestion.approvalArtifact.summary.approved,
       rejected: ingestion.approvalArtifact.summary.rejected,
       needs_changes: ingestion.approvalArtifact.summary.needs_changes
-    }
+    },
+    overrides: ingestion.overrideRecords.length
   };
   manifest.intervention_requests = {
     pending_intervention: ingestion.interventionRequests.summary.pending_intervention,
@@ -120,10 +128,11 @@ function enrichManifestWithIngestion(manifest: Awaited<ReturnType<typeof buildAr
   };
 }
 
-async function loadIngestionReviewEvidence(distDir: string): Promise<RunIngestionResult> {
+export async function loadIngestionReviewEvidence(distDir: string): Promise<RunIngestionResult> {
   const evidence = JSON.parse(await readFile(join(distDir, "data", "review", "ingestion.json"), "utf8")) as {
     schema_version?: string;
     result?: RunIngestionResult;
+    published_data_trust?: PublishedDataTrustEvidence;
   };
   if (evidence.schema_version !== "ingestion_review_evidence.v1" || !evidence.result) {
     throw new Error("ingestion review evidence must use ingestion_review_evidence.v1");
@@ -134,8 +143,8 @@ async function loadIngestionReviewEvidence(distDir: string): Promise<RunIngestio
     ["approval overrides", "data/approvals/approval_records.json", evidence.result.approvalArtifact],
     ["intervention requests", "data/intervention_requests/tool_card_drafts.json", evidence.result.interventionRequests],
     ["field provenance", "data/field_provenance/tool_card_fields.json", evidence.result.fieldProvenance],
-    ["field provenance v2", "data/field_provenance/tool_card_fields.v2.json", evidence.result.fieldProvenanceV2],
-    ["conflict report", "data/conflicts/tool_card_conflicts.json", evidence.result.conflictReport],
+    ["field provenance v2", "data/field_provenance/tool_card_fields.v2.json", evidence.published_data_trust?.fieldProvenanceV2 ?? evidence.result.fieldProvenanceV2],
+    ["conflict report", "data/conflicts/tool_card_conflicts.json", evidence.published_data_trust?.conflictReport ?? evidence.result.conflictReport],
     ["auto review", "data/auto_review/tool_card_drafts.json", evidence.result.autoReview],
     ["release admission", "data/release_admission/tool_card_drafts.json", evidence.result.releaseAdmission],
     ["discovery candidates", "data/discovery_candidates/tool_repositories.json", evidence.result.discoveryCandidates],

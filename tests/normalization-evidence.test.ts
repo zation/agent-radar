@@ -103,6 +103,14 @@ test("normalization evidence keeps every cross-source field candidate", () => {
         item.source_field_path === "urls[1]",
     ),
   );
+  assert.ok(
+    result.evidence.field_candidates
+      .filter((item) => item.source_field_path.startsWith("derived."))
+      .every((item) =>
+        (item.input_source_field_paths?.length ?? 0) > 0
+        && item.input_source_field_paths?.every((path) => !path.startsWith("derived_dependencies.") && !path.startsWith("parser:")),
+      ),
+  );
 });
 
 test("normalizer selects official direct evidence before discovery metadata", () => {
@@ -202,6 +210,10 @@ test("normalization evidence records an override conflict only for its declared 
 
   assert.equal(result.drafts[0]?.summary, "Corrected summary.");
   assert.equal(summarySelection?.override_record_id, "override-summary");
+  assert.deepEqual(summarySelection?.override_evidence_urls, ["https://example.com/evidence"]);
+  assert.equal(summarySelection?.override_reason, "Official documentation clarified the scope.");
+  assert.equal(summarySelection?.override_created_by, "reviewer");
+  assert.equal(summarySelection?.override_created_at, "2026-07-10T01:00:00Z");
   assert.equal(summarySelection?.reason_code, "explicit_override");
   assert.deepEqual(
     overrideConflicts.map((item) => item.tool_card_field),

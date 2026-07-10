@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   buildSkippedToolCardUrlValidationV2,
+  buildToolCardUrlValidationV1FromV2,
   checkToolCardUrlsV2,
   type ToolCardUrlValidationArtifactV2,
 } from "../src/validation/url-checker.js";
@@ -179,4 +180,130 @@ test("URL checker v2 checks distinct URLs concurrently", async () => {
   await pending;
 
   assert.equal(startedBeforeRelease, 2);
+});
+
+test("URL checker v2 refuses private targets before making a request", async () => {
+  let calls = 0;
+  const artifact = await checkToolCardUrlsV2([card([
+    "http://127.0.0.1/admin",
+    "http://169.254.169.254/latest/meta-data",
+    "http://localhost/private",
+  ])], {
+    checkedAt: "2026-07-10T00:00:00Z",
+    fetchImpl: () => {
+      calls += 1;
+      return Promise.resolve(new Response("ok"));
+    },
+  });
+
+  assert.equal(calls, 0);
+  assert.ok(artifact.items.every((item) => item.reason_code === "private_network_target"));
+  assert.equal(artifact.summary.blocking, 3);
+});
+
+test("URL checker v2 validates every redirect target before following it", async () => {
+  const calls: string[] = [];
+  const artifact = await checkToolCardUrlsV2([card(["https://docs.example.com/start"])], {
+    checkedAt: "2026-07-10T00:00:00Z",
+    fetchImpl: (input, init) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      calls.push(url);
+      assert.equal(init?.redirect, "manual");
+      return Promise.resolve(new Response("", {
+        status: 302,
+        headers: { location: "http://127.0.0.1/admin" },
+      }));
+    },
+    sleepImpl: () => Promise.resolve(),
+  });
+
+  assert.deepEqual(calls, ["https://docs.example.com/start"]);
+  assert.equal(artifact.items[0]?.reason_code, "unsafe_redirect_target");
+  assert.equal(artifact.summary.blocking, 1);
+});
+
+test("URL checker v2 blocks HTTPS downgrade and unrelated cross-site redirects", async () => {
+  for (const location of ["http://docs.example.com/insecure", "https://unrelated.example.net/docs"]) {
+    const artifact = await checkToolCardUrlsV2([card(["https://docs.example.com/start"])], {
+      checkedAt: "2026-07-10T00:00:00Z",
+      fetchImpl: () => Promise.resolve(new Response("", { status: 302, headers: { location } })),
+      sleepImpl: () => Promise.resolve(),
+    });
+    assert.equal(artifact.items[0]?.reason_code, "unsafe_redirect_target");
+  }
+});
+
+test("URL checker v2 follows an explicitly reviewed cross-site redirect", async () => {
+  const calls: string[] = [];
+  const artifact = await checkToolCardUrlsV2([card(["https://developers.openai.com/codex"])], {
+    checkedAt: "2026-07-10T00:00:00Z",
+    fetchImpl: (input) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      calls.push(url);
+      return Promise.resolve(url.includes("developers.openai.com")
+        ? new Response("", { status: 308, headers: { location: "https://learn.chatgpt.com/docs" } })
+        : new Response("ok", { status: 200 }));
+    },
+  });
+
+  assert.equal(artifact.items[0]?.status, "reachable");
+  assert.deepEqual(calls, ["https://developers.openai.com/codex", "https://learn.chatgpt.com/docs"]);
+});
+
+test("URL checker v2 rejects hostnames that resolve to private addresses", async () => {
+  let calls = 0;
+  const artifact = await checkToolCardUrlsV2([card(["https://metadata.example.test/value"])], {
+    checkedAt: "2026-07-10T00:00:00Z",
+    resolveHostname: () => Promise.resolve(["10.0.0.8"]),
+    fetchImpl: () => {
+      calls += 1;
+      return Promise.resolve(new Response("ok"));
+    },
+  });
+
+  assert.equal(calls, 0);
+  assert.equal(artifact.items[0]?.reason_code, "private_network_target");
+});
+
+test("URL checker v2 rejects IPv6 ULA and IPv4-mapped private targets", async () => {
+  const artifact = await checkToolCardUrlsV2([card(["https://safe.example.test/value"])], {
+    checkedAt: "2026-07-10T00:00:00Z",
+    resolveHostname: () => Promise.resolve(["fd12::1", "::ffff:127.0.0.1"]),
+    fetchImpl: () => Promise.resolve(new Response("ok")),
+  });
+  assert.equal(artifact.items[0]?.reason_code, "private_network_target");
+});
+
+test("URL checker v2 caps distinct URL concurrency", async () => {
+  let active = 0;
+  let peak = 0;
+  let release: (() => void) | undefined;
+  const released = new Promise<void>((resolve) => { release = resolve; });
+  const pending = checkToolCardUrlsV2([card(Array.from({ length: 6 }, (_, index) => `https://example.com/${index}`))], {
+    checkedAt: "2026-07-10T00:00:00Z",
+    maxConcurrency: 2,
+    fetchImpl: async () => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await released;
+      active -= 1;
+      return new Response("ok");
+    },
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(peak, 2);
+  release?.();
+  await pending;
+});
+
+test("URL validation v1 migration artifact is derived without a second request pass", async () => {
+  const v2 = await checkToolCardUrlsV2([card(["https://example.com/docs"])], {
+    checkedAt: "2026-07-10T00:00:00Z",
+    fetchImpl: () => Promise.resolve(new Response("ok")),
+  });
+  const v1 = buildToolCardUrlValidationV1FromV2(v2);
+
+  assert.equal(v1.schema_version, "tool_card_url_validation.v1");
+  assert.equal(v1.summary.reachable, 1);
+  assert.equal(v1.items[0]?.field, "source_urls");
 });

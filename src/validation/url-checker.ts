@@ -1,4 +1,13 @@
+import { lookup } from "node:dns/promises";
 import type { ToolCard } from "../schema.js";
+import type { ToolCardUrlValidationArtifact } from "./tool-card-validator.js";
+
+const REVIEWED_CROSS_SITE_REDIRECTS: Record<string, string[]> = {
+  "mcp-server-neon-jet.vercel.app": ["neon.com"],
+  "developers.openai.com": ["learn.chatgpt.com"],
+  "google.github.io": ["adk.dev"],
+  "aka.ms": ["learn.microsoft.com"],
+};
 
 export type ToolCardUrlValidationStatusV2 =
   | "reachable"
@@ -44,6 +53,9 @@ export interface ToolCardUrlCheckOptionsV2 {
   maxRetries?: number;
   previousArtifact?: ToolCardUrlValidationArtifactV2;
   sleepImpl?: (milliseconds: number) => Promise<void>;
+  resolveHostname?: (hostname: string) => Promise<string[]>;
+  maxConcurrency?: number;
+  allowBenchmarkProxyAddresses?: boolean;
 }
 
 interface UrlCandidate {
@@ -71,23 +83,24 @@ export async function checkToolCardUrlsV2(
   const maxRetries = options.maxRetries ?? 2;
   const fetchImpl = options.fetchImpl ?? fetch;
   const sleepImpl = options.sleepImpl ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
+  const resolveHostname = options.resolveHostname ?? (options.fetchImpl ? (() => Promise.resolve([])) : resolvePublicHostname);
+  const maxConcurrency = options.maxConcurrency ?? 8;
+  const allowBenchmarkProxyAddresses = options.allowBenchmarkProxyAddresses ?? false;
   const previousByKey = new Map(
     (options.previousArtifact?.items ?? []).map((item) => [historyKey(item), item]),
   );
   const resultByUrl = new Map<string, Promise<CheckResult>>();
   const candidates = collectUrlCandidates(cards);
-  for (const candidate of candidates) {
+  const items = await mapWithConcurrency(candidates, maxConcurrency, async (candidate) => {
     let resultPromise = resultByUrl.get(candidate.url);
     if (!resultPromise) {
-      resultPromise = checkUrl(candidate.url, fetchImpl, timeoutMs, maxRetries, sleepImpl);
+      resultPromise = checkUrl(candidate.url, fetchImpl, timeoutMs, maxRetries, sleepImpl, resolveHostname, allowBenchmarkProxyAddresses);
       resultByUrl.set(candidate.url, resultPromise);
     }
-  }
-  const items = await Promise.all(candidates.map(async (candidate) => {
-    const result = await resultByUrl.get(candidate.url)!;
+    const result = await resultPromise;
     const previous = previousByKey.get(historyKey(candidate));
     return withHistory(candidate, result, previous, options.checkedAt);
-  }));
+  });
 
   return buildArtifact(items, options.checkedAt, true, timeoutMs, maxRetries);
 }
@@ -111,12 +124,37 @@ export function buildSkippedToolCardUrlValidationV2(
   return buildArtifact(items, checkedAt, false, 5000, 2);
 }
 
+export function buildToolCardUrlValidationV1FromV2(artifact: ToolCardUrlValidationArtifactV2): ToolCardUrlValidationArtifact {
+  const items = artifact.items.map((item) => ({
+    tool_id: item.tool_id,
+    url: item.url,
+    field: item.field_path.replace(/\[\d+\]/g, ""),
+    status: item.status === "reachable" ? "reachable" as const : item.status === "skipped" ? "skipped" as const : "failed" as const,
+    method: item.method === "none" ? undefined : item.method,
+    http_status: item.http_status,
+    reason: item.reason_code,
+  }));
+  return {
+    schema_version: "tool_card_url_validation.v1",
+    checked_at: artifact.generated_at,
+    summary: {
+      checked: items.filter((item) => item.status !== "skipped").length,
+      reachable: items.filter((item) => item.status === "reachable").length,
+      failed: items.filter((item) => item.status === "failed").length,
+      skipped: items.filter((item) => item.status === "skipped").length,
+    },
+    items,
+  };
+}
+
 async function checkUrl(
   value: string,
   fetchImpl: typeof fetch,
   timeoutMs: number,
   maxRetries: number,
   sleepImpl: (milliseconds: number) => Promise<void>,
+  resolveHostname: (hostname: string) => Promise<string[]>,
+  allowBenchmarkProxyAddresses: boolean,
 ): Promise<CheckResult> {
   const parsed = safeUrl(value);
   if (!parsed || (parsed.protocol !== "http:" && parsed.protocol !== "https:")) {
@@ -125,10 +163,14 @@ async function checkUrl(
   if (parsed.username || parsed.password) {
     return permanent("url_contains_credentials");
   }
+  if (isPrivateNetworkHost(parsed.hostname)) {
+    return permanent("private_network_target");
+  }
+  if (await resolvesToPrivateNetwork(parsed.hostname, resolveHostname, allowBenchmarkProxyAddresses)) return permanent("private_network_target");
 
-  const head = await requestWithRetries(value, "HEAD", fetchImpl, timeoutMs, maxRetries, sleepImpl);
+  const head = await requestWithRetries(value, "HEAD", fetchImpl, timeoutMs, maxRetries, sleepImpl, resolveHostname, allowBenchmarkProxyAddresses);
   if (head.http_status === 405 || head.http_status === 501) {
-    const get = await requestWithRetries(value, "GET", fetchImpl, timeoutMs, maxRetries, sleepImpl);
+    const get = await requestWithRetries(value, "GET", fetchImpl, timeoutMs, maxRetries, sleepImpl, resolveHostname, allowBenchmarkProxyAddresses);
     return { ...get, attempt_count: head.attempt_count + get.attempt_count };
   }
   return head;
@@ -141,10 +183,12 @@ async function requestWithRetries(
   timeoutMs: number,
   maxRetries: number,
   sleepImpl: (milliseconds: number) => Promise<void>,
+  resolveHostname: (hostname: string) => Promise<string[]>,
+  allowBenchmarkProxyAddresses: boolean,
 ): Promise<CheckResult> {
   let lastResult: CheckResult | undefined;
   for (let attempt = 1; attempt <= maxRetries + 1; attempt += 1) {
-    const result = await requestOnce(url, method, fetchImpl, timeoutMs);
+    const result = await requestOnce(url, method, fetchImpl, timeoutMs, resolveHostname, allowBenchmarkProxyAddresses);
     lastResult = { ...result, attempt_count: attempt };
     if (!isRetryable(lastResult) || attempt > maxRetries) return lastResult;
     await sleepImpl(50 * attempt);
@@ -157,28 +201,38 @@ async function requestOnce(
   method: "HEAD" | "GET",
   fetchImpl: typeof fetch,
   timeoutMs: number,
+  resolveHostname: (hostname: string) => Promise<string[]>,
+  allowBenchmarkProxyAddresses: boolean,
 ): Promise<CheckResult> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const response = await fetchImpl(url, {
-      method,
-      signal: controller.signal,
-      redirect: "follow",
-      headers: method === "GET" ? { Range: "bytes=0-0" } : undefined,
-    });
-    const finalUrl = response.url || url;
-    const finalParsed = safeUrl(finalUrl);
-    if (!finalParsed || !/^https?:$/.test(finalParsed.protocol) || finalParsed.username || finalParsed.password) {
-      return {
-        ...permanent("unsafe_redirect_target"),
+    let currentUrl = url;
+    const redirects: string[] = [];
+    const visited = new Set([url]);
+    for (let hop = 0; hop <= 5; hop += 1) {
+      const response = await fetchImpl(currentUrl, {
         method,
-        http_status: response.status,
-        final_url: finalUrl,
-        redirects: finalUrl === url ? [] : [finalUrl],
-      };
+        signal: controller.signal,
+        redirect: "manual",
+        headers: method === "GET" ? { Range: "bytes=0-0" } : undefined,
+      });
+      if (response.status < 300 || response.status >= 400) {
+        return classifyResponse(response.status, method, currentUrl, redirects);
+      }
+      const location = response.headers.get("location");
+      if (!location) {
+        return { ...permanent("redirect_missing_location"), method, http_status: response.status, final_url: currentUrl, redirects };
+      }
+      const next = resolveUrl(location, currentUrl);
+      if (!next || !(await isSafeRedirectTarget(currentUrl, next, resolveHostname, allowBenchmarkProxyAddresses)) || visited.has(next.toString())) {
+        return { ...permanent("unsafe_redirect_target"), method, http_status: response.status, final_url: next?.toString(), redirects };
+      }
+      currentUrl = next.toString();
+      redirects.push(currentUrl);
+      visited.add(currentUrl);
     }
-    return classifyResponse(response.status, method, url, finalUrl);
+    return { ...permanent("redirect_limit_exceeded"), method, final_url: currentUrl, redirects };
   } catch (error) {
     const message = error instanceof Error ? error.message : "request_failed";
     if (/ENOTFOUND|certificate|CERT_|ERR_TLS|domain/i.test(message)) {
@@ -195,14 +249,14 @@ async function requestOnce(
 function classifyResponse(
   status: number,
   method: "HEAD" | "GET",
-  originalUrl: string,
   finalUrl: string,
+  redirects: string[],
 ): CheckResult {
   const common = {
     method,
     http_status: status,
     final_url: finalUrl,
-    redirects: finalUrl === originalUrl ? [] : [finalUrl],
+    redirects,
     attempt_count: 1,
   };
   if (status >= 200 && status < 400) return { ...common, status: "reachable", reason_code: `http_${status}` };
@@ -211,6 +265,66 @@ function classifyResponse(
   if (status === 404 || status === 410) return { ...common, status: "permanent_failure", reason_code: `http_${status}` };
   if (status >= 500) return { ...common, status: "transient_error", reason_code: `http_${status}` };
   return { ...common, status: "permanent_failure", reason_code: `http_${status}` };
+}
+
+async function isSafeRedirectTarget(currentUrl: string, target: URL, resolveHostname: (hostname: string) => Promise<string[]>, allowBenchmarkProxyAddresses: boolean): Promise<boolean> {
+  if (!/^https?:$/.test(target.protocol) || target.username || target.password || isPrivateNetworkHost(target.hostname)) return false;
+  if (await resolvesToPrivateNetwork(target.hostname, resolveHostname, allowBenchmarkProxyAddresses)) return false;
+  const current = new URL(currentUrl);
+  if (current.protocol === "https:" && target.protocol !== "https:") return false;
+  if (current.hostname === target.hostname) return true;
+  if (REVIEWED_CROSS_SITE_REDIRECTS[current.hostname]?.includes(target.hostname)) return true;
+  return current.hostname.endsWith(`.${target.hostname}`) || target.hostname.endsWith(`.${current.hostname}`);
+}
+
+async function resolvePublicHostname(hostname: string): Promise<string[]> {
+  return (await lookup(hostname, { all: true })).map((entry) => entry.address);
+}
+
+async function resolvesToPrivateNetwork(hostname: string, resolveHostname: (hostname: string) => Promise<string[]>, allowBenchmarkProxyAddresses: boolean): Promise<boolean> {
+  try {
+    return (await resolveHostname(hostname)).some((address) =>
+      isPrivateNetworkHost(address) && !(allowBenchmarkProxyAddresses && isBenchmarkProxyAddress(address)),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isBenchmarkProxyAddress(address: string): boolean {
+  const octets = address.split(".").map(Number);
+  return octets.length === 4 && octets[0] === 198 && (octets[1] === 18 || octets[1] === 19);
+}
+
+async function mapWithConcurrency<T, R>(items: T[], concurrency: number, mapper: (item: T) => Promise<R>): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+  async function worker(): Promise<void> {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(Math.max(1, concurrency), items.length) }, () => worker()));
+  return results;
+}
+
+function isPrivateNetworkHost(hostname: string): boolean {
+  const host = hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host === "::1" || host === "::" || host.startsWith("fe80:") || /^(fc|fd)[0-9a-f]{2}:/.test(host)) return true;
+  const mappedIpv4 = host.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/)?.[1];
+  const octets = (mappedIpv4 ?? host).split(".").map(Number);
+  if (octets.length !== 4 || octets.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  return octets[0] === 10
+    || octets[0] === 127
+    || octets[0] === 0
+    || (octets[0] === 169 && octets[1] === 254)
+    || (octets[0] === 172 && octets[1] >= 16 && octets[1] <= 31)
+    || (octets[0] === 192 && octets[1] === 168)
+    || (octets[0] === 100 && octets[1] >= 64 && octets[1] <= 127)
+    || (octets[0] === 198 && (octets[1] === 18 || octets[1] === 19))
+    || octets[0] >= 224;
 }
 
 function withHistory(
@@ -318,6 +432,14 @@ function historyKey(item: Pick<ToolCardUrlValidationItemV2, "tool_id" | "field_p
 function safeUrl(value: string): URL | undefined {
   try {
     return new URL(value);
+  } catch {
+    return undefined;
+  }
+}
+
+function resolveUrl(value: string, base: string): URL | undefined {
+  try {
+    return new URL(value, base);
   } catch {
     return undefined;
   }

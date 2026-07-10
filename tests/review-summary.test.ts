@@ -7,6 +7,7 @@ import test from "node:test";
 import {
   buildReviewSummaryV2,
   renderReviewSummaryV2Markdown,
+  verifyFinalArtifactManifest,
   verifyReviewSummaryChecksums,
 } from "../src/preview/review-summary.js";
 import type { ArtifactManifest } from "../src/preview/manifest.js";
@@ -82,6 +83,67 @@ test("review summary checksum verification detects modified inputs", async () =>
       () => verifyReviewSummaryChecksums(distDir, summary),
       /review_summary_checksum_mismatch: data\/input\.json/,
     );
+  } finally {
+    await rm(distDir, { recursive: true, force: true });
+  }
+});
+
+test("review summary includes actionable non-blocking URL and validation evidence", () => {
+  const summary = buildReviewSummaryV2({
+    manifest: {
+      ...manifest,
+      promotion_check: { candidates: 50, ready_for_publish: 50, blocked: 0, duplicate_tool_ids: 0, validation_errors: 0, validation_warnings: 2, passed: true },
+      ingestion_review: { approvals: { approved: 0, rejected: 0, needs_changes: 0 }, overrides: 1 },
+    },
+    dataQualityReport: {
+      ...quality,
+      conflicts: { total: 1, unresolved: 1, unresolved_critical: 0 },
+      urls: { by_status: { reachable: 48, auth_required: 1, rate_limited: 1 }, stale: 0, blocking: 0 },
+      gates: [],
+      status: "pass",
+    },
+    generatedAt: "2026-07-10T00:00:00Z",
+  });
+
+  assert.deepEqual(summary.warning_items.map((item) => item.reason_code), [
+    "parser_warning",
+    "auth_required_url",
+    "rate_limited_url",
+    "noncritical_unresolved_conflict",
+    "validation_warning",
+    "override_applied",
+  ]);
+});
+
+test("final manifest verifier detects Review Summary tampering", async () => {
+  const distDir = await mkdtemp(join(tmpdir(), "agent-radar-final-manifest-"));
+  try {
+    await mkdir(join(distDir, "data"), { recursive: true });
+    await mkdir(join(distDir, "reports"), { recursive: true });
+    await writeFile(join(distDir, "data", "input.json"), "input", "utf8");
+    const inputDigest = createHash("sha256").update("input").digest("hex");
+    const summary = buildReviewSummaryV2({
+      manifest: { ...manifest, checksums: { "data/input.json": `sha256:${inputDigest}` } },
+      dataQualityReport: { ...quality, gates: [], status: "pass" },
+      generatedAt: "2026-07-10T00:00:00Z",
+    });
+    const summaryText = JSON.stringify(summary, null, 2);
+    const markdown = renderReviewSummaryV2Markdown(summary);
+    await writeFile(join(distDir, "data", "review_summary.v2.json"), summaryText);
+    await writeFile(join(distDir, "reports", "review_summary.v2.md"), markdown);
+    const checksums = Object.fromEntries([
+      ["data/input.json", "input"],
+      ["data/review_summary.v2.json", summaryText],
+      ["reports/review_summary.v2.md", markdown],
+    ].map(([path, value]) => [path, `sha256:${createHash("sha256").update(value).digest("hex")}`]));
+    await writeFile(join(distDir, "artifact-manifest.json"), JSON.stringify({ ...manifest, checksums }));
+
+    await assert.doesNotReject(() => verifyFinalArtifactManifest(distDir));
+    await writeFile(join(distDir, "data", "unexpected.json"), "{}");
+    await assert.rejects(() => verifyFinalArtifactManifest(distDir), /artifact_manifest_unexpected_file: data\/unexpected\.json/);
+    await rm(join(distDir, "data", "unexpected.json"));
+    await writeFile(join(distDir, "data", "review_summary.v2.json"), `${summaryText}\n`);
+    await assert.rejects(() => verifyFinalArtifactManifest(distDir), /artifact_manifest_checksum_mismatch: data\/review_summary\.v2\.json/);
   } finally {
     await rm(distDir, { recursive: true, force: true });
   }
