@@ -114,23 +114,48 @@ jobs:
           WORKER_BASE_URL="$(printf '%s\n' "$DEPLOY_OUTPUT" | grep -Eo 'https://[^[:space:]]+\.workers\.dev' | tail -1)"
           if [ -z "$WORKER_BASE_URL" ]; then
             echo "Could not find workers.dev URL in wrangler deploy output." >&2
-            printf '%s\n' "$DEPLOY_OUTPUT" >&2
             exit 1
           fi
           echo "AGENT_RADAR_WORKER_BASE_URL=$WORKER_BASE_URL" >> "$GITHUB_ENV"
           AGENT_RADAR_MCP_BASE_URL="$WORKER_BASE_URL" node dist/src/cli/run-mcp-smoke.js | tee mcp-smoke-result.json
 
-      - name: Build production release evidence
+      - name: Resolve production deployment
         env:
           GH_TOKEN: ${{ github.token }}
-          AGENT_RADAR_REVIEWED_BUNDLE: agent-radar-all-${{ github.run_id }}
         run: |
           set -euo pipefail
-          DEPLOYMENT_ID="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/deployments" \
-            -f environment=production -f sha="$GITHUB_SHA" --jq '.[0].id')"
-          test -n "$DEPLOYMENT_ID"
-          AGENT_RADAR_PRODUCTION_DEPLOYMENT_ID="$DEPLOYMENT_ID" \
-            node dist/src/cli/build-production-evidence.js >> "$GITHUB_STEP_SUMMARY"
+          CANDIDATE_IDS_OUTPUT="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/deployments" \
+            -f environment=production -f sha="$GITHUB_SHA" -f ref="$GITHUB_REF_NAME" \
+            -f per_page=100 --paginate --jq '.[] | .id // empty')"
+          CANDIDATE_IDS=()
+          if [ -n "$CANDIDATE_IDS_OUTPUT" ]; then
+            mapfile -t CANDIDATE_IDS <<< "$CANDIDATE_IDS_OUTPUT"
+          fi
+
+          MATCHING_DEPLOYMENT_IDS=()
+          for CANDIDATE_ID in "${CANDIDATE_IDS[@]}"; do
+            if [[ ! "$CANDIDATE_ID" =~ ^[0-9]+$ ]]; then
+              continue
+            fi
+            STATUS_MATCHES="$(gh api --method GET \
+              "repos/${GITHUB_REPOSITORY}/deployments/${CANDIDATE_ID}/statuses" \
+              --paginate \
+              --jq ".[] | select(((.log_url // \"\") | contains(\"/actions/runs/${GITHUB_RUN_ID}/\")) or ((.target_url // \"\") | contains(\"/actions/runs/${GITHUB_RUN_ID}/\"))) | .id")"
+            if [ -n "$STATUS_MATCHES" ]; then
+              MATCHING_DEPLOYMENT_IDS+=("$CANDIDATE_ID")
+            fi
+          done
+
+          if [ "${#MATCHING_DEPLOYMENT_IDS[@]}" -ne 1 ]; then
+            echo "Could not uniquely identify the production deployment for this workflow run." >&2
+            exit 1
+          fi
+          echo "AGENT_RADAR_PRODUCTION_DEPLOYMENT_ID=${MATCHING_DEPLOYMENT_IDS[0]}" >> "$GITHUB_ENV"
+
+      - name: Build production release evidence
+        env:
+          AGENT_RADAR_REVIEWED_BUNDLE: agent-radar-all-${{ github.run_id }}
+        run: node dist/src/cli/build-production-evidence.js >> "$GITHUB_STEP_SUMMARY"
 
       - name: Record production deployment
         run: |

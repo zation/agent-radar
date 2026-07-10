@@ -42,6 +42,27 @@ test("all release workflow uses environment approval before Worker deploy", asyn
   );
 });
 
+test("all release workflow uniquely binds evidence to the current Actions deployment", async () => {
+  const workflow = await readFile(".github/workflows/release-all.yml", "utf8");
+
+  assert.match(workflow, /permissions:\s*\n(?:\s+.*\n)*?\s+deployments:\s*write/);
+  assert.match(workflow, /repos\/\$\{GITHUB_REPOSITORY\}\/deployments/);
+  assert.match(workflow, /-f environment=production/);
+  assert.match(workflow, /-f sha="\$GITHUB_SHA"/);
+  assert.match(workflow, /-f ref="\$GITHUB_REF_NAME"/);
+  assert.doesNotMatch(workflow, /\.\[0\]\.id/);
+  assert.match(workflow, /repos\/\$\{GITHUB_REPOSITORY\}\/deployments\/\$\{CANDIDATE_ID\}\/statuses/);
+  assert.match(workflow, /\.log_url \/\/ \\"\\"/);
+  assert.match(workflow, /\.target_url \/\/ \\"\\"/);
+  assert.match(workflow, /\/actions\/runs\/\$\{GITHUB_RUN_ID\}\//);
+  assert.match(workflow, /CANDIDATE_ID" =~ \^\[0-9\]\+\$/);
+  assert.match(workflow, /"\$\{#MATCHING_DEPLOYMENT_IDS\[@\]\}" -ne 1/);
+  assert.match(workflow, /Could not uniquely identify the production deployment for this workflow run\./);
+  assert.match(workflow, /AGENT_RADAR_WORKER_BASE_URL=\$WORKER_BASE_URL.*\$GITHUB_ENV/);
+  assert.match(workflow, /AGENT_RADAR_PRODUCTION_DEPLOYMENT_ID=.*\$GITHUB_ENV/);
+  assert.doesNotMatch(workflow, /printf[^\n]*\$DEPLOY_OUTPUT[^\n]*>&2/);
+});
+
 test("all release workflow uses a Wrangler-compatible Node runtime", async () => {
   const workflow = await readFile(".github/workflows/release-all.yml", "utf8");
   const nodeVersionMatches = [...workflow.matchAll(/node-version:\s*(\d+)/g)];
