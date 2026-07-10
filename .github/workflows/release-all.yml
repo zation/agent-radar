@@ -117,7 +117,20 @@ jobs:
             printf '%s\n' "$DEPLOY_OUTPUT" >&2
             exit 1
           fi
+          echo "AGENT_RADAR_WORKER_BASE_URL=$WORKER_BASE_URL" >> "$GITHUB_ENV"
           AGENT_RADAR_MCP_BASE_URL="$WORKER_BASE_URL" node dist/src/cli/run-mcp-smoke.js | tee mcp-smoke-result.json
+
+      - name: Build production release evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AGENT_RADAR_REVIEWED_BUNDLE: agent-radar-all-${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          DEPLOYMENT_ID="$(gh api --method GET "repos/${GITHUB_REPOSITORY}/deployments" \
+            -f environment=production -f sha="$GITHUB_SHA" --jq '.[0].id')"
+          test -n "$DEPLOYMENT_ID"
+          AGENT_RADAR_PRODUCTION_DEPLOYMENT_ID="$DEPLOYMENT_ID" \
+            node dist/src/cli/build-production-evidence.js >> "$GITHUB_STEP_SUMMARY"
 
       - name: Record production deployment
         run: |
@@ -132,9 +145,11 @@ jobs:
             echo "Production deployment used the reviewed bundle artifact instead of rebuilding data artifacts."
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Upload production smoke result
+      - name: Upload production release evidence
         uses: actions/upload-artifact@v7
         with:
           name: agent-radar-mcp-smoke-${{ github.run_id }}
-          path: mcp-smoke-result.json
+          path: |
+            mcp-smoke-result.json
+            production-release-evidence.json
           if-no-files-found: error

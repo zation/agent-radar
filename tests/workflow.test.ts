@@ -30,7 +30,16 @@ test("all release workflow uses environment approval before Worker deploy", asyn
   assert.match(workflow, /deploy-production:[\s\S]*--name=\$\{\{ vars\.CLOUDFLARE_PROJECT_NAME \|\| 'agent-radar' \}\}/);
   assert.match(workflow, /deploy-production:[\s\S]*Smoke test deployed Worker MCP/);
   assert.match(workflow, /deploy-production:[\s\S]*AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);
+  assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
+  assert.match(workflow, /gh api --method GET/);
+  assert.match(workflow, /AGENT_RADAR_PRODUCTION_DEPLOYMENT_ID/);
+  assert.match(workflow, /build-production-evidence\.js/);
+  assert.match(workflow, /production-release-evidence\.json/);
   assert.equal(workflow.indexOf("- name: Download reviewed bundle") < workflow.indexOf("- name: Deploy Cloudflare Worker"), true);
+  assert.equal(
+    workflow.indexOf("Smoke test deployed Worker MCP") < workflow.indexOf("Build production release evidence"),
+    true,
+  );
 });
 
 test("all release workflow uses a Wrangler-compatible Node runtime", async () => {
