@@ -349,7 +349,7 @@ function fallbackDependencyPaths(field: string, record: SourceRecord): string[] 
   if (field === "source_urls") return record.urls.map((_, index) => `urls[${index}]`);
   if (field === "summary") return ["description"];
   if (field === "confidence") return ["source_confidence"];
-  if (field === "install_methods") return ["parsed_fields.repo_url", "parsed_fields.package_url", "parsed_fields.package_name", "source_confidence", "urls"];
+  if (field === "install_methods") return ["parsed_fields.repo_url", "parsed_fields.package_url", "parsed_fields.package_name", "parsed_fields.docs_url", "parsed_fields.homepage_url", "source_confidence", "urls"];
   if (field === "maintenance") return ["parsed_fields.last_commit_at", "parsed_fields.last_release_at", "raw_fields.archived", "record_type"];
   if (field === "permissions") return ["parsed_fields.repo_url", "urls"];
   if (field === "type") return ["source_id", "name", "description", "parsed_fields.topics", "parsed_fields.keywords"];

@@ -135,9 +135,30 @@ test("derived provenance names the exact normalizer inputs", () => {
     "parsed_fields.repo_url",
     "parsed_fields.package_url",
     "parsed_fields.package_name",
+    "parsed_fields.docs_url",
+    "parsed_fields.homepage_url",
     "source_confidence",
     "urls",
   ]);
+});
+
+test("manual install fallback provenance includes docs and homepage inputs", () => {
+  const result = normalizeToolCardDraftsWithEvidence([repositoryRecord({
+    id: "record-docs-only",
+    source_id: "source-docs-only",
+    urls: ["https://docs.example.com/tool"],
+    parsed_fields: {
+      docs_url: "https://docs.example.com/tool",
+      homepage_url: "https://example.com/tool",
+    },
+  })]);
+  const selection = result.evidence.field_candidates.find(
+    (item) => item.tool_card_field === "install_methods" && item.source_field_path === "derived.install_methods",
+  );
+
+  assert.equal(result.drafts[0]?.install_methods[0]?.method, "manual");
+  assert.ok(selection?.input_source_field_paths?.includes("parsed_fields.docs_url"));
+  assert.ok(selection?.input_source_field_paths?.includes("parsed_fields.homepage_url"));
 });
 
 test("normalizer selects official direct evidence before discovery metadata", () => {
