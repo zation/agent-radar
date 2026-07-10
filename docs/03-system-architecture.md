@@ -10,7 +10,7 @@
 
 - 数据优先：先保证 Raw Snapshot、Source Record、Tool Card、Rating Result、Recommendation Result 可追溯。
 - 模块可替换：采集、解析、评分、推荐和展示应通过文件或清晰接口连接。
-- Cloudflare 免费栈优先：MVP 使用 TypeScript、JSON、Cloudflare D1 SQLite、Cloudflare Pages 和 Cloudflare Workers。
+- Cloudflare 免费栈优先：MVP 使用 TypeScript、JSON、Cloudflare D1 SQLite，以及启用 Static Assets 的单个 Cloudflare Worker。
 - 可回放：任何评分或推荐结果都应能用相同数据版本和规则版本复现。
 - 安全默认保守：系统只推荐和解释，不自动安装、执行或授权第三方工具。
 
@@ -28,7 +28,7 @@ Source Registry
   -> Rating Engine
   -> Search Index Builder
   -> Recommendation Engine
-  -> Cloudflare Workers MCP API + Cloudflare Pages Web UI + Reports
+  -> Cloudflare Worker Static Assets + HTTP API + MCP JSON-RPC + Reports
   -> Eval Runner
   -> Feedback / Override Records
 ```
@@ -37,7 +37,7 @@ Source Registry
 
 ### Source Registry
 
-职责：记录可采集来源及其可信度、采集策略和限制。MVP 只启用官方或人工审核来源，不启用社区目录和新闻来源。
+职责：记录可采集来源及其可信度、采集策略和限制。MVP/v0.2 启用官方来源和经过访问边界审核的公开 metadata sources；受控 GitHub topic 与 npm package metadata 仍须通过 validation、auto review 和 promotion gates，社区目录和新闻来源保持禁用。
 
 输入：
 
@@ -304,13 +304,13 @@ Source Registry
 - 带真实 API key 的 golden queries。
 - 解释质量检查。
 
-### Cloudflare Workers MCP API
+### Cloudflare Worker HTTP/MCP API
 
-职责：向 coding agent 暴露标准轻量 MCP API。
+职责：在同一个 Cloudflare Worker 中向 coding agent 暴露只读 HTTP API 和 `/api/mcp` MCP JSON-RPC endpoint。
 
 输入：
 
-- MCP tool call。
+- HTTP API request 或 MCP JSON-RPC request。
 
 输出：
 
@@ -323,9 +323,9 @@ MVP 工具：
 - `recommend_tools`
 - `explain_rating`
 
-错误处理：
+运行边界：
 
-- 部署在 Cloudflare Workers 免费额度上。
+- 与 Web UI 和数据 artifacts 部署在同一个启用 Static Assets 的 Cloudflare Worker 上。
 - 只读接口，不执行安装。
 - 参数不完整时返回可恢复错误。
 
@@ -333,6 +333,7 @@ MVP 工具：
 
 - schema contract tests。
 - 示例请求响应测试。
+- 从 Wrangler deploy output 获取 Worker URL 后，对 `initialize`、`tools/list`、只读 `tools/call` 和只读边界运行部署后 smoke。
 
 ### Web UI
 
@@ -448,9 +449,9 @@ user feedback / eval failure
 | Source Registry | JSON | D1 table |
 | Raw Snapshot | 文件系统 + Git LFS 或对象存储引用 | R2/S3 |
 | Source Record | JSONL + D1 | D1 table |
-| Tool Card | JSONL + D1 | D1 table |
-| Rating Result | JSONL + D1 | D1 table |
-| Search Index | D1 SQLite FTS/LIKE + 静态 JSON | D1 优化索引 |
+| Tool Card | JSONL artifact + D1 seed | D1 table |
+| Rating Result | JSONL artifact + D1 seed | D1 table |
+| Search Index | 同一 Worker deployment 的静态 JSON | D1 优化索引 |
 | Eval Case | JSON | D1 table |
 | Eval Report | Markdown/JSON | Dashboard |
 
@@ -459,11 +460,10 @@ user feedback / eval failure
 ### MVP
 
 - 语言：TypeScript。
-- 数据：JSON 文件作为源文件和发布 artifacts，Cloudflare D1 SQLite 作为查询存储。
+- 数据：JSON 文件作为源文件和发布 artifacts，Cloudflare D1 SQLite 保留兼容 read model 和 seed；v0.2 线上查询读取同一 Worker deployment 的静态 artifacts。
 - 本地开发：SQLite 兼容 D1 的 schema 和迁移。
 - 更新方式：手动触发构建/导入流程。
-- 静态站点：Cloudflare Pages，作为公开站点发布。
-- MCP：Cloudflare Workers 上的标准轻量 MCP API。
+- Web/API/MCP：由单个启用 Static Assets 的 Cloudflare Worker 统一发布。
 - 成本：全部使用免费额度，不引入付费服务。
 
 ### 生产演进
@@ -496,8 +496,17 @@ checkout
   -> rate
   -> build index
   -> run eval
-  -> publish static artifacts
+  -> release admission + promotion check
+  -> persist auto-review results in immutable reviewed bundle
+  -> GitHub production environment approval
+  -> deploy the reviewed bundle to one Cloudflare Worker
+  -> MCP deploy-output smoke
+  -> persist production release evidence
 ```
+
+正常审核不生成逐条 approval request。脚本、规则、LLM eval、auto review、release admission 和 promotion check 的结果保存在 reviewed bundle 中，GitHub `production` environment gate 是唯一常规人工发布确认。`Approval Record` 只作为有证据的 break-glass override；高风险工具执行、破坏性操作和安全边界变化仍需人工确认。
+
+`all-v0.2.4` 已验证 29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 和已部署 `/api/mcp` 的 4/4 smoke checks。`all-v0.2.5` 仍是待执行 closeout release，不能在 production workflow 与线上证据完成前视为已发布。
 
 ## 扩展点
 

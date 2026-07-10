@@ -137,7 +137,7 @@ MVP 应包含：
 
 - 一套最小 Tool Card schema。
 - 初始分类体系，长期覆盖 Agent、Skill、MCP Server、CLI、Framework、Prompt/Rules；MVP 首批只收录 MCP、Skill 和 Agent。
-- 少量高质量官方或人工审核来源，以及人工触发、可复核的数据导入流程。
+- 少量高质量官方来源和受控公开 metadata sources，以及人工触发、可回放的数据导入流程。
 - 基于 JSON 和 Cloudflare D1 SQLite 的基础索引和搜索能力。
 - 基础评分规则，优先强调适用场景、维护状态、文档质量、集成成本和证据质量。
 - 面向开发任务的推荐输出，包含推荐理由、适用条件、风险和来源。
@@ -145,6 +145,16 @@ MVP 应包含：
 - 一组 golden queries，用于评估推荐质量。
 
 MVP 不追求覆盖所有工具，也不追求全自动采集。早期宁可数据少但可信，也不要制造大量无法验证的工具卡片。MVP 不采集社区目录或新闻来源，不支持用户反馈闭环，不引入任何付费服务。
+
+## v0.2 交付边界
+
+v0.2 使用单个启用 Static Assets 的 Cloudflare Worker 承载 Web、数据 artifacts、HTTP API 和 MCP JSON-RPC endpoint。受控的 GitHub topic metadata 与 npm package metadata 可以作为 enabled sources，但必须与官方文档、精确 repository metadata 一样经过 validation、auto review、release admission 和 promotion gates，不能仅凭 topic、star 或 package 存在进入可靠推荐。
+
+正常发布审核由脚本、规则、LLM eval、auto review 和 promotion check 生成证据，并持久化到 immutable reviewed bundle；唯一的常规人工发布确认位于 GitHub `production` environment gate。逐条 approval form 或 review record generator 不属于 v0.2，`Approval Record` 只保留为有证据的 break-glass override。高风险工具执行、破坏性操作和安全边界变化仍要求人工确认。
+
+`all-v0.2.4` 已验证 29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 和部署后 MCP 4/4 smoke checks。`all-v0.2.5` 是待执行的 closeout release；在质量门禁、production approval、部署与线上证据全部通过前，不视为已发布。
+
+更完整的 Provider 运行时配置 UI、浏览器读取 `provider_registry.json`，以及 direct-to-provider 与 proxy 模式决策延期到 v0.3/P2，不阻塞 v0.2。
 
 ## 成功指标
 
