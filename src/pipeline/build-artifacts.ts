@@ -24,6 +24,11 @@ import {
   checkToolCardUrlsV2,
   type ToolCardUrlValidationArtifactV2,
 } from "../validation/url-checker.js";
+import {
+  assertDataQualityReport,
+  buildDataQualityReport,
+  type DataQualityReport,
+} from "../validation/data-quality-report.js";
 
 export interface BuildArtifactsOptions {
   outputDir: string;
@@ -31,6 +36,7 @@ export interface BuildArtifactsOptions {
   checkUrlReachability?: boolean;
   fetchImpl?: typeof fetch;
   previousUrlValidationV2?: ToolCardUrlValidationArtifactV2;
+  previousDataQualityReport?: DataQualityReport;
 }
 
 export interface BuildArtifactsSummary {
@@ -51,20 +57,8 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
     ? buildProvidedToolCardInput(options.toolCards)
     : await buildReliableToolCardsFromIngestion(options);
   const toolCards = reliableInput.toolCards;
-  assertDataTrustArtifacts(reliableInput.fieldProvenanceV2, reliableInput.conflictReport);
   const toolCardValidation = validateToolCards(toolCards);
-  if (!toolCardValidation.passed) {
-    throw new Error(`Tool Card validation failed: ${toolCardValidation.errors.join("; ")}`);
-  }
   const toolCardFieldProvenance = buildToolCardFieldProvenance(toolCards, "2026-07-06T00:00:00Z");
-
-  const ratings = rateAllToolCards(toolCards);
-  const index = buildSearchIndex(toolCards, ratings);
-  const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";
-  const model = process.env.AGENT_RADAR_LLM_MODEL ?? DEFAULT_RECOMMENDATION_MODEL;
-  const evalSummary = apiKey
-    ? await runGoldenQueries(goldenQueries, toolCards, ratings, { apiKey, model })
-    : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.");
   const dataVersion = "data-2026-07-06";
   const sourceRegistryArtifact = buildSourceRegistryArtifact(sourceRegistry, "2026-07-06T00:00:00Z");
   const sourceRegistryDiff = buildSourceRegistryDiff([], sourceRegistry, "2026-07-06T00:00:00Z");
@@ -85,11 +79,30 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         "2026-07-06T00:00:00Z",
         "url_reachability_check_not_enabled",
       );
-  assertDataTrustArtifacts(
-    reliableInput.fieldProvenanceV2,
-    reliableInput.conflictReport,
-    toolCardUrlValidationV2,
-  );
+  const dataQualityReport = buildDataQualityReport({
+    toolCards,
+    fieldProvenanceV2: reliableInput.fieldProvenanceV2,
+    conflictReport: reliableInput.conflictReport,
+    urlValidationV2: toolCardUrlValidationV2,
+    validation: toolCardValidation,
+    duplicateCandidates: reliableInput.duplicateCandidates,
+    unresolvedDuplicates: reliableInput.unresolvedDuplicates,
+    parserWarnings: reliableInput.parserWarnings,
+    interventions: reliableInput.interventions,
+    promotionBlocked: reliableInput.promotionBlocked,
+    dataVersion,
+    generatedAt: "2026-07-06T00:00:00Z",
+    previousReport: options.previousDataQualityReport,
+  });
+  await writeFile(join(publicDataDir, "data_quality_report.json"), JSON.stringify(dataQualityReport, null, 2), "utf8");
+  assertDataQualityReport(dataQualityReport);
+  const ratings = rateAllToolCards(toolCards);
+  const index = buildSearchIndex(toolCards, ratings);
+  const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";
+  const model = process.env.AGENT_RADAR_LLM_MODEL ?? DEFAULT_RECOMMENDATION_MODEL;
+  const evalSummary = apiKey
+    ? await runGoldenQueries(goldenQueries, toolCards, ratings, { apiKey, model })
+    : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.");
   const providerRegistry = buildProviderRegistryArtifact();
   const mcpToolManifest = buildMcpToolManifest();
   const mcpExamples = buildMcpExamplesArtifact();
@@ -144,6 +157,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         tool_card_conflict_report: "data/conflicts/tool_card_conflicts.json",
         tool_card_url_validation: "data/tool_card_url_validation.json",
         tool_card_url_validation_v2: "data/tool_card_url_validation.v2.json",
+        data_quality_report: "data/data_quality_report.json",
         provider_registry: "data/provider_registry.json",
         mcp_tools: "data/mcp_tools.json",
         mcp_examples: "data/mcp_examples.json",
@@ -170,6 +184,11 @@ interface ReliableToolCardInput {
   toolCards: ToolCard[];
   fieldProvenanceV2: ToolCardFieldValueProvenanceV2;
   conflictReport: ToolCardConflictReport;
+  duplicateCandidates: number;
+  unresolvedDuplicates: number;
+  parserWarnings: number;
+  interventions: number;
+  promotionBlocked: number;
 }
 
 async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOptions): Promise<ReliableToolCardInput> {
@@ -197,6 +216,14 @@ async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOption
       ingestion.normalizationEvidence,
       "2026-07-06T00:00:00Z",
     ),
+    duplicateCandidates: ingestion.duplicateReport.summary.possible_duplicates,
+    unresolvedDuplicates: ingestion.promotionCheck.summary.duplicate_tool_ids,
+    parserWarnings: ingestion.sourceRecords.reduce(
+      (total, record) => total + (record.warnings?.length ?? 0),
+      0,
+    ),
+    interventions: ingestion.interventionRequests.summary.pending_intervention,
+    promotionBlocked: ingestion.promotionCheck.summary.blocked,
   };
 }
 
@@ -227,6 +254,11 @@ function buildProvidedToolCardInput(toolCards: ToolCard[]): ReliableToolCardInpu
       generatedAt,
     ),
     conflictReport: buildToolCardConflictReport(toolCards, normalized.evidence, generatedAt),
+    duplicateCandidates: 0,
+    unresolvedDuplicates: 0,
+    parserWarnings: 0,
+    interventions: 0,
+    promotionBlocked: 0,
   };
 }
 

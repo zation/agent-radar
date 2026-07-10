@@ -1,5 +1,6 @@
 import type { ToolCardReviewQueue } from "./review-queue.js";
 import type { ToolCardConflictReport } from "./field-conflicts.js";
+import type { ToolCardAutoReview } from "./auto-review.js";
 
 export interface ToolCardInterventionRequestItem {
   id: string;
@@ -35,9 +36,18 @@ export function buildToolCardInterventionRequests(
   reviewQueue: ToolCardReviewQueue,
   generatedAt: string,
   conflictReport?: ToolCardConflictReport,
+  autoReview?: ToolCardAutoReview,
 ): ToolCardInterventionRequests {
+  const autoReviewByToolId = new Map((autoReview?.items ?? []).map((item) => [item.tool_id, item]));
   const reviewItems = reviewQueue.items
-    .filter((item) => !item.approval)
+    .filter((item) => {
+      if (item.approval) return false;
+      const autoReviewItem = autoReviewByToolId.get(item.tool_id);
+      return !(
+        autoReviewItem?.suggested_action === "promote" &&
+        autoReviewItem.human_review_reasons.length === 0
+      );
+    })
     .map((item) => ({
       id: `intervention-${item.tool_id}-${item.source_record_id}`,
       schema_version: "tool_card_intervention_request.v1" as const,

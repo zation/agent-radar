@@ -108,7 +108,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeReviewQueue(options.outputDir, reviewQueue);
   const autoReview = buildToolCardAutoReview(toolCardDrafts, sourceRecords, reviewQueue, now);
   await writeAutoReview(options.outputDir, autoReview);
-  const interventionRequests = buildToolCardInterventionRequests(reviewQueue, now, conflictReport);
+  const interventionRequests = buildToolCardInterventionRequests(reviewQueue, now, conflictReport, autoReview);
   await writeInterventionRequests(options.outputDir, interventionRequests);
   const releaseAdmission = buildToolCardReleaseAdmission(reviewQueue, now, autoReview, conflictReport);
   await writeReleaseAdmission(options.outputDir, releaseAdmission);

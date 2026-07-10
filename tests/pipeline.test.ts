@@ -26,6 +26,7 @@ interface ManifestFile {
   tool_card_conflict_report: string;
   tool_card_url_validation: string;
   tool_card_url_validation_v2: string;
+  data_quality_report: string;
   provider_registry: string;
   mcp_tools: string;
   mcp_examples: string;
@@ -135,6 +136,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.tool_card_conflict_report, "data/conflicts/tool_card_conflicts.json");
     assert.equal(manifest.tool_card_url_validation, "data/tool_card_url_validation.json");
     assert.equal(manifest.tool_card_url_validation_v2, "data/tool_card_url_validation.v2.json");
+    assert.equal(manifest.data_quality_report, "data/data_quality_report.json");
     assert.equal(manifest.provider_registry, "data/provider_registry.json");
     assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
     assert.equal(manifest.mcp_examples, "data/mcp_examples.json");
@@ -198,6 +200,13 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(toolCardUrlValidationV2.schema_version, "tool_card_url_validation.v2");
     assert.equal(toolCardUrlValidationV2.options.enabled, false);
     assert.equal(toolCardUrlValidationV2.summary.skipped > 0, true);
+
+    const dataQualityReport = JSON.parse(
+      await readFile(join(outputDir, "data", "data_quality_report.json"), "utf8"),
+    );
+    assert.equal(dataQualityReport.schema_version, "data_quality_report.v1");
+    assert.equal(dataQualityReport.status, "pass");
+    assert.equal(dataQualityReport.provenance.critical_coverage, 1);
 
     const providerRegistry = JSON.parse(await readFile(join(outputDir, "data", "provider_registry.json"), "utf8")) as {
       schema_version: string;
@@ -315,7 +324,7 @@ test("pipeline rejects invalid tool cards before publishing artifacts", async ()
   try {
     await assert.rejects(
       () => buildArtifacts({ outputDir, toolCards: [invalidCard] }),
-      /Tool Card validation failed: invalid-release-card: source_urls is required/
+      /data_quality_blocked: tool_card_validation_failed/
     );
   } finally {
     await rm(outputDir, { recursive: true, force: true });
