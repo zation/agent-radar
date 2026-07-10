@@ -113,6 +113,33 @@ test("normalization evidence keeps every cross-source field candidate", () => {
   );
 });
 
+test("derived provenance names the exact normalizer inputs", () => {
+  const result = normalizeToolCardDraftsWithEvidence([repositoryRecord({
+    id: "record-derived",
+    source_id: "source-derived",
+    parsed_fields: {
+      repo_url: "https://github.com/example/tool",
+      package_url: "https://www.npmjs.com/package/example-tool",
+      package_name: "example-tool",
+      topics: ["mcp"],
+      keywords: ["agent"],
+    },
+  })]);
+  const dependencies = (field: string) => result.evidence.field_candidates
+    .find((item) => item.tool_card_field === field && item.source_field_path === `derived.${field}`)
+    ?.input_source_field_paths;
+
+  assert.deepEqual(dependencies("type"), ["source_id", "name", "description", "parsed_fields.topics", "parsed_fields.keywords"]);
+  assert.deepEqual(dependencies("permissions"), ["parsed_fields.repo_url", "urls"]);
+  assert.deepEqual(dependencies("install_methods"), [
+    "parsed_fields.repo_url",
+    "parsed_fields.package_url",
+    "parsed_fields.package_name",
+    "source_confidence",
+    "urls",
+  ]);
+});
+
 test("normalizer selects official direct evidence before discovery metadata", () => {
   const records = [
     repositoryRecord({
