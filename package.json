@@ -20,6 +20,7 @@
     "promotion:check": "npm run build && node dist/src/cli/check-promotion-candidates.js",
     "release:check": "npm run build && node dist/src/cli/check-eval-summary.js",
     "data-quality:check": "npm run build && node dist/src/cli/check-data-quality.js",
+    "review-summary:check": "npm run build && node dist/src/cli/check-review-summary.js",
     "mcp:smoke": "npm run build && node dist/src/cli/run-mcp-smoke.js",
     "eval": "npm run build && node dist/src/cli/run-eval.js"
   },

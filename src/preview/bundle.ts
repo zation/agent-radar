@@ -1,9 +1,15 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { RunIngestionResult } from "../ingestion/run.js";
 import { renderIngestionReviewMarkdown, type SourceRegistryReviewRequestSummary, type SourceRegistryReviewRequirementSummary } from "./ingestion-review.js";
 import { buildArtifactManifest } from "./manifest.js";
+import type { DataQualityReport } from "../validation/data-quality-report.js";
+import {
+  buildReviewSummaryV2,
+  renderReviewSummaryV2Markdown,
+  verifyReviewSummaryChecksums,
+} from "./review-summary.js";
 
 export interface CreatePreviewBundleOptions {
   distDir: string;
@@ -19,6 +25,34 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
   const sourceRegistryReviewRequirements = await readSourceRegistryReviewRequirements(options.distDir);
   const sourceRegistryReviewRequests = await readSourceRegistryReviewRequests(options.distDir);
   await writeFile(join(options.reviewDir, "ingestion.md"), renderIngestionReviewMarkdown(ingestion, sourceRegistryReviewRequirements, sourceRegistryReviewRequests), "utf8");
+  await rm(join(options.distDir, "data", "review_summary.v2.json"), { force: true });
+
+  const inputManifest = await buildArtifactManifest({
+    distDir: options.distDir,
+    gitSha: options.gitSha,
+    builtAt: options.builtAt,
+    providerModel: options.providerModel
+  });
+  enrichManifestWithIngestion(inputManifest, ingestion);
+  const dataQualityReport = JSON.parse(
+    await readFile(join(options.distDir, "data", "data_quality_report.json"), "utf8"),
+  ) as DataQualityReport;
+  const reviewSummary = buildReviewSummaryV2({
+    manifest: inputManifest,
+    dataQualityReport,
+    generatedAt: options.builtAt,
+  });
+  await verifyReviewSummaryChecksums(options.distDir, reviewSummary);
+  await writeFile(
+    join(options.distDir, "data", "review_summary.v2.json"),
+    JSON.stringify(reviewSummary, null, 2),
+    "utf8",
+  );
+  await writeFile(
+    join(options.reviewDir, "review_summary.v2.md"),
+    renderReviewSummaryV2Markdown(reviewSummary),
+    "utf8",
+  );
 
   const manifest = await buildArtifactManifest({
     distDir: options.distDir,
@@ -26,6 +60,11 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     builtAt: options.builtAt,
     providerModel: options.providerModel
   });
+  enrichManifestWithIngestion(manifest, ingestion);
+  await writeFile(join(options.distDir, "artifact-manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
+}
+
+function enrichManifestWithIngestion(manifest: Awaited<ReturnType<typeof buildArtifactManifest>>, ingestion: RunIngestionResult): void {
   manifest.crawl_audit = {
     total: ingestion.crawlAudit.summary.total,
     success: ingestion.crawlAudit.summary.success,
@@ -79,7 +118,6 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     validation_warnings: ingestion.promotionCheck.summary.validation_warnings,
     passed: ingestion.promotionCheck.passed
   };
-  await writeFile(join(options.distDir, "artifact-manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
 }
 
 async function loadIngestionReviewEvidence(distDir: string): Promise<RunIngestionResult> {
@@ -96,6 +134,8 @@ async function loadIngestionReviewEvidence(distDir: string): Promise<RunIngestio
     ["approval overrides", "data/approvals/approval_records.json", evidence.result.approvalArtifact],
     ["intervention requests", "data/intervention_requests/tool_card_drafts.json", evidence.result.interventionRequests],
     ["field provenance", "data/field_provenance/tool_card_fields.json", evidence.result.fieldProvenance],
+    ["field provenance v2", "data/field_provenance/tool_card_fields.v2.json", evidence.result.fieldProvenanceV2],
+    ["conflict report", "data/conflicts/tool_card_conflicts.json", evidence.result.conflictReport],
     ["auto review", "data/auto_review/tool_card_drafts.json", evidence.result.autoReview],
     ["release admission", "data/release_admission/tool_card_drafts.json", evidence.result.releaseAdmission],
     ["discovery candidates", "data/discovery_candidates/tool_repositories.json", evidence.result.discoveryCandidates],

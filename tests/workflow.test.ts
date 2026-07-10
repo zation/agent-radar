@@ -12,6 +12,7 @@ test("all release workflow gates promotion candidates before Worker validation",
   assert.equal(promotionCheckStepIndex < dryRunStepIndex, true);
   assert.match(workflow, /run:\s*npm run promotion:check -- dist-pages\/data\/promotion_candidates\/promotion_check\.json/);
   assert.match(workflow, /run:\s*npm run data-quality:check -- dist-pages\/data\/data_quality_report\.json/);
+  assert.match(workflow, /run:\s*npm run review-summary:check -- dist-pages/);
   assert.match(workflow, /tags:\s*\n\s+- "all-v\*"/);
 });
 

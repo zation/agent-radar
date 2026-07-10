@@ -657,6 +657,16 @@ test("renders compact review summary with only actionable review items", () => {
         partial: 1,
         failed: 0
       },
+      data_quality: {
+        status: "blocked",
+        blocking: 2,
+        reason_codes: ["critical_provenance_incomplete", "blocking_url_validation"]
+      },
+      review_summary: {
+        status: "blocked",
+        blocking: 2,
+        warnings: 1
+      },
       checksums: {
         "data/manifest.json": "sha256:manifest"
       }
@@ -677,6 +687,8 @@ test("renders compact review summary with only actionable review items", () => {
   assert.match(markdown, /- Golden eval: 1 failing/);
   assert.match(markdown, /- Field provenance: 3 critical fields missing evidence/);
   assert.match(markdown, /- Crawl audit: 0 failed, 1 partial/);
+  assert.match(markdown, /- P1 data quality: 2 blocking \(critical_provenance_incomplete, blocking_url_validation\)/);
+  assert.match(markdown, /- NEEDS REVIEW data quality 2 blocking/);
   assert.match(markdown, /- NEEDS REVIEW eval 9\/10/);
   assert.match(markdown, /- NEEDS REVIEW promotion 8\/10 ready/);
   assert.match(markdown, /- PASS MCP smoke 4\/4/);
@@ -780,6 +792,33 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       }),
       "utf8"
     );
+    await writeFile(
+      join(outputDir, "data", "data_quality_report.json"),
+      JSON.stringify({
+        schema_version: "data_quality_report.v1",
+        generated_at: "2026-07-07T00:00:00Z",
+        data_version: "data-test",
+        tool_cards: { total: 1, by_type: { agent: 1 } },
+        completeness: { required_field_rate: 1, missing: [] },
+        provenance: { critical_coverage: 1, missing: [] },
+        confidence: { low: 0, medium: 0, high: 1, unknown: 0 },
+        unknown_fields: { permissions: 0, security: 0, maintenance: 0 },
+        duplicates: { candidates: 1, unresolved: 0 },
+        conflicts: { total: 0, unresolved: 0, unresolved_critical: 0 },
+        urls: { by_status: { skipped: 1 }, stale: 0, blocking: 0 },
+        review: { parser_warnings: 0, interventions: 1, promotion_blocked: 0 },
+        comparison: { status: "no_baseline", deltas: {} },
+        gates: [{
+          reason_code: "pending_intervention",
+          object_id: "agent-blocked",
+          evidence_path: "data/intervention_requests/tool_card_drafts.json",
+          suggested_action: "Resolve the pending intervention.",
+          severity: "blocking"
+        }],
+        status: "blocked"
+      }),
+      "utf8"
+    );
 
     await createPreviewBundle({
       distDir: outputDir,
@@ -790,6 +829,8 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     });
 
     const reviewMarkdown = await readFile(join(artifactsDir, "ingestion.md"), "utf8");
+    const reviewSummaryMarkdown = await readFile(join(artifactsDir, "review_summary.v2.md"), "utf8");
+    const reviewSummary = JSON.parse(await readFile(join(outputDir, "data", "review_summary.v2.json"), "utf8"));
     const artifactManifest = JSON.parse(await readFile(join(outputDir, "artifact-manifest.json"), "utf8")) as {
       git_sha: string;
       crawl_audit: { total: number; success: number; partial: number; failed: number };
@@ -810,6 +851,10 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
+    assert.match(reviewSummaryMarkdown, /# Review Summary v2/);
+    assert.match(reviewSummaryMarkdown, /pending_intervention/);
+    assert.equal(reviewSummary.status, "blocked");
+    assert.equal(reviewSummary.blocking_items[0]?.evidence_path, "data\/intervention_requests\/tool_card_drafts.json".replaceAll("\\/", "/"));
     assert.match(reviewMarkdown, /## Source Registry Review Requirements/);
     assert.match(reviewMarkdown, /github-topic-mcp: enabled - Source enablement changes crawl scope and require maintainer confirmation\./);
     assert.match(reviewMarkdown, /## Source Registry Review Requests/);
@@ -838,6 +883,8 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       validation_warnings: 0,
       passed: true
     });
+    assert.equal((artifactManifest as { data_quality?: { status: string } }).data_quality?.status, "blocked");
+    assert.equal((artifactManifest as { review_summary?: { status: string } }).review_summary?.status, "blocked");
     await assert.rejects(() => stat(join(outputDir, "review", "ingestion.md")));
   } finally {
     await rm(outputDir, { recursive: true, force: true });
@@ -880,6 +927,8 @@ async function writeIngestionReviewEvidenceFixture(outputDir: string, result: Ru
     ["data/approvals/approval_records.json", result.approvalArtifact],
     ["data/intervention_requests/tool_card_drafts.json", result.interventionRequests],
     ["data/field_provenance/tool_card_fields.json", result.fieldProvenance],
+    ["data/field_provenance/tool_card_fields.v2.json", result.fieldProvenanceV2],
+    ["data/conflicts/tool_card_conflicts.json", result.conflictReport],
     ["data/auto_review/tool_card_drafts.json", result.autoReview],
     ["data/release_admission/tool_card_drafts.json", result.releaseAdmission],
     ["data/discovery_candidates/tool_repositories.json", result.discoveryCandidates],

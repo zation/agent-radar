@@ -48,6 +48,9 @@ jobs:
       - name: Check promotion candidates
         run: npm run promotion:check -- dist-pages/data/promotion_candidates/promotion_check.json
 
+      - name: Verify Review Summary checksums
+        run: npm run review-summary:check -- dist-pages
+
       - name: Validate Worker bundle
         run: npx --yes wrangler@latest deploy --dry-run --outdir worker-dry-run
 

@@ -96,6 +96,16 @@ export interface ArtifactManifest {
     validation_warnings: number;
     passed: boolean;
   };
+  data_quality?: {
+    status: "pass" | "blocked";
+    blocking: number;
+    reason_codes: string[];
+  };
+  review_summary?: {
+    status: "pass" | "blocked";
+    blocking: number;
+    warnings: number;
+  };
   checksums: Record<string, string>;
 }
 
@@ -114,6 +124,8 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
   const sourceRegistryReviewRequests = await readSourceRegistryReviewRequestsSummary(options.distDir);
   const toolCardUrlValidation = await readToolCardUrlValidationSummary(options.distDir);
   const toolCardFieldProvenance = await readToolCardFieldProvenanceSummary(options.distDir);
+  const dataQuality = await readDataQualitySummary(options.distDir);
+  const reviewSummary = await readReviewSummary(options.distDir);
 
   return {
     schema_version: "artifact_manifest.v1",
@@ -131,6 +143,8 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
     ...(sourceRegistryReviewRequests ? { source_registry_review_requests: sourceRegistryReviewRequests } : {}),
     ...(toolCardUrlValidation ? { tool_card_url_validation: toolCardUrlValidation } : {}),
     ...(toolCardFieldProvenance ? { tool_card_field_provenance: toolCardFieldProvenance } : {}),
+    ...(dataQuality ? { data_quality: dataQuality } : {}),
+    ...(reviewSummary ? { review_summary: reviewSummary } : {}),
     checksums: await checksumFiles(options.distDir)
   };
 }
@@ -141,6 +155,44 @@ async function readSourceRegistryDiffSummary(distDir: string): Promise<ArtifactM
       summary?: ArtifactManifest["source_registry_diff"];
     };
     return diff.summary;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+async function readDataQualitySummary(distDir: string): Promise<ArtifactManifest["data_quality"] | undefined> {
+  try {
+    const report = JSON.parse(await readFile(join(distDir, "data", "data_quality_report.json"), "utf8")) as {
+      status?: "pass" | "blocked";
+      gates?: Array<{ reason_code?: string; severity?: string }>;
+    };
+    if (!report.status) return undefined;
+    const blocking = (report.gates ?? []).filter((gate) => gate.severity === "blocking");
+    return {
+      status: report.status,
+      blocking: blocking.length,
+      reason_codes: blocking.flatMap((gate) => gate.reason_code ? [gate.reason_code] : []),
+    };
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+async function readReviewSummary(distDir: string): Promise<ArtifactManifest["review_summary"] | undefined> {
+  try {
+    const summary = JSON.parse(await readFile(join(distDir, "data", "review_summary.v2.json"), "utf8")) as {
+      status?: "pass" | "blocked";
+      blocking_items?: unknown[];
+      warning_items?: unknown[];
+    };
+    if (!summary.status) return undefined;
+    return {
+      status: summary.status,
+      blocking: summary.blocking_items?.length ?? 0,
+      warnings: summary.warning_items?.length ?? 0,
+    };
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
     throw error;
@@ -204,7 +256,7 @@ function countEvalFailureCategories(summary: EvalSummary): Record<string, number
 }
 
 async function checksumFiles(rootDir: string): Promise<Record<string, string>> {
-  const files = await listFiles(rootDir);
+  const files = (await listFiles(rootDir)).filter((file) => file !== "artifact-manifest.json");
   const entries = await Promise.all(
     files.map(async (file) => {
       const content = await readFile(join(rootDir, file));

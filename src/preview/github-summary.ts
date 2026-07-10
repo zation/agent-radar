@@ -22,6 +22,8 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     ...(manifest.promotion_candidates ? [`- Promotion candidates: ${manifest.promotion_candidates.candidates}`] : []),
     ...(manifest.promotion_plan ? [`- Promotion plan: ${formatPromotionPlan(manifest.promotion_plan)}`] : []),
     ...(manifest.promotion_check ? [`- Promotion check: ${formatPromotionCheck(manifest.promotion_check)}`] : []),
+    ...(manifest.data_quality ? [`- P1 data quality: ${formatDataQuality(manifest.data_quality)}`] : []),
+    ...(manifest.review_summary ? [`- Review Summary v2: ${manifest.review_summary.status}, ${manifest.review_summary.blocking} blocking, ${manifest.review_summary.warnings} warnings`] : []),
     `- Checksums: ${Object.keys(manifest.checksums).length} files`
   ];
   return `${lines.join("\n")}\n`;
@@ -59,7 +61,8 @@ export function renderCompactReviewSummaryMarkdown(manifest: ArtifactManifest, o
     "",
     "### Full Artifacts",
     "- Download the preview bundle artifact for full ingestion details.",
-    "- Detailed review file: `artifacts/review/ingestion.md`"
+    "- Detailed review file: `artifacts/review/ingestion.md`",
+    "- P1 review summary: `artifacts/review/review_summary.v2.md`"
   ];
 
   return `${lines.join("\n")}\n`;
@@ -109,6 +112,11 @@ function renderReviewRequired(manifest: ArtifactManifest): string[] {
     items.push(`- Crawl audit: ${crawlAudit.failed} failed, ${crawlAudit.partial} partial`);
   }
 
+  const dataQuality = manifest.data_quality;
+  if (dataQuality && (dataQuality.status === "blocked" || dataQuality.blocking > 0)) {
+    items.push(`- P1 data quality: ${dataQuality.blocking} blocking (${dataQuality.reason_codes.join(", ")})`);
+  }
+
   return items.length > 0 ? items : ["- None. Review the full artifact only if you want detailed provenance."];
 }
 
@@ -121,8 +129,11 @@ function renderReleaseGates(manifest: ArtifactManifest, smoke: McpSmokeSummary |
     ? `${formatStatus(manifest.source_registry_review.pending === 0 && manifest.source_registry_review.rejected === 0 && manifest.source_registry_review.needs_changes === 0)} source review ${manifest.source_registry_review.confirmed}/${manifest.source_registry_review.total_requirements} confirmed`
     : "source review unavailable";
   const mcp = smoke ? `${formatStatus(smoke.skipped ? true : smoke.passed === smoke.total)} MCP smoke ${smoke.skipped ? "skipped" : `${smoke.passed}/${smoke.total}`}` : "MCP smoke skipped";
+  const dataQuality = manifest.data_quality
+    ? `${formatStatus(manifest.data_quality.status === "pass")} data quality ${manifest.data_quality.blocking} blocking`
+    : "data quality unavailable";
 
-  return [`- ${evalGate}`, `- ${promotion}`, `- ${sourceReview}`, `- ${mcp}`];
+  return [`- ${dataQuality}`, `- ${evalGate}`, `- ${promotion}`, `- ${sourceReview}`, `- ${mcp}`];
 }
 
 function formatStatus(passed: boolean): string {
@@ -189,4 +200,9 @@ function formatPromotionPlan(plan: NonNullable<ArtifactManifest["promotion_plan"
 function formatPromotionCheck(check: NonNullable<ArtifactManifest["promotion_check"]>): string {
   const status = check.passed ? "passed" : "failed";
   return `${check.ready_for_publish} ready, ${check.blocked} blocked, ${status}`;
+}
+
+function formatDataQuality(quality: NonNullable<ArtifactManifest["data_quality"]>): string {
+  const reasons = quality.reason_codes.length > 0 ? ` (${quality.reason_codes.join(", ")})` : "";
+  return `${quality.status}, ${quality.blocking} blocking${reasons}`;
 }
