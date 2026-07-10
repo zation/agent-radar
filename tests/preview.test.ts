@@ -164,6 +164,12 @@ const ingestionResult: RunIngestionResult = {
       }
     ]
   },
+  normalizationEvidence: {
+    schema_version: "tool_card_normalization_evidence.v1",
+    field_candidates: [],
+    field_selections: [],
+    conflicts: []
+  },
   fieldProvenance: {
     schema_version: "tool_card_field_value_provenance.v1",
     generated_at: "2026-07-07T00:00:00Z",

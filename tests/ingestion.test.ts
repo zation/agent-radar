@@ -784,6 +784,11 @@ test("ingestion writes tool card drafts from complete manual source records", as
     assert.equal(result.fieldProvenance.schema_version, "tool_card_field_value_provenance.v1");
     assert.equal(result.fieldProvenance.summary.tool_cards, 1);
     assert.ok(result.fieldProvenance.summary.field_values >= 3);
+    assert.equal(result.normalizationEvidence.schema_version, "tool_card_normalization_evidence.v1");
+    assert.equal(
+      result.normalizationEvidence.field_selections.find((item) => item.tool_card_field === "summary")?.tool_id,
+      "agent-codex",
+    );
     assert.deepEqual(
       result.fieldProvenance.items.find((item) => item.tool_card_field === "summary"),
       {

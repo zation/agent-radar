@@ -1,4 +1,10 @@
 import type { Permission, SourceDefinition, SourceRecord, ToolCard, ToolType } from "../schema.js";
+import {
+  buildNormalizationEvidence,
+  mergeNormalizationEvidence,
+  orderSourceRecords,
+  type ToolCardNormalizationEvidence,
+} from "./normalization-evidence.js";
 
 type SourceProfile = NonNullable<SourceDefinition["profile"]>;
 
@@ -15,19 +21,38 @@ export interface OverrideRecord {
   created_at: string;
 }
 
-export function normalizeToolCardDrafts(sourceRecords: SourceRecord[], overrideRecords: OverrideRecord[] = []): ToolCard[] {
+export function normalizeToolCardDraftsWithEvidence(
+  sourceRecords: SourceRecord[],
+  overrideRecords: OverrideRecord[] = [],
+  sourceDefinitions: SourceDefinition[] = [],
+): { drafts: ToolCard[]; evidence: ToolCardNormalizationEvidence } {
   validateOverrideRecords(overrideRecords);
   const overridesByToolId = groupOverridesByToolId(overrideRecords);
+  const evidence: ToolCardNormalizationEvidence[] = [];
   const manualDrafts = sourceRecords.flatMap((record) => {
-    if (record.record_type === "manual" && !record.warnings?.length) return [normalizeManualToolCardDraft(record, overridesByToolId.get(readToolId(record)))];
-    return [];
-  });
-  const sourceBackedDrafts = groupSourceBackedRecords(sourceRecords).flatMap((records) => {
-    const draft = normalizeSourceBackedToolCardDraft(records, overridesByToolId);
+    if (record.record_type !== "manual" || record.warnings?.length) return [];
+    const overrides = overridesByToolId.get(readToolId(record)) ?? [];
+    const draft = normalizeManualToolCardDraft(record, overrides);
+    if (draft) evidence.push(buildNormalizationEvidence(draft, [record], overrides, sourceDefinitions));
     return draft ? [draft] : [];
   });
+  const sourceBackedDrafts = groupSourceBackedRecords(sourceRecords).flatMap((groupedRecords) => {
+    const records = orderSourceRecords(groupedRecords, sourceDefinitions);
+    const draft = normalizeSourceBackedToolCardDraft(records, overridesByToolId);
+    if (!draft) return [];
+    const overrides = overridesByToolId.get(draft.id) ?? [];
+    evidence.push(buildNormalizationEvidence(draft, records, overrides, sourceDefinitions));
+    return [draft];
+  });
 
-  return [...manualDrafts, ...sourceBackedDrafts].filter((draft): draft is ToolCard => Boolean(draft));
+  return {
+    drafts: [...manualDrafts, ...sourceBackedDrafts],
+    evidence: mergeNormalizationEvidence(evidence),
+  };
+}
+
+export function normalizeToolCardDrafts(sourceRecords: SourceRecord[], overrideRecords: OverrideRecord[] = []): ToolCard[] {
+  return normalizeToolCardDraftsWithEvidence(sourceRecords, overrideRecords).drafts;
 }
 
 function normalizeManualToolCardDraft(record: SourceRecord, overrideRecords: OverrideRecord[] | undefined): ToolCard | undefined {
@@ -62,7 +87,7 @@ function normalizeSourceBackedToolCardDraft(records: SourceRecord[], overridesBy
   const topics = [...new Set([...readStringArray(mergedFields.topics), ...readStringArray(mergedFields.keywords)])];
   const toolType = profile.type ?? inferToolType(primaryRecord, topics);
   const toolId = profile.tool_id ?? `${toolType}-${slugify(primaryRecord.name)}`;
-  const license = readString(mergedFields.license);
+  const license = normalizeLicense(readString(mergedFields.license));
   const lastCommitAt = readString(mergedFields.last_commit_at);
   const lastReleaseAt = readString(mergedFields.last_release_at);
   const packageName = readString(mergedFields.package_name);
@@ -272,6 +297,13 @@ function readString(value: unknown): string | undefined {
 
 function readStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+}
+
+function normalizeLicense(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  if (trimmed.toLowerCase() === "mit") return "MIT";
+  return trimmed;
 }
 
 function inferToolType(record: SourceRecord, topics: string[]): ToolType {

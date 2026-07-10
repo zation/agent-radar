@@ -9,7 +9,8 @@ import { buildToolCardDuplicateReport, type ToolCardDuplicateReport } from "./de
 import { buildToolDiscoveryCandidates, type ToolDiscoveryCandidates } from "./discovery-candidates.js";
 import { buildToolCardFieldValueProvenance, type ToolCardFieldValueProvenance } from "./field-provenance.js";
 import { buildToolCardInterventionRequests, type ToolCardInterventionRequests } from "./intervention-requests.js";
-import { normalizeToolCardDrafts, type OverrideRecord } from "./normalizer.js";
+import { normalizeToolCardDraftsWithEvidence, type OverrideRecord } from "./normalizer.js";
+import type { ToolCardNormalizationEvidence } from "./normalization-evidence.js";
 import { parseSnapshot } from "./parser.js";
 import { buildToolCardPromotionCheck, type ToolCardPromotionCheck } from "./promotion-check.js";
 import { buildToolCardPromotionCandidates, type ToolCardPromotionCandidates } from "./promotion-candidates.js";
@@ -39,6 +40,7 @@ export interface RunIngestionResult {
   overrideRecords: OverrideRecord[];
   approvalArtifact: ApprovalArtifact;
   interventionRequests: ToolCardInterventionRequests;
+  normalizationEvidence: ToolCardNormalizationEvidence;
   fieldProvenance: ToolCardFieldValueProvenance;
   duplicateReport: ToolCardDuplicateReport;
   reviewQueue: ToolCardReviewQueue;
@@ -81,7 +83,9 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   const sourceRecords = [...recordsBySource.values()].flat();
   const discoveryCandidates = buildToolDiscoveryCandidates(sourceRecords, now);
   await writeDiscoveryCandidates(options.outputDir, discoveryCandidates);
-  const draftsBySource = buildToolCardDrafts(recordsBySource, overrideRecords);
+  const normalized = buildToolCardDrafts(recordsBySource, overrideRecords, enabledSources);
+  const draftsBySource = normalized.draftsBySource;
+  const normalizationEvidence = normalized.evidence;
   await writeToolCardDrafts(options.outputDir, draftsBySource);
   const toolCardDrafts = [...draftsBySource.values()].flat();
   const fieldProvenance = buildToolCardFieldValueProvenance(toolCardDrafts, sourceRecords, now, overrideRecords);
@@ -114,6 +118,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     overrideRecords,
     approvalArtifact,
     interventionRequests,
+    normalizationEvidence,
     fieldProvenance,
     duplicateReport,
     reviewQueue,
@@ -165,23 +170,27 @@ async function writeSourceRecords(outputDir: string, recordsBySource: Map<string
   }
 }
 
-function buildToolCardDrafts(recordsBySource: Map<string, SourceRecord[]>, overrideRecords: OverrideRecord[]): Map<string, ToolCard[]> {
+function buildToolCardDrafts(
+  recordsBySource: Map<string, SourceRecord[]>,
+  overrideRecords: OverrideRecord[],
+  sourceDefinitions: SourceDefinition[],
+): { draftsBySource: Map<string, ToolCard[]>; evidence: ToolCardNormalizationEvidence } {
   const draftsBySource = new Map<string, ToolCard[]>();
   const sourceRecords = [...recordsBySource.values()].flat();
   const sourceIdByRecordId = new Map(sourceRecords.map((record) => [record.id, record.source_id]));
-  const drafts = normalizeToolCardDrafts(sourceRecords, overrideRecords);
+  const normalized = normalizeToolCardDraftsWithEvidence(sourceRecords, overrideRecords, sourceDefinitions);
 
   for (const sourceId of recordsBySource.keys()) {
     draftsBySource.set(sourceId, []);
   }
 
-  for (const draft of drafts) {
+  for (const draft of normalized.drafts) {
     const sourceId = draft.evidence_refs.map((ref) => sourceIdByRecordId.get(ref)).find((candidate): candidate is string => Boolean(candidate));
     if (!sourceId) continue;
     draftsBySource.set(sourceId, [...(draftsBySource.get(sourceId) ?? []), draft]);
   }
 
-  return draftsBySource;
+  return { draftsBySource, evidence: normalized.evidence };
 }
 
 async function writeToolCardDrafts(outputDir: string, draftsBySource: Map<string, ToolCard[]>): Promise<void> {
