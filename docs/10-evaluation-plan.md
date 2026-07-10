@@ -217,8 +217,9 @@ severity: critical
 当前最小自动校验：
 
 - Tool Card release validator 要求 URL 字段被 `source_urls` 覆盖，包括 `docs_url`、`repo_url`、`homepage_url`、`package_urls` 和 `install_methods.docs_url`。
-- Tool Card release validator 已对非人工审核来源缺少 `permissions`、`security` 和 `maintenance` 字段级 evidence refs 的记录输出 warning；人工 `manual-review-*` evidence refs 暂视为人工覆盖这些关键字段。
-- 基础 schema 级字段 provenance 已由 `tool_card_field_provenance.json` 输出，覆盖 `permissions`、`security` 和 `maintenance` 的字段级证据、人工审核覆盖和缺失项；更细的 Source Record 字段和值绑定仍保留为后续增强。
+- Tool Card release validator 会对普通自动采集记录缺少 `permissions`、`security` 或 `maintenance` 字段级 evidence refs 的情况输出 warning；该规则是默认自动审核的一部分。
+- `manual-review-*` evidence refs 和 `covered_by_manual_review` 只表示历史 curated 数据的人工来源证据或修正依据；它们不是当前默认审核流程的覆盖标记，不能替代 validator、release admission 或 promotion check 的结论。
+- 基础 schema 级字段 provenance 已由 `tool_card_field_provenance.json` 输出，覆盖 `permissions`、`security` 和 `maintenance` 的字段级证据、历史 curated/manual provenance 和缺失项；更细的 Source Record 字段和值绑定仍保留为后续增强。
 
 关键字段：
 
@@ -402,7 +403,18 @@ Feedback Eval 将 Web UI、MCP/API 和 agent runtime 的反馈转化为可操作
 
 ## Human Review
 
-发布审核应从“逐条批准所有 draft”转为“自动审核结果持久化 + production gate 整批确认”；人工只处理自动化无法安全判断的异常。样本包括：
+发布审核应从“逐条批准所有 draft”转为“自动审核结果持久化 + GitHub `production` gate 整批确认”。默认链路由脚本、规则和 LLM-backed eval 生成评测证据，并依次完成 auto review、release admission 和 promotion check；正常路径不要求逐字段 confirmation record 或逐条 approval JSON。
+
+单 Worker release workflow 将结果持久化到 reviewed bundle、artifact manifest 和 checksums，并将 GitHub run、SHA、tag、GitHub `production` approval、deployment evidence 与部署后 MCP smoke evidence 关联起来。这些不可变材料共同用于 release admission 和发布判定；正常流程中唯一的人工发布确认是 GitHub `production` gate。
+
+这里的人工边界必须区分：
+
+- GitHub `production` gate 是 reviewed bundle 的发布确认，不是 discovery candidate 的逐条人工审核。
+- `security.requires_human_approval` 与 `ask_human` 是高风险工具实际执行时的人工确认边界，适用于邮件、支付、数据库写入、云管理和类似权限；它不等同于 release admission。
+- `approval_record.v1` 仅是 ingestion 自动审核无法闭合时使用的 break-glass override evidence。
+- Override Record、`manual-review-*` evidence refs、`covered_by_manual_review` 和字段 provenance 都是 curated/manual 或 legacy evidence provenance，用于说明数据来源与修正依据；它们不替代 production approval，也不是工具执行确认。
+
+人工在 production gate 重点查看自动化无法安全判断的异常。样本包括：
 
 - 高风险候选或风险等级降低的候选。
 - LLM Review Summary 与规则校验冲突的候选。
@@ -421,6 +433,12 @@ Feedback Eval 将 Web UI、MCP/API 和 agent runtime 的反馈转化为可操作
 - 新增 eval case。
 - 标记来源不可信。
 - 要求补证据或拒绝 promotion。
+
+## 已验证基线与发布验收
+
+- MCP JSON-RPC endpoint 和部署后 smoke 已实现；release workflow 会对刚部署的 Worker 运行 `initialize`、`tools/list`、只读 `tools/call` 和只读边界检查，并将结果写入 deployment evidence。
+- `all-v0.2.4` 是当前已验证的 production 基线：真实 provider golden eval 为 10/10、production promotion 通过，部署后 MCP smoke 为 4/4。
+- `all-v0.2.5` 是待执行的 closeout release；在本地门禁、GitHub `production` gate、部署及线上 evidence 全部完成前，不得将其描述为评测或发布成功。
 
 ## 评测报告格式
 
