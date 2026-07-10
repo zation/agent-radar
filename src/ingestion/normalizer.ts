@@ -177,7 +177,18 @@ function mergeParsedFields(records: SourceRecord[]): Record<string, unknown> {
     for (const [key, value] of Object.entries(record.parsed_fields)) {
       if (value === undefined) continue;
       if (Array.isArray(value)) {
-        merged[key] = [...new Set([...(Array.isArray(merged[key]) ? (merged[key] as unknown[]) : []), ...value])];
+        const incoming = value.reduce<unknown[]>((items: unknown[], item: unknown) => {
+          items.push(item);
+          return items;
+        }, []);
+        const existingValue = merged[key];
+        const existing = Array.isArray(existingValue)
+          ? existingValue.reduce<unknown[]>((items: unknown[], item: unknown) => {
+              items.push(item);
+              return items;
+            }, [])
+          : [];
+        merged[key] = [...new Set<unknown>([...existing, ...incoming])];
       } else if (merged[key] === undefined) {
         merged[key] = value;
       }
@@ -232,7 +243,7 @@ function mergeSourceProfiles(records: SourceRecord[]): SourceProfile {
 
 function readSourceProfile(record: SourceRecord): SourceProfile | undefined {
   const profile = record.parsed_fields.source_profile;
-  return isRecord(profile) ? (profile as SourceProfile) : undefined;
+  return isRecord(profile) ? profile : undefined;
 }
 
 function validateOverrideRecords(overrideRecords: OverrideRecord[]): void {

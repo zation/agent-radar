@@ -48,10 +48,10 @@ test("builds MVP data artifacts and an eval report", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-"));
   const originalApiKey = process.env.AGENT_RADAR_LLM_API_KEY;
   const originalModel = process.env.AGENT_RADAR_LLM_MODEL;
-  const fetchImpl: typeof fetch = async (url) => {
+  const fetchImpl: typeof fetch = (url) => {
     const requestUrl = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
     if (requestUrl.startsWith("https://api.github.com/search/repositories")) {
-      return new Response(
+      return Promise.resolve(new Response(
         JSON.stringify({
           items: [
             {
@@ -67,10 +67,10 @@ test("builds MVP data artifacts and an eval report", async () => {
           ]
         }),
         { status: 200, headers: { "content-type": "application/json" } }
-      );
+      ));
     }
     if (requestUrl === "https://registry.npmjs.org/@modelcontextprotocol/sdk") {
-      return new Response(
+      return Promise.resolve(new Response(
         JSON.stringify({
           name: "@modelcontextprotocol/sdk",
           description: "Model Context Protocol SDK package for test fixtures.",
@@ -82,19 +82,19 @@ test("builds MVP data artifacts and an eval report", async () => {
           time: { modified: "2026-07-07T12:00:00.000Z" }
         }),
         { status: 200, headers: { "content-type": "application/json" } }
-      );
+      ));
     }
     if (requestUrl.startsWith("https://api.github.com/repos/")) {
       const fullName = requestUrl.replace("https://api.github.com/repos/", "");
-      return new Response(JSON.stringify(mockGitHubRepo(fullName)), { status: 200, headers: { "content-type": "application/json" } });
+      return Promise.resolve(new Response(JSON.stringify(mockGitHubRepo(fullName)), { status: 200, headers: { "content-type": "application/json" } }));
     }
     if (requestUrl.startsWith("https://docs.stripe.com/") || requestUrl.startsWith("https://developers.google.com/") || requestUrl.startsWith("https://developers.openai.com/")) {
-      return new Response(
+      return Promise.resolve(new Response(
         `<html><head><title>${requestUrl}</title><meta name="description" content="Official documentation for ${requestUrl}."></head></html>`,
         { status: 200, headers: { "content-type": "text/html" } }
-      );
+      ));
     }
-    return new Response("not found", { status: 404 });
+    return Promise.resolve(new Response("not found", { status: 404 }));
   };
 
   try {
@@ -225,7 +225,9 @@ test("builds MVP data artifacts and an eval report", async () => {
     );
     assert.deepEqual(mcpSmokeChecklist.summary, { total: 4, required: 4 });
 
-    const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
+    const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8")) as {
+      documents: Array<{ tool_id: string }>;
+    };
     assert.equal(searchIndex.documents.length, summary.toolCount);
     const indexedToolIds = searchIndex.documents.map((document: { tool_id: string }) => document.tool_id);
     assert.ok(indexedToolIds.includes("mcp-browser-automation"));

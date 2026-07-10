@@ -263,7 +263,7 @@ function parseMcpSmokeResult(contents: Buffer): McpSmokeResult {
     endpoint: value.endpoint,
     passed: true,
     summary: {
-      total: summary.total as number,
+      total: summary.total,
       passed,
       failed
     },

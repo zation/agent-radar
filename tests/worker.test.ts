@@ -3,28 +3,16 @@ import test from "node:test";
 import worker from "../src/worker.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { buildSearchIndex } from "../src/search/index-builder.js";
-import type { RatingResult, SearchIndex, ToolCard } from "../src/schema.js";
+import type { RatingResult, ToolCard } from "../src/schema.js";
 import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 
 interface WorkerAssetsBinding {
   fetch(request: Request): Promise<Response>;
 }
 
-interface AgentRadarWorker {
-  fetch(
-    request: Request,
-    env: {
-      ASSETS: WorkerAssetsBinding;
-      AGENT_RADAR_RELEASE_ID?: string;
-      AGENT_RADAR_API_VERSION?: string;
-      AGENT_RADAR_WEB_VERSION?: string;
-    }
-  ): Promise<Response>;
-}
-
 test("Worker serves API from same static assets deployment", async () => {
   const assets = createAssetsBinding(reviewedToolCardFixtures);
-  const response = await (worker as AgentRadarWorker).fetch(
+  const response = await worker.fetch(
     new Request("https://agent-radar.test/api/get_tool_card?tool_id=skill-openai-docs"),
     { ASSETS: assets }
   );
@@ -37,7 +25,7 @@ test("Worker serves API from same static assets deployment", async () => {
 
 test("Worker version endpoint reports release and data versions", async () => {
   const assets = createAssetsBinding(reviewedToolCardFixtures);
-  const response = await (worker as AgentRadarWorker).fetch(new Request("https://agent-radar.test/api/version"), {
+  const response = await worker.fetch(new Request("https://agent-radar.test/api/version"), {
     ASSETS: assets,
     AGENT_RADAR_RELEASE_ID: "all-v0.2.1",
     AGENT_RADAR_API_VERSION: "api-v0.2.1",
@@ -59,7 +47,7 @@ test("Worker version endpoint reports release and data versions", async () => {
 
 test("Worker delegates non-API requests to static assets", async () => {
   const assets = createAssetsBinding(reviewedToolCardFixtures);
-  const response = await (worker as AgentRadarWorker).fetch(new Request("https://agent-radar.test/"), { ASSETS: assets });
+  const response = await worker.fetch(new Request("https://agent-radar.test/"), { ASSETS: assets });
 
   assert.equal(response.status, 200);
   assert.equal(await response.text(), "<!doctype html><title>Agent Radar</title>");

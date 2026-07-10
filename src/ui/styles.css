@@ -228,11 +228,6 @@ textarea {
   color: var(--trusted-text);
 }
 
-.review-json-preview {
-  background: oklch(98.8% 0.004 170deg);
-  overflow-wrap: normal;
-}
-
 .compare-grid {
   display: grid;
   font-size: 0.8125rem;
