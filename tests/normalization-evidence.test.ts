@@ -269,3 +269,37 @@ test("normalization evidence leaves equal-rank critical semantic conflicts unres
   assert.equal(conflict?.reason_code, "equal_rank_semantic_conflict");
   assert.equal(selection?.reason_code, "unresolved_conflict_fallback");
 });
+
+test("normalizer merges discovery and profiled exact records by canonical repository", () => {
+  const discovery = repositoryRecord({
+    id: "record-discovery",
+    source_id: "source-discovery",
+    parsed_fields: {
+      repo_url: "https://github.com/example/tool",
+      license: "MIT",
+    },
+  });
+  const exact = repositoryRecord({
+    id: "record-exact",
+    source_id: "source-exact",
+    parsed_fields: {
+      repo_url: "https://github.com/example/tool",
+      license: "MIT",
+      source_profile: { tool_id: "mcp-example-tool", type: "mcp" },
+    },
+  });
+
+  const discoverySource = sourceDefinition("source-discovery", "active_open_source");
+  discoverySource.url = "https://github.com/topics/mcp";
+  const exactSource = sourceDefinition("source-exact", "well_known_org");
+  exactSource.url = "https://github.com/example/tool";
+  const result = normalizeToolCardDraftsWithEvidence(
+    [discovery, exact],
+    [],
+    [discoverySource, exactSource],
+  );
+
+  assert.equal(result.drafts.length, 1);
+  assert.equal(result.drafts[0]?.id, "mcp-example-tool");
+  assert.deepEqual(result.drafts[0]?.evidence_refs.slice(0, 2), ["record-exact", "record-discovery"]);
+});

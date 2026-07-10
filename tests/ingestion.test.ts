@@ -51,7 +51,7 @@ const manualTestSource: SourceDefinition = {
 test("source registry exposes enabled source-backed coverage for golden query domains", () => {
   const enabled = getEnabledSources(sourceRegistry);
 
-  assert.deepEqual(enabled.map((source) => source.id), [
+  assert.deepEqual(enabled.slice(0, 11).map((source) => source.id), [
     "github-topic-mcp",
     "npm-modelcontextprotocol-sdk",
     "github-repo-microsoft-playwright-mcp",
@@ -64,6 +64,7 @@ test("source registry exposes enabled source-backed coverage for golden query do
     "docs-gmail-api",
     "docs-openai-codex"
   ]);
+  assert.equal(enabled.length, 36);
   assert.equal(enabled[0]?.collection_method, "api");
   assert.equal(enabled[0]?.parser, "github_topic_parser");
   assert.equal(enabled[1]?.source_type, "package_registry");

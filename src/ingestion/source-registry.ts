@@ -1,5 +1,6 @@
 import type { SourceDefinition } from "../schema.js";
 import { isSupportedSourceParser } from "./parser.js";
+import { curatedGithubSources } from "./curated-github-sources.js";
 
 export const sourceRegistry: SourceDefinition[] = [
   {
@@ -433,7 +434,8 @@ export const sourceRegistry: SourceDefinition[] = [
     enabled: true,
     owner: "agent-radar",
     last_reviewed_at: "2026-07-08T00:00:00Z"
-  }
+  },
+  ...curatedGithubSources
 ];
 
 function reviewedPublicAccess(notes: string): NonNullable<SourceDefinition["access_review"]> {

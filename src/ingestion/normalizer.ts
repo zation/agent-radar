@@ -182,13 +182,13 @@ function groupSourceBackedRecords(sourceRecords: SourceRecord[]): SourceRecord[]
 
 function canonicalRecordKey(record: SourceRecord): string | undefined {
   const profile = readSourceProfile(record);
-  if (profile?.tool_id) return `profile:${profile.tool_id}`;
   const repoUrl = readString(record.parsed_fields.repo_url) ?? record.urls.find((url) => url.includes("github.com"));
   if (repoUrl) return `repo:${canonicalUrl(repoUrl)}`;
   const packageUrl = readString(record.parsed_fields.package_url);
   if (packageUrl) return `package:${canonicalPackageUrl(packageUrl)}`;
   const docsUrl = readString(record.parsed_fields.docs_url);
   if (docsUrl) return `docs:${canonicalUrl(docsUrl)}`;
+  if (profile?.tool_id) return `profile:${profile.tool_id}`;
   return undefined;
 }
 
