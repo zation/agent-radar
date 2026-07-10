@@ -25,7 +25,9 @@
 
 ## 当前进度快照
 
-截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段：
+~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
+
+实际情况：MVP 和 v0.2 已完成，`all-v0.2.5` 已通过生产发布与线上核验；当前开发阶段为 v0.3，近期优先级是 P1 数据与可信度，其次是 P2 Provider 能力。
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
@@ -80,13 +82,13 @@
 - Web、数据 artifacts、HTTP API 和 MCP JSON-RPC endpoint 已统一由一个启用 Static Assets 的 Cloudflare Worker 承载；`preview:build` 只是 reviewed bundle 的历史命令名，不代表独立预览部署。
 - `Release All` production workflow 已实现静态 assets/data build once、reviewed bundle 上传、GitHub `production` environment 人工确认、从同一不可变 tag/SHA 构建 Worker 并原样恢复 reviewed `dist-pages`、从 Wrangler deploy output 提取 Worker URL，以及部署后 MCP smoke。
 - Production evidence builder 已实现：workflow 在 smoke 后解析匹配的 GitHub production deployment，生成并上传 `production-release-evidence.json`，关联 run、SHA、tag、reviewed bundle、manifest checksum、D1 seed checksum、Worker/MCP endpoint 和 smoke 结果。
-- `all-v0.2.4` 是当前已验证 production baseline：29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 通过、已部署 MCP smoke 4/4。
+- ~~`all-v0.2.4` 是当前已验证 production baseline：29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 通过、已部署 MCP smoke 4/4。~~ 实际情况：`all-v0.2.4` 是上一版已验证 production baseline。
 - `all-v0.2.5` 已完成本地质量门禁、GitHub `production` approval、部署、production evidence 和线上核验；29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 29/29 和 MCP smoke 4/4 均通过。
 - `npm run ingest` 已输出最小 crawl plan artifact，记录 Source Registry sources 的抓取方法、频率、parser 和 ready/disabled/blocked 状态。
 - `npm run ingest` 已输出最小 crawl audit artifact，记录本轮 Raw Snapshot 的来源、抓取状态、HTTP 状态、内容 hash、保存路径和 request metadata。
 - 已实现基础 `github_topic_parser` fixture、GitHub topic crawler 映射、基础 `npm_package_parser` 和 discovery candidates artifact，可把 GitHub topic/Search API repository payload 与 npm package metadata 解析成 Source Records，并记录 rate-limit/package metadata；`github-topic-mcp` 与 `npm-modelcontextprotocol-sdk` 已作为默认受控公共 metadata sources 启用，repository/package 记录会生成保守 Tool Card drafts 并进入 auto review、release admission、promotion candidates 和可靠发布 artifacts；discovery candidates 与 auto review summary 已同步到 preview/Actions review 材料。
 
-当前收口事项与后续缺口：
+v0.3 kickoff 基线与后续缺口：
 
 - Tool Card 默认覆盖现在取决于 enabled Source Registry 的采集结果；仍需继续提升来源数量、覆盖广度和更细字段级证据质量。
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
@@ -231,17 +233,21 @@ MVP baseline 已完成。当前完成标准为：
 - 社区来源如启用，只作为发现信号。
 - UI 只服务浏览、比较和审核。
 
-### 建议拆分
+### ~~建议拆分~~ 实际完成结果
 
-v0.2 建议拆成 5 条并行但有优先级的工作线：
+~~v0.2 建议拆成 5 条并行但有优先级的工作线：~~
 
-1. 推荐质量线：真实 LLM golden eval、prompt 版本化、provider 错误分类、`no_reliable_match` 和 `ask_human` 质量抽查。
-2. 审核自动化线：把 `draft -> auto review -> release admission -> promotion candidates` 的自动证据汇总、规则/LLM Review Summary、发布准入评分卡和 intervention requests 继续打磨成稳定 reviewed bundle 证据。
-3. 数据覆盖线：把首批 20 张扩到 20-50 张，优先覆盖 OpenAI/Codex、Claude Code、Cursor、OpenCode、Gemini CLI、常见 MCP server、测试/浏览器/支付/邮件/数据库类工具。
-4. API/MCP 线：把 HTTP JSON API 包装为 agent 可调用的 MCP 工具定义，补充 contract tests 和示例请求，并预留只写反馈接口设计。
-5. 本地/部署线：完善 BYOK dev/prod 配置、Cloudflare Worker 部署说明、provider key 不落盘检查和日志脱敏。
+1. ~~推荐质量线：真实 LLM golden eval、prompt 版本化、provider 错误分类、`no_reliable_match` 和 `ask_human` 质量抽查。~~ 实际完成：真实 provider golden eval 10/10、provider 错误分类、`no_reliable_match` 和 `ask_human` 安全边界已通过 v0.2 发布；prompt 版本化进入 v0.3。
+2. ~~审核自动化线：把 `draft -> auto review -> release admission -> promotion candidates` 的自动证据汇总、规则/LLM Review Summary、发布准入评分卡和 intervention requests 继续打磨成稳定 reviewed bundle 证据。~~ 实际完成：自动审核、发布准入、promotion check、intervention requests 和 immutable reviewed bundle 已投入生产；更完整的 Review Summary 进入 v0.3 P1。
+3. ~~数据覆盖线：把首批 20 张扩到 20-50 张，优先覆盖 OpenAI/Codex、Claude Code、Cursor、OpenCode、Gemini CLI、常见 MCP server、测试/浏览器/支付/邮件/数据库类工具。~~ 实际完成：v0.2 发布 29 张 Tool Cards，达到 20-50 张验收范围；v0.3 目标扩大到 50-150 张。
+4. ~~API/MCP 线：把 HTTP JSON API 包装为 agent 可调用的 MCP 工具定义，补充 contract tests 和示例请求，并预留只写反馈接口设计。~~ 实际完成：只读 MCP JSON-RPC endpoint、manifest、示例和 contract/smoke tests 已部署并通过 4/4 smoke；反馈写接口留在 v0.3。
+5. ~~本地/部署线：完善 BYOK dev/prod 配置、Cloudflare Worker 部署说明、provider key 不落盘检查和日志脱敏。~~ 实际完成：BYOK provider routing、日志脱敏、单 Worker 发布和 production evidence 已通过 `all-v0.2.5` 验证。
 
 ## v0.3
+
+### Kickoff 状态
+
+v0.3 已启动。开发顺序为 P1 数据与可信度优先，P2 Provider 能力随后推进；反馈写接口、安全风险评分和自迭代任务在 P1/P2 基础稳定后进入后续迭代。
 
 ### 目标
 
@@ -254,7 +260,7 @@ v0.2 建议拆成 5 条并行但有优先级的工作线：
 - Eval Diff 报告。
 - 用户反馈记录格式、反馈汇总和最小 Web UI/MCP 反馈入口。
 - 自动 Review Summary，将来源证据、规则检查、LLM 审核摘要和反馈摘要合并为发布点评材料。
-- 人工 override 机制。
+- ~~人工 override 机制。~~ 实际情况：最小 Override Record、break-glass approval override 和 evidence ref 审计已在 v0.2 实现；v0.3 继续完善多来源 lineage、转换规则版本和冲突选择依据。
 - P2 Provider 能力：更完整的 Provider 配置 UI、浏览器运行时读取 `provider_registry.json`，以及 direct-to-provider/proxy 模式决策。
 - 数据质量 dashboard 或报告。
 - 自迭代任务生成：
@@ -382,11 +388,26 @@ v0.2 建议拆成 5 条并行但有优先级的工作线：
 - 继续提升 intervention requests、auto review、Source Registry review requests、字段 provenance 和 URL 可达性检查的证据质量。
 - 增加 eval diff，比较同一 golden query 在不同 prompt/provider 下的动作、候选和风险提示变化。
 
+近期实施顺序：
+
+1. Field provenance v2：支持多来源 lineage、转换规则版本和冲突选择依据，已发布关键字段 provenance 覆盖率保持 100%。
+2. URL checker v2：增加超时、有限重试、状态分类、检查时间和连续失败处理，关键 URL 必须有可解释的近期检查结果。
+3. Review Summary v2：汇总 provenance、URL、duplicate、override、validation、release admission 和 promotion evidence，发布前未解决 intervention request 为 0。
+4. Eval diff：对 prompt、provider 和规则版本变化生成可审查差异，critical safety regression 必须阻止发布。
+
 ### P2：v0.3 Provider 能力
 
 - 将 `provider_registry.json` 接入更完整的 Provider 配置 UI，并决定浏览器运行时配置读取方式。
 - 明确 direct-to-provider 与 proxy 模式边界；若支持 browser direct provider mode，必须把前端 schema 校验和安全归一化同步搬到浏览器端。
 - 为 LLM prompt 和 provider routing 增加版本号，保证配置与评测结果可追溯。
+
+### v0.3 Kickoff 验收
+
+- 50-150 张高质量 Tool Cards，关键字段 provenance 覆盖率 100%。
+- 20-40 个 golden queries，critical safety cases 全部通过。
+- 关键 URL 有近期可达性或可解释状态，不允许未解释的持续 404/410 进入发布。
+- 发布候选不存在未解决重复项、validation error 或 intervention request。
+- prompt、provider、规则和评测结果版本可追溯，并能生成 eval diff。
 
 ## 明确不做清单
 

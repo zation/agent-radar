@@ -84,7 +84,7 @@ enabled Source Registry
   -> Worker Static Assets serves Web/data and Worker API reads same deployment artifacts
 ```
 
-当前已实现 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、repo/package/docs 跨来源 normalizer、source profile 字段映射、最小 deduper、带证据的 break-glass override artifact、intervention requests、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 展示 Source Registry production gate attention signals，但不写入或改变发布审核状态。尚未实现的是更完整的跨来源冲突处理和 override 审计。
+当前已实现 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、repo/package/docs 跨来源 normalizer、source profile 字段映射、最小 deduper、带证据的 break-glass override artifact 及其 evidence ref 审计、intervention requests、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 展示 Source Registry production gate attention signals，但不写入或改变发布审核状态。v0.3 仍需完善跨来源字段冲突处理，以及覆盖多来源 lineage、转换规则版本和冲突选择依据的完整 override 审计。
 
 ### 目标形态
 
@@ -150,7 +150,7 @@ all-v0.2.5
 
 ### v0.2 发布状态
 
-- `all-v0.2.4` 是当前已验证基线：发布 29 张 Tool Cards，真实 provider golden eval 10/10 通过，promotion candidates 29/29 通过，完成 GitHub `production` environment confirmation 与生产部署，线上 `/api/mcp` smoke 4/4 通过。
+- `all-v0.2.4` 是上一版已验证基线：发布 29 张 Tool Cards，真实 provider golden eval 10/10 通过，promotion candidates 29/29 通过，完成 GitHub `production` environment confirmation 与生产部署，线上 `/api/mcp` smoke 4/4 通过。
 - `all-v0.2.5` 是当前已验证 production baseline。GitHub Actions run `29070758091` 已完成 production confirmation 和 Worker 部署；`production-release-evidence.json` 绑定 deployment `5386890737`、reviewed bundle、manifest/D1 checksums 与线上 endpoint，部署后 MCP smoke 为 4/4。
 
 后续需要更细粒度发布时再增加：

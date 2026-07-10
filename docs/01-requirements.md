@@ -307,7 +307,7 @@ MVP 使用人工复核和手动触发更新，不做自动定时采集。
 | FR-08 | AI 输出 | JSON schema 已实现，Markdown 摘要未系统化 | 推荐结果 | JSON/Markdown | schema 校验 |
 | FR-09 | MCP 查询 | `/api/mcp` JSON-RPC 已部署并完成 deploy-output smoke | MCP/API tool call | 查询响应 | contract tests + 4/4 deployed smoke |
 | FR-10 | Web UI | Tools/Recommend/Compare/Review 已由 Worker Static Assets 承载 | 数据索引、用户任务 | 浏览、比较、推荐页面 | 手工验收 + `pages:build` |
-| FR-11 | 评测 | `all-v0.2.4` 真实 provider golden eval 10/10 | 数据、评分、LLM provider | Eval Report | CI release gate |
+| FR-11 | 评测 | `all-v0.2.5` 真实 provider golden eval 10/10，production promotion 29/29，部署后 MCP smoke 4/4 | 数据、评分、LLM provider | Eval Report | CI release gate |
 | FR-12 | 报告 | Eval report 已实现，生态报告未实现 | 结构化数据 | Markdown 报告 | 来源引用检查 |
 | FR-13 | 异常修正 | Override Record 与 break-glass approval override 已实现 | 修正请求、公开证据 | Override Record | provenance 与审计检查 |
 

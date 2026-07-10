@@ -219,7 +219,7 @@ severity: critical
 - Tool Card release validator 要求 URL 字段被 `source_urls` 覆盖，包括 `docs_url`、`repo_url`、`homepage_url`、`package_urls` 和 `install_methods.docs_url`。
 - Tool Card release validator 会对普通自动采集记录缺少 `permissions`、`security` 或 `maintenance` 字段级 evidence refs 的情况输出 warning；该规则是默认自动审核的一部分。
 - `manual-review-*` evidence refs 和 `covered_by_manual_review` 只表示历史 curated 数据的人工来源证据或修正依据；它们不是当前默认审核流程的覆盖标记，不能替代 validator、release admission 或 promotion check 的结论。
-- 基础 schema 级字段 provenance 已由 `tool_card_field_provenance.json` 输出，覆盖 `permissions`、`security` 和 `maintenance` 的字段级证据、历史 curated/manual provenance 和缺失项；更细的 Source Record 字段和值绑定仍保留为后续增强。
+- 基础 schema 级字段 provenance 已由 `tool_card_field_provenance.json` 输出，覆盖 `permissions`、`security` 和 `maintenance` 的字段级证据、历史 curated/manual provenance 和缺失项；ingest-time `tool_card_field_value_provenance.v1` 已把 Tool Card 字段和值绑定到 Source Record 字段路径、原始值预览、归一化值预览和已应用的 Override Record。v0.3 将继续补充多来源 lineage、转换规则版本和字段冲突选择依据。
 
 关键字段：
 
@@ -437,8 +437,8 @@ Feedback Eval 将 Web UI、MCP/API 和 agent runtime 的反馈转化为可操作
 ## 已验证基线与发布验收
 
 - MCP JSON-RPC endpoint 和部署后 smoke 已实现；release workflow 会对刚部署的 Worker 运行 `initialize`、`tools/list`、只读 `tools/call` 和只读边界检查，并将结果写入 deployment evidence。
-- `all-v0.2.4` 是当前已验证的 production 基线：真实 provider golden eval 为 10/10、production promotion 通过，部署后 MCP smoke 为 4/4。
-- `all-v0.2.5` 已完成本地门禁、GitHub `production` gate、部署和线上 evidence 核验：真实 provider golden eval 10/10、promotion 29/29、MCP smoke 4/4，现为已验证 production baseline。
+- `all-v0.2.4` 是上一版已验证 production 基线：真实 provider golden eval 为 10/10、production promotion 通过，部署后 MCP smoke 为 4/4。
+- `all-v0.2.5` 已完成本地门禁、GitHub `production` gate、部署和线上 evidence 核验：真实 provider golden eval 10/10、promotion 29/29、MCP smoke 4/4，现为当前已验证 production baseline。
 
 ## 评测报告格式
 
