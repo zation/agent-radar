@@ -27,7 +27,7 @@ export function renderIngestionReviewMarkdown(
     `- Tool card drafts: ${result.toolCardDrafts.length}`,
     `- Review ready: ${result.reviewQueue.summary.ready_for_review}`,
     `- Review blocked: ${result.reviewQueue.summary.blocked_validation}`,
-    `- Discovery candidates: ${result.discoveryCandidates.summary.pending_manual_review} pending manual review`,
+    `- Discovery candidates: ${result.discoveryCandidates.summary.pending_production_gate} pending production gate review`,
     `- Crawl audit: ${result.crawlAudit.summary.success} success, ${result.crawlAudit.summary.partial} partial, ${result.crawlAudit.summary.failed} failed`,
     `- Approval overrides: ${result.approvalArtifact.summary.approved} approved, ${result.approvalArtifact.summary.rejected} rejected, ${result.approvalArtifact.summary.needs_changes} needs changes`,
     `- Auto review: ${result.autoReview.summary.promote} promote, ${result.autoReview.summary.needs_review} needs review, ${result.autoReview.summary.keep_draft} keep draft`,

@@ -11,16 +11,16 @@ export interface ToolDiscoveryCandidate {
   last_commit_at?: string;
   topics: string[];
   source_confidence: Confidence;
-  review_status: "pending_manual_review";
-  recommended_action: "review_before_tool_card_draft";
+  review_status: "pending_production_gate";
+  recommended_action: "review_in_production_gate";
 }
 
 export interface ToolDiscoveryCandidates {
-  schema_version: "tool_discovery_candidates.v1";
+  schema_version: "tool_discovery_candidates.v2";
   generated_at: string;
   summary: {
     candidates: number;
-    pending_manual_review: number;
+    pending_production_gate: number;
     by_source: Record<string, number>;
   };
   items: ToolDiscoveryCandidate[];
@@ -42,17 +42,17 @@ export function buildToolDiscoveryCandidates(sourceRecords: SourceRecord[], gene
         last_commit_at: readString(record.parsed_fields.last_commit_at),
         topics: readStringArray(record.parsed_fields.topics),
         source_confidence: record.source_confidence,
-        review_status: "pending_manual_review" as const,
-        recommended_action: "review_before_tool_card_draft" as const
+        review_status: "pending_production_gate" as const,
+        recommended_action: "review_in_production_gate" as const
       };
     });
 
   return {
-    schema_version: "tool_discovery_candidates.v1",
+    schema_version: "tool_discovery_candidates.v2",
     generated_at: generatedAt,
     summary: {
       candidates: items.length,
-      pending_manual_review: items.length,
+      pending_production_gate: items.length,
       by_source: items.reduce<Record<string, number>>((summary, item) => {
         summary[item.source_id] = (summary[item.source_id] ?? 0) + 1;
         return summary;

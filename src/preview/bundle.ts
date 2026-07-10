@@ -60,7 +60,7 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
   };
   manifest.discovery_candidates = {
     candidates: options.ingestion.discoveryCandidates.summary.candidates,
-    pending_manual_review: options.ingestion.discoveryCandidates.summary.pending_manual_review
+    pending_production_gate: options.ingestion.discoveryCandidates.summary.pending_production_gate
   };
   manifest.promotion_candidates = {
     candidates: options.ingestion.promotionCandidates.summary.candidates

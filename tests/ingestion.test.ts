@@ -76,7 +76,7 @@ test("ingestion CLI summary includes auto review and release gates", () => {
   const summary = formatIngestionCliSummary({
     snapshots: [{ source_id: "manual-agent-radar-seed" }],
     sourceRecords: [{}, {}],
-    discoveryCandidates: { summary: { candidates: 1, pending_manual_review: 1 } },
+    discoveryCandidates: { summary: { candidates: 1, pending_production_gate: 1 } },
     interventionRequests: { summary: { pending_intervention: 2, duplicate_review_required: 1, blocked_validation: 0 } },
     fieldProvenance: { summary: { tool_cards: 2, field_values: 24 } },
     autoReview: { summary: { promote: 1, keep_draft: 0, needs_review: 1, reject: 0, retire: 0 } },
@@ -92,7 +92,7 @@ test("ingestion CLI summary includes auto review and release gates", () => {
     source_ids: ["manual-agent-radar-seed"],
     discovery_candidates: {
       candidates: 1,
-      pending_manual_review: 1
+      pending_production_gate: 1
     },
     intervention_requests: {
       pending_intervention: 2,
@@ -404,8 +404,8 @@ test("discovery candidates summarize repository source records for manual review
     "2026-07-08T00:00:00Z"
   );
 
-  assert.equal(candidates.schema_version, "tool_discovery_candidates.v1");
-  assert.deepEqual(candidates.summary, { candidates: 1, pending_manual_review: 1, by_source: { "github-topic-mcp": 1 } });
+  assert.equal(candidates.schema_version, "tool_discovery_candidates.v2");
+  assert.deepEqual(candidates.summary, { candidates: 1, pending_production_gate: 1, by_source: { "github-topic-mcp": 1 } });
   assert.deepEqual(candidates.items[0], {
     source_record_id: "github-topic-mcp-modelcontextprotocol-servers-20260708",
     source_id: "github-topic-mcp",
@@ -417,8 +417,8 @@ test("discovery candidates summarize repository source records for manual review
     last_commit_at: "2026-07-07T12:00:00Z",
     topics: ["mcp", "model-context-protocol"],
     source_confidence: "medium",
-    review_status: "pending_manual_review",
-    recommended_action: "review_before_tool_card_draft"
+    review_status: "pending_production_gate",
+    recommended_action: "review_in_production_gate"
   });
 });
 

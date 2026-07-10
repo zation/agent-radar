@@ -178,7 +178,7 @@ function formatReleaseAdmission(admission: NonNullable<ArtifactManifest["release
 }
 
 function formatDiscoveryCandidates(candidates: NonNullable<ArtifactManifest["discovery_candidates"]>): string {
-  return `${candidates.candidates} candidates, ${candidates.pending_manual_review} pending manual review`;
+  return `${candidates.candidates} candidates, ${candidates.pending_production_gate} pending production gate review`;
 }
 
 function formatPromotionPlan(plan: NonNullable<ArtifactManifest["promotion_plan"]>): string {

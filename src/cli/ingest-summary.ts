@@ -4,7 +4,7 @@ export interface IngestionCliSummaryInput {
   discoveryCandidates: {
     summary: {
       candidates: number;
-      pending_manual_review: number;
+      pending_production_gate: number;
     };
   };
   interventionRequests: {
@@ -63,7 +63,7 @@ export interface IngestionCliSummary {
   source_ids: string[];
   discovery_candidates: {
     candidates: number;
-    pending_manual_review: number;
+    pending_production_gate: number;
   };
   intervention_requests: {
     pending_intervention: number;
@@ -106,7 +106,7 @@ export function formatIngestionCliSummary(result: IngestionCliSummaryInput): Ing
     source_ids: [...new Set(result.snapshots.map((snapshot) => snapshot.source_id))],
     discovery_candidates: {
       candidates: result.discoveryCandidates.summary.candidates,
-      pending_manual_review: result.discoveryCandidates.summary.pending_manual_review
+      pending_production_gate: result.discoveryCandidates.summary.pending_production_gate
     },
     intervention_requests: {
       pending_intervention: result.interventionRequests.summary.pending_intervention,

@@ -78,7 +78,7 @@ export interface ArtifactManifest {
   };
   discovery_candidates?: {
     candidates: number;
-    pending_manual_review: number;
+    pending_production_gate: number;
   };
   promotion_candidates?: {
     candidates: number;
