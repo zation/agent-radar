@@ -434,13 +434,20 @@ task query
 ### 反馈改进流
 
 ```text
-user feedback / eval failure
-  -> issue or eval case
-  -> data/rule/code change
-  -> eval diff
-  -> review
-  -> release
+v0.4 Web UI
+  -> GitHub OAuth identity
+  -> D1 unique Tool Card vote
+  -> optional prefilled GitHub Issue Form
+  -> Release All reviewed bundle build
+  -> deterministic validation + constrained LLM triage
+  -> accepted/rejected/needs-human-review
+  -> immutable vote and accepted-Issue snapshot
+  -> feedback_rules.v0.1 adjustment
+  -> rating/eval/review
+  -> production approval and release
 ```
+
+v0.4 之前，生产 Worker 仍保持当前只读 Tool Card/API/MCP 主路径。v0.4 P1 才新增 GitHub OAuth、会话和投票写接口；自由文本原因只由用户主动提交到 GitHub Issue，不存入 D1。v0.4 P2 在现有 `Release All` 的 reviewed bundle 构建阶段处理反馈，不新增 Data/MCP/Web 独立发布 workflow。
 
 ## 存储建议
 
@@ -454,6 +461,9 @@ user feedback / eval failure
 | Search Index | 同一 Worker deployment 的静态 JSON | D1 优化索引 |
 | Eval Case | JSON | D1 table |
 | Eval Report | Markdown/JSON | Dashboard |
+| GitHub User / Session | v0.4 前不存储 | v0.4 D1 table，只保存最小身份和会话数据 |
+| Tool Card Vote | v0.4 前不存储 | v0.4 D1 table，`github_user_id + tool_card_key` 唯一 |
+| Feedback Reason | v0.4 前不存储 | GitHub Issue；不复制到 D1 |
 
 ## 技术选型建议
 

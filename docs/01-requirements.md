@@ -193,15 +193,18 @@ MVP 应由同一个启用 Static Assets 的 Cloudflare Worker 在 `/api/mcp` 提
 
 ### FR-14 用户与 Agent 反馈闭环
 
-系统后续应支持从 Web UI、MCP/API 和 agent runtime 收集结构化反馈，用于改进 Tool Card、推荐排序、安全提示和 golden queries。
+系统在 v0.4 应支持从 Web UI 收集 GitHub 身份绑定的结构化 Tool Card 投票，并通过用户主动提交的 GitHub Issue Form 收集具体原因；反馈在 `Release All` 的 reviewed bundle 构建阶段处理，用于改进 Tool Card、评分、安全提示和 golden queries。
 
 验收标准：
 
-- 支持对 Tool Card 和 Recommendation Result 提交 `up`、`down`、`correction`、`issue` 等反馈信号。
+- 使用最小 GitHub OAuth 获取稳定 user ID 和公开用户名，不申请邮箱、仓库或组织权限；同一用户对同一 Tool Card 只保留一条可变的 `up` 或 `down` 投票。
+- 聚合赞踩数公开，个人投票状态仅本人可见，不公开投票用户列表。
+- 支持从 Tool Card 打开 `zation/agent-radar` 的 GitHub Issue Form；页面只预填 Tool Card key、投票类型、数据版本和 Tool Card URL，不直接创建 Issue，具体原因必填且不存入 Agent Radar D1。
 - 反馈记录不得包含用户私有代码、邮件内容、token、secret、完整 prompt 或浏览器内容。
-- 反馈默认只进入聚合报告、Review Summary、eval case 候选或待审核任务，不直接修改 Tool Card、评分、风险等级或 trust level。
+- reviewed bundle 构建对合法 open feedback Issue 执行确定性校验和受限 LLM 三态分类：`accepted`、`rejected`、`needs-human-review`；前两者记录处理 Comment 和 build 信息后关闭，后者保持 open。
+- `feedback_rules.v0.1` 在每次构建统一计算反馈调整：同一用户与 Tool Card 有 accepted Issue 时使用 `+1/-1`，否则裸投票使用 `+0.2/-0.2`，单卡总调整限制为 `-3` 到 `+3`；反馈不能降低安全风险等级或提升来源 trust level。
 - `unsafe`、权限遗漏、生产数据、支付、邮件、数据库和云账号相关反馈必须进入人工异常队列。
-- MVP/v0.2 的 MCP/API 主路径保持只读；反馈提交属于后续写接口能力，必须单独做安全和滥用防护设计。
+- MVP/v0.2 的 MCP/API 主路径保持只读；v0.4 只新增受 GitHub 登录、唯一约束、Origin 检查和基础限流保护的投票写接口。
 
 ## 非功能需求
 
@@ -283,7 +286,7 @@ MVP 使用人工复核和手动触发更新，不做自动定时采集。
 - 任何付费服务或超出免费额度的长期运行基础设施。
 - 社区目录、awesome list 和新闻来源自动采集。
 - 用户反馈闭环。
-- 更完整的 Provider 运行时配置 UI、浏览器运行时读取 `provider_registry.json`，以及 direct-to-provider/proxy 模式决策；这些进入 v0.3/P2。
+- 更完整的 Provider 运行时配置 UI、浏览器运行时读取 `provider_registry.json`，以及 direct-to-provider/proxy 模式决策；这些进入 Backlog。
 
 ## 不应做的内容
 

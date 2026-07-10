@@ -303,12 +303,16 @@ Agent 应：
 
 ### v0.3
 
-- Web UI 和 MCP/API 接收结构化反馈。
-- 反馈汇总进入 eval report、preview review 和自迭代任务生成。
-- 人工审核聚焦高风险、争议、负反馈异常和自动审核冲突项。
-- CI 中生成改进建议。
-- 将用户反馈转换为待审核任务。
-- 数据质量趋势分析。
+- P1 完善 provenance、URL、跨来源冲突、Review Summary 和数据质量报告。
+- P2 增加安全风险评分、结构化 Human Approval、eval diff 和 critical safety release gate。
+- 不接收用户反馈写入；现有 Web/API/MCP 主路径保持只读。
+
+### v0.4
+
+- P1 通过 GitHub OAuth 和 D1 收集 Tool Card 赞踩，并允许用户主动打开结构化 GitHub Issue Form 提交必填原因。
+- P2 在 `Release All` 构建中将反馈 Issue 分为 accepted、rejected 和 needs-human-review，生成反馈快照和评级输入。
+- accepted Issue 和裸投票按用户与 Tool Card 去重，采用版本化、上限为 `-3` 到 `+3` 的保守评分调整。
+- 人工审核聚焦安全、规则争议、证据冲突和 `needs-human-review` Issue。
 
 ### v1.0
 
