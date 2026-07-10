@@ -25,6 +25,7 @@ interface ManifestFile {
   tool_card_field_value_provenance_v2: string;
   tool_card_conflict_report: string;
   tool_card_url_validation: string;
+  tool_card_url_validation_v2: string;
   provider_registry: string;
   mcp_tools: string;
   mcp_examples: string;
@@ -133,6 +134,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.tool_card_field_value_provenance_v2, "data/field_provenance/tool_card_fields.v2.json");
     assert.equal(manifest.tool_card_conflict_report, "data/conflicts/tool_card_conflicts.json");
     assert.equal(manifest.tool_card_url_validation, "data/tool_card_url_validation.json");
+    assert.equal(manifest.tool_card_url_validation_v2, "data/tool_card_url_validation.v2.json");
     assert.equal(manifest.provider_registry, "data/provider_registry.json");
     assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
     assert.equal(manifest.mcp_examples, "data/mcp_examples.json");
@@ -189,6 +191,13 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(toolCardUrlValidation.schema_version, "tool_card_url_validation.v1");
     assert.equal(toolCardUrlValidation.summary.checked, 0);
     assert.equal(toolCardUrlValidation.summary.skipped > 0, true);
+
+    const toolCardUrlValidationV2 = JSON.parse(
+      await readFile(join(outputDir, "data", "tool_card_url_validation.v2.json"), "utf8"),
+    );
+    assert.equal(toolCardUrlValidationV2.schema_version, "tool_card_url_validation.v2");
+    assert.equal(toolCardUrlValidationV2.options.enabled, false);
+    assert.equal(toolCardUrlValidationV2.summary.skipped > 0, true);
 
     const providerRegistry = JSON.parse(await readFile(join(outputDir, "data", "provider_registry.json"), "utf8")) as {
       schema_version: string;
@@ -283,6 +292,14 @@ test("data trust gate rejects incomplete provenance and unresolved critical conf
       { summary: { unresolved_critical: 1 } },
     ),
     /unresolved_critical_field_conflict/,
+  );
+  assert.throws(
+    () => assertDataTrustArtifacts(
+      { summary: { critical_coverage: 1 } },
+      { summary: { unresolved_critical: 0 } },
+      { summary: { blocking: 1 } },
+    ),
+    /blocking_url_validation/,
   );
 });
 

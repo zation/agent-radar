@@ -19,12 +19,18 @@ import { DEFAULT_RECOMMENDATION_MODEL, buildProviderRegistryArtifact } from "../
 import { buildSearchIndex } from "../search/index-builder.js";
 import type { SourceRecord, ToolCard } from "../schema.js";
 import { buildSkippedToolCardUrlValidation, buildToolCardFieldProvenance, checkToolCardUrls, validateToolCards } from "../validation/tool-card-validator.js";
+import {
+  buildSkippedToolCardUrlValidationV2,
+  checkToolCardUrlsV2,
+  type ToolCardUrlValidationArtifactV2,
+} from "../validation/url-checker.js";
 
 export interface BuildArtifactsOptions {
   outputDir: string;
   toolCards?: ToolCard[];
   checkUrlReachability?: boolean;
   fetchImpl?: typeof fetch;
+  previousUrlValidationV2?: ToolCardUrlValidationArtifactV2;
 }
 
 export interface BuildArtifactsSummary {
@@ -68,6 +74,22 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   const toolCardUrlValidation = shouldCheckUrls
     ? await checkToolCardUrls(toolCards, { fetchImpl: options.fetchImpl, checkedAt: "2026-07-06T00:00:00Z" })
     : buildSkippedToolCardUrlValidation(toolCards, "2026-07-06T00:00:00Z", "url_reachability_check_not_enabled");
+  const toolCardUrlValidationV2 = shouldCheckUrls
+    ? await checkToolCardUrlsV2(toolCards, {
+        fetchImpl: options.fetchImpl,
+        checkedAt: "2026-07-06T00:00:00Z",
+        previousArtifact: options.previousUrlValidationV2,
+      })
+    : buildSkippedToolCardUrlValidationV2(
+        toolCards,
+        "2026-07-06T00:00:00Z",
+        "url_reachability_check_not_enabled",
+      );
+  assertDataTrustArtifacts(
+    reliableInput.fieldProvenanceV2,
+    reliableInput.conflictReport,
+    toolCardUrlValidationV2,
+  );
   const providerRegistry = buildProviderRegistryArtifact();
   const mcpToolManifest = buildMcpToolManifest();
   const mcpExamples = buildMcpExamplesArtifact();
@@ -87,6 +109,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await mkdir(join(publicDataDir, "conflicts"), { recursive: true });
   await writeFile(join(publicDataDir, "conflicts", "tool_card_conflicts.json"), JSON.stringify(reliableInput.conflictReport, null, 2), "utf8");
   await writeFile(join(publicDataDir, "tool_card_url_validation.json"), JSON.stringify(toolCardUrlValidation, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "tool_card_url_validation.v2.json"), JSON.stringify(toolCardUrlValidationV2, null, 2), "utf8");
   await writeFile(join(publicDataDir, "provider_registry.json"), JSON.stringify(providerRegistry, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_tools.json"), JSON.stringify(mcpToolManifest, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_examples.json"), JSON.stringify(mcpExamples, null, 2), "utf8");
@@ -120,6 +143,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         tool_card_field_value_provenance_v2: "data/field_provenance/tool_card_fields.v2.json",
         tool_card_conflict_report: "data/conflicts/tool_card_conflicts.json",
         tool_card_url_validation: "data/tool_card_url_validation.json",
+        tool_card_url_validation_v2: "data/tool_card_url_validation.v2.json",
         provider_registry: "data/provider_registry.json",
         mcp_tools: "data/mcp_tools.json",
         mcp_examples: "data/mcp_examples.json",
@@ -209,6 +233,7 @@ function buildProvidedToolCardInput(toolCards: ToolCard[]): ReliableToolCardInpu
 export function assertDataTrustArtifacts(
   fieldProvenanceV2: { summary: { critical_coverage: number } },
   conflictReport: { summary: { unresolved_critical: number } },
+  urlValidationV2?: { summary: { blocking: number } },
 ): void {
   if (fieldProvenanceV2.summary.critical_coverage !== 1) {
     throw new Error(
@@ -218,6 +243,11 @@ export function assertDataTrustArtifacts(
   if (conflictReport.summary.unresolved_critical > 0) {
     throw new Error(
       `unresolved_critical_field_conflict: count=${conflictReport.summary.unresolved_critical}`,
+    );
+  }
+  if ((urlValidationV2?.summary.blocking ?? 0) > 0) {
+    throw new Error(
+      `blocking_url_validation: count=${urlValidationV2?.summary.blocking ?? 0}`,
     );
   }
 }
