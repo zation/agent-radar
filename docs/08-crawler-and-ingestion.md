@@ -8,7 +8,7 @@
 
 ## 当前实现状态
 
-截至当前分支，采集与入库模块已具备 v0.2 的最小可靠发布链路：默认发布数据来自 enabled Source Registry 的抓取、解析、标准化和发布准入结果。
+截至当前分支，采集与入库模块已完成 v0.3 P1 数据可信度基线：默认发布数据来自 enabled Source Registry 的抓取、解析、跨来源标准化、数据质量检查和发布准入结果。真实演练产出 53 张可靠 Tool Cards。
 
 当前发布流水线从采集候选生成发布 artifacts：
 
@@ -17,11 +17,13 @@ src/ingestion/source-registry.ts
   -> crawl enabled source
   -> parse Source Records
   -> normalize Tool Card drafts
-  -> validate + dedup
+  -> normalization evidence + provenance v2 + conflict report
+  -> validate + dedup + URL checker v2
   -> auto review
   -> release admission
   -> generate promotion candidates
   -> promotion check
+  -> data quality report
   -> Rating Engine
   -> Search Index Builder
   -> Eval Runner
@@ -48,6 +50,8 @@ npm run ingest
   -> data/intervention_requests/tool_card_drafts.json
   -> data/intervention_requests/tool_card_drafts.jsonl
   -> data/field_provenance/tool_card_fields.json
+  -> data/field_provenance/tool_card_fields.v2.json
+  -> data/conflicts/tool_card_conflicts.json
   -> data/dedup/tool_card_duplicates.json
   -> data/review_queue/tool_card_drafts.json
   -> data/release_admission/tool_card_drafts.json
@@ -60,7 +64,7 @@ npm run ingest
 
 repository/package Source Records 会进入 `tool_discovery_candidates.v2`，也会生成保守的 Tool Card drafts：这些 draft 只基于公开 repo/package metadata 填充 repo、package、license、stars、last commit/release、topic/keyword、维护状态和中等风险安全说明，不把社区仓库或包自动升级为官方或高信任工具。GitHub topic、star、repository 或 package 的存在都只是发现信号，不单独构成可信证据；结果仍必须经过 parser、validation、dedup、auto review、release admission 和 promotion check。最小跨来源 normalizer 会按 canonical repo/package key 合并同一工具的多来源 evidence refs、source URLs 和 package URLs；review queue 会标注与已发布 Tool Cards 以及同批 incoming drafts 的重复信号。intervention requests 会为自动审核无法闭合的 draft 输出 `resolve_before_release` 异常提示、重复信号和 validation 背景，并在 reviewed bundle review markdown 中区分 `published_duplicates` 和 `draft_duplicates`。
 
-自动审核会输出 `tool_card_auto_review.v1`，为每个 draft 生成建议动作、证据 URL、主要风险、缺失字段、人工复核原因和发布准入评分卡。release admission 的默认 gate 是自动审核建议 `promote` 且无重复、parser warning、缺字段等数据质量复核原因；`approval_record.v1` 仅作为 break-glass `approval_override`，不属于常规审核流程。discovery candidates 使用 `pending_production_gate` 和 `review_in_production_gate` 表达发布审核关注项，而不是逐条等待人工审核。高风险并不自动阻断 profile-backed Tool Card 进入 catalog；高风险工具实际执行时仍由 Tool Card `security.requires_human_approval` 和 recommendation engine 的 `ask_human`/`no_reliable_match` 要求人工确认。promotion candidates 会把 eligible drafts 连同 `auto_review` 或 `approval_override` evidence 复制到独立候选 artifact；promotion plan 会为这些候选输出目标 artifact、候选 artifact 路径、推荐发布动作和发布前检查项；promotion check 会 dry-run 校验候选是否与当前发布候选重复、是否仍通过 Tool Card validator。`npm run pipeline` 会消费通过 promotion check 的候选并生成可靠发布 artifacts。
+自动审核会输出 `tool_card_auto_review.v1`，为每个 draft 生成建议动作、证据 URL、主要风险、缺失字段、人工复核原因和发布准入评分卡。精确来源的受审 profile 可以解释上游缺少 description/license 这类可选 metadata 提示，但 parser warning 仍计入质量报告；没有 profile 的 discovery 集合仓库（如 `awesome-*`）会被拒绝，不能作为单个工具发布，也不会制造待处理 intervention。release admission 的默认 gate 是自动审核建议 `promote` 且无未解决重复、关键冲突或缺字段等复核原因；`approval_record.v1` 仅作为 break-glass `approval_override`，不属于常规审核流程。discovery candidates 使用 `pending_production_gate` 和 `review_in_production_gate` 表达发布审核关注项，而不是逐条等待人工审核。高风险并不自动阻断 profile-backed Tool Card 进入 catalog；高风险工具实际执行时仍由 Tool Card `security.requires_human_approval` 和 recommendation engine 的 `ask_human`/`no_reliable_match` 要求人工确认。promotion candidates 会把 eligible drafts 连同 `auto_review` 或 `approval_override` evidence 复制到独立候选 artifact；promotion plan 会为这些候选输出目标 artifact、候选 artifact 路径、推荐发布动作和发布前检查项；promotion check 会 dry-run 校验候选是否与当前发布候选重复、是否仍通过 Tool Card validator。`npm run pipeline` 会消费通过 promotion check 的候选并生成可靠发布 artifacts。
 
 `npm run ingest` 已支持最小 Override Record artifact：人工修正只作用于待审核 draft normalization，不覆盖 Raw Snapshot 或 Source Record，也不会自动发布到可靠 Tool Cards。Override Record 必须包含 `reason`、`created_by` 和至少一个 `evidence_urls`；被应用的 override id 会写入 draft `evidence_refs`，让后续 Tool Card validator 能审计 override record 上下文。
 
@@ -68,7 +72,13 @@ repository/package Source Records 会进入 `tool_discovery_candidates.v2`，也
 
 `npm run ingest` 会为自动审核无法闭合的 draft 输出 `tool_card_intervention_requests.v1`，包含 `pending_intervention`、`duplicate_review_required` 和 `blocked_validation` summary。每个 item 包含 `suggested_action: resolve_before_release`、已发布 Tool Card duplicate ids、同批 draft duplicate ids、validation errors/warnings 和 Source Record id；同时会输出 `data/intervention_requests/tool_card_drafts.jsonl`，方便在 reviewed bundle 审核材料中快速定位异常。它不输出 approval record 模板，也不要求维护者逐条填写 JSON。
 
-`npm run ingest` 会输出 `tool_card_field_value_provenance.v1`，包含 `tool_cards` 和 `field_values` summary。每个 item 包含 Tool Card field、Source Record id、`source_field_path`、`source_value_preview`、`normalized_value_preview` 和 `provenance_type`。默认 `source_record` item 映射到 `raw_fields.<field>`；被应用的人工修正会额外输出 `override_record` item，并附带 `override_record_id` 与 `override_records.<id>.new_value` source path。该 artifact 用于审查字段和值来源，是 production gate 审核 reviewed bundle 的证据之一；它是 curated/manual evidence provenance，不是工具执行的人工确认，也不替代 `approval_record.v1` 的 break-glass 语义。
+`npm run ingest` 在迁移期并行输出 `tool_card_field_value_provenance.v1` 与 v2。v2 保存每个关键字段的全部候选 Source Record、字段路径、值摘要、parser/normalizer 版本、转换类型、选择状态与理由；跨来源 normalizer 按 override、官方直接证据、精确 repo/package、受控 discovery、confidence 和新鲜度顺序选择，并将无法解释的关键语义冲突写入 `tool_card_conflict_report.v1`。v1 继续保留原有单来源摘要语义。
+
+URL checker v2 从显式传入或 workflow 恢复的上一版 reviewed artifact 获取历史；没有历史时明确标记无基线，不会静默读取任意工作区旧文件。检查以有限并发对去重 URL 执行，单请求有超时和有限重试，HEAD 不支持时只回退一次最小 GET，且绝不发送 Cookie、Authorization 或 API key。redirect 逐跳手动校验，拒绝 HTTPS 降级、私网/非公网地址和未审核的跨站目标；少量已核验的官方迁移域名使用显式 allowlist。每个 Tool Card 字段路径仍保留独立结果与历史。
+
+Release All 也会恢复上一 reviewed bundle 的 Source Registry、Data Quality Report 和 ingestion Source Records。某个声明 `preserve previous stable data` 的来源采集失败时，只回退该来源的上一版 Source Records，并在 crawl audit/Review Summary 保留失败信号；不得用空结果静默删除可靠卡片。Source Registry diff 和 Tool Card semantic diff 均与上一 reviewed bundle 比较，构建时间与 evidence ref 刷新不计作内容变化。
+
+`npm run pipeline` 在评分、索引和 D1 seed 生成前检查 `data_quality_report.v1`：可靠卡片必须在 50–150，关键 provenance 为 100%，未解决关键冲突、重复、blocking URL、intervention 和 promotion blocked 均为 0。失败时输出稳定 reason code 和 bundle 内 evidence path。
 
 `npm run ingest` 的终端 JSON summary 会包含 snapshots、source records、source ids、discovery candidates、intervention requests、field value provenance、auto review、release admission、promotion candidates 和 promotion plan 摘要，便于本地或 CI 快速判断采集审核状态。reviewed bundle 会把 discovery candidates、intervention requests 和 auto review summary 同步进 artifact manifest 与 review markdown，供单 Worker release workflow 审核。
 
@@ -86,7 +96,7 @@ repository/package Source Records 会进入 `tool_discovery_candidates.v2`，也
 - 更完整的跨来源 deduper、跨来源 normalizer 和人工 override 审计；当前已实现 repo/package key 的最小跨来源合并，以及 canonical URL/package URL 对已发布 Tool Cards 和同批 incoming drafts 的最小重复信号与发布阻断。
 - 更完整的 Source Registry validator；当前已检查 enabled source 的 parser 覆盖、owner、`last_reviewed_at` 和 robots/terms 审核记录，并输出带字段级 review requirements、pending summary 和 production gate action 的来源变更审核 artifacts。
 - 更完整的 promotion candidate 审核 artifact 与审核结果持久化流程；当前 reviewed bundle review markdown 已展示 discovery candidates、intervention requests、auto review summary、release admission blocked reasons、promotion candidate 明细、promotion plan 发布提示和 promotion check dry-run 结果。
-- 更完整的 Tool Card validator 字段 provenance；当前已输出 schema 级 `tool_card_field_provenance.json` 和 ingest-time `tool_card_field_value_provenance.v1`，支持 source record 与已应用 override record 的字段值 provenance，也支持 override evidence ref 对应 Override Record 的审计检查，要求 `docs_url`、`repo_url`、`homepage_url`、`package_urls` 和 `install_methods.docs_url` 被 `source_urls` 覆盖，并对非人工审核来源缺少 `permissions`、`security`、`maintenance` 字段级 evidence refs 的 Tool Card 输出 warning。可通过 `AGENT_RADAR_CHECK_URLS=true` 运行 URL 可达性检查。
+- 更细的字段语义和生态专属验证仍可继续扩展；当前已并行输出 schema 级 provenance、字段值 provenance v1/v2、冲突报告和 URL validation v1/v2，并以 `data_quality_report.v1` 统一阻断关键缺失。可通过 `AGENT_RADAR_CHECK_URLS=true` 执行真实 URL 检查。
 
 因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。
 

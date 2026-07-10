@@ -208,8 +208,9 @@ severity: critical
 | 指标 | 计算方式 | MVP 阈值 |
 | --- | --- | --- |
 | 必填字段完整率 | 完整 Tool Card / 全部 Tool Card | >= 90% |
-| 来源 URL 有效率 | 可访问 URL / 全部来源 URL | >= 90% |
-| 关键字段证据率 | 有 evidence_refs 的关键字段 / 关键字段 | >= 80% |
+| 来源 URL 状态 | reachable 或有可解释非永久状态 / 全部关键 URL | 不得有 blocking URL |
+| 关键字段 provenance | 有可回放字段选择证据 / 全部关键字段 | 100% |
+| 可靠 Tool Card 覆盖 | 通过全部发布 gate 的 Tool Card | 50–150 |
 | 重复候选率 | possible duplicates / 全部 Tool Card | 持续跟踪 |
 | 过期率 | stale Tool Card / 全部 Tool Card | <= 20% |
 | 权限未知率 | permissions unknown / 全部 Tool Card | <= 15% |
@@ -219,7 +220,9 @@ severity: critical
 - Tool Card release validator 要求 URL 字段被 `source_urls` 覆盖，包括 `docs_url`、`repo_url`、`homepage_url`、`package_urls` 和 `install_methods.docs_url`。
 - Tool Card release validator 会对普通自动采集记录缺少 `permissions`、`security` 或 `maintenance` 字段级 evidence refs 的情况输出 warning；该规则是默认自动审核的一部分。
 - `manual-review-*` evidence refs 和 `covered_by_manual_review` 只表示历史 curated 数据的人工来源证据或修正依据；它们不是当前默认审核流程的覆盖标记，不能替代 validator、release admission 或 promotion check 的结论。
-- 基础 schema 级字段 provenance 已由 `tool_card_field_provenance.json` 输出，覆盖 `permissions`、`security` 和 `maintenance` 的字段级证据、历史 curated/manual provenance 和缺失项；ingest-time `tool_card_field_value_provenance.v1` 已把 Tool Card 字段和值绑定到 Source Record 字段路径、原始值预览、归一化值预览和已应用的 Override Record。v0.3 将继续补充多来源 lineage、转换规则版本和字段冲突选择依据。
+- schema 级 `tool_card_field_provenance.json` 与字段值 provenance v1 继续输出；`tool_card_field_value_provenance.v2` 已记录多来源候选、转换规则版本、字段冲突和选择依据，关键字段覆盖率硬门禁为 100%。
+- `tool_card_conflict_report.v1`、`tool_card_url_validation.v2` 和 `data_quality_report.v1` 已进入发布前确定性门禁；LLM 摘要不能把失败改成通过。
+- 当前真实发布演练为 53 张可靠 Tool Cards、关键 provenance 100%、0 个未解决关键冲突/重复/intervention/blocking URL，真实 provider golden queries 10/10。
 
 关键字段：
 
@@ -474,6 +477,8 @@ Feedback Eval 将 Web UI、MCP/API 和 agent runtime 的反馈转化为可操作
 - golden queries critical cases。
 - index build。
 - auto review、release admission 和 promotion check。
+- `data_quality_report.v1` 状态为 pass，卡片数在 50–150，且 provenance、conflict、duplicate、URL、intervention 和 promotion 硬门禁通过。
+- `review_summary.v2` 输入 checksums 与 reviewed bundle 一致且没有 blocking item。
 - pipeline 已生成 artifact manifest、关键文件 checksums、auto-review evidence、release-admission evidence 和 promotion evidence，且 promotion check 通过。
 - 部署后的 `production-release-evidence.json` 构建与校验通过，并与 smoke report 一起成功上传为 GitHub Actions artifact。
 

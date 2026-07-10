@@ -424,9 +424,21 @@ Override Record 记录人工修正。
 - 影响评分或推荐时必须运行相关评测。
 - 被应用到 Tool Card draft 时，Override Record id 必须进入 draft `evidence_refs`，以便 validator 校验 `override-*` evidence ref 是否有匹配 Override Record。
 
-## Review Summary
+## v0.3 P1 数据可信度派生 Artifacts
 
-Review Summary 是对 Tool Card draft、已发布 Tool Card 或 promotion candidate 的自动审核摘要。它用于把规则/LLM 审核结果持久化进 reviewed bundle，降低 production gate 前的证据扫描成本，但不替代安全 gate 或 GitHub production environment approval。
+v0.3 P1 不改变 `tool_card.v1` 字段语义，而是新增可回放的派生证据：
+
+- `tool_card_field_value_provenance.v2`：按 Tool Card 和字段保存全部候选来源、原始值摘要、归一化值、parser/normalizer 版本、选择状态与理由；关键字段覆盖率必须为 100%。迁移期继续输出 v1。
+- `tool_card_conflict_report.v1`：保存 canonical identity、候选来源、冲突类型、自动选择规则及未解决关键冲突。未解决关键冲突生成 intervention 并阻断发布。
+- `tool_card_url_validation.v2`：按字段路径保存 URL 的 `reachable`、`permanent_failure`、`auth_required`、`rate_limited`、`transient_error` 或 `skipped` 状态，以及请求方法、最终 URL、检查时间和连续失败历史。迁移期继续输出 v1。
+- `data_quality_report.v1`：汇总覆盖数量、必填字段、provenance、置信度、未知字段、重复、冲突、URL 与审核状态，并用稳定 reason code 输出硬门禁。
+- `review_summary.v2`：发布级摘要，先列阻断项，再列 warning 和变更；每项包含对象 ID、evidence path 和建议动作。摘要引用输入 artifact checksums，最终 manifest 再记录摘要自身 checksum，避免循环依赖。
+
+当前 v1/v2 文件均进入 reviewed bundle 和 artifact manifest；消费者迁移完成前不得删除 v1。
+
+## Review Summary v1（单对象历史模型）
+
+Review Summary v1 是对 Tool Card draft、已发布 Tool Card 或 promotion candidate 的单对象自动审核模型。当前发布链路使用上方的发布级 `review_summary.v2`；v1 仅保留历史语义，不替代安全 gate 或 GitHub production environment approval。
 
 ```json
 {

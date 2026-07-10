@@ -324,6 +324,10 @@ Worker deployment 应包含：
 - `data/*`：Tool Cards、ratings、search index、eval summary、D1 seed。
 - `data/provider_registry.json`：版本化 provider runtime config，供 UI、API 和发布审核确认 BYOK model/provider 选项一致。
 - `data/tool_card_field_provenance.json`：关键字段 provenance summary，覆盖 `permissions`、`security` 和 `maintenance` 的字段级证据状态。
+- `data/field_provenance/tool_card_fields.v2.json`、`data/conflicts/tool_card_conflicts.json`：字段级多来源选择证据和冲突报告；迁移期继续保留 provenance v1。
+- `data/tool_card_url_validation.v2.json`：带超时、重试、状态分类和历史的 URL 检查；迁移期继续保留 URL v1。
+- `data/data_quality_report.json`：P1 确定性数据质量门禁。
+- `data/review_summary.v2.json` 与 `reports/review_summary.v2.md`：发布级审核摘要及证据路径。
 - `data/mcp_examples.json`：MCP JSON-RPC 请求示例，供 agent/client 集成验证。
 - `data/mcp_smoke_checklist.json`：MCP deployment review checklist，列出 initialize、tools/list、只读 tools/call 和只读边界的必检项。
 - `reports/*`：eval report。
@@ -335,6 +339,8 @@ Worker deployment 应包含：
 - `artifacts/review/ingestion.md` 作为 uploaded artifact 保存完整采集明细，包括 discovery candidates、intervention requests、auto review scorecards、release admission items、promotion candidates 和 promotion plan。
 - `dist-pages/artifact-manifest.json` 作为机器可读摘要保存在 reviewed bundle 中；它直接记录 Git SHA、data version、eval 和自动审核/admission/promotion 摘要，并用关键文件 checksums 间接绑定 `data/manifest.json` 中的规则与索引版本。
 - `worker-dry-run` 保存 Wrangler 对 Worker bundle 的部署前校验结果。
+
+P1 检查只在 reviewed-bundle build job 运行：该 job 强制启用真实 URL 检查，尝试恢复上一成功 Release All 的 reviewed baseline，随后执行采集、数据质量门禁、golden eval、Review Summary/final manifest checksum 校验和 pages build。上一 artifact 不存在时显式使用 `no_baseline`；来源失败且策略允许时保留上一稳定 Source Records。production job 在 GitHub `production` environment 确认后只下载、复核并部署同一个 immutable reviewed bundle；不得重跑采集、URL checker、评分或数据质量报告。
 
 GitHub 配置要求：
 
@@ -385,6 +391,7 @@ Production promote 不重新运行：
 - schema validation。
 - source registry validation。
 - data quality critical checks。
+- `data_quality_report.v1` 为 pass，`review_summary.v2` 无 blocking item 且 checksum 校验通过。
 - safety eval critical cases。
 - golden queries critical cases。
 - index build。

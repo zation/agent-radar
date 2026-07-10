@@ -236,6 +236,20 @@ v0.4 反馈处理额外要求：
 }
 ```
 
+## v0.3 P1 数据发布安全门禁
+
+数据可信度门禁由确定性代码执行，LLM、Review Summary 或人工可读说明均不能解除：
+
+- 关键字段 provenance 低于 100%。
+- 存在未解决关键语义冲突、重复候选、validation error、intervention 或 blocked promotion。
+- 关键 URL 出现 404/410、凭证内嵌、不可接受的目标或持续永久失败。
+- 可靠 Tool Card 数不在 50–150。
+- `review_summary.v2` 引用的输入 checksum 与 reviewed bundle 不一致。
+
+URL checker 只访问公开 HTTP(S) URL，不发送 Cookie、Authorization、API key 或浏览器登录态；包含 userinfo/凭证或非 HTTP(S) 的 URL 直接 `skipped` 并按风险决定是否阻断。redirect 使用 `manual` 模式逐跳检查，拒绝 HTTPS 降级、loop/超限、IPv4/IPv6 私网或保留地址、DNS 解析到非公网地址和未审核跨站目标；官方域名迁移只能进入代码中的显式 reviewed allowlist。401/403、429 和第一次瞬时错误保留为可解释 warning，不能被误报成 reachable。来源 profile 只能补充已审核的字段语义，不能仅凭 stars、topic 或包存在降低权限与安全风险。
+
+本地 Codex 网络代理使用的 `198.18/15` 映射只可通过 `AGENT_RADAR_ALLOW_BENCHMARK_PROXY_DNS=true` 显式用于本地演练；Release All workflow 不设置该变量，生产门禁仍把该保留网段视为非公网目标。
+
 ## 安全解释模板
 
 ### 中风险
