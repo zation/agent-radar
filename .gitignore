@@ -1,5 +1,6 @@
 dist/
 dist-pages/
+.worktrees/
 node_modules/
 public/data/
 public/reports/
