@@ -138,11 +138,11 @@ const ingestionResult: RunIngestionResult = {
       }
     ]
   },
-  approvalRequests: {
-    schema_version: "tool_card_approval_requests.v1",
+  interventionRequests: {
+    schema_version: "tool_card_intervention_requests.v1",
     generated_at: "2026-07-07T00:00:00Z",
     summary: {
-      pending_approval: 1,
+      pending_intervention: 1,
       duplicate_review_required: 1,
       blocked_validation: 0
     },
@@ -157,15 +157,10 @@ const ingestionResult: RunIngestionResult = {
         duplicate_of_draft_tool_ids: ["agent-draft-twin"],
         validation_errors: [],
         validation_warnings: [],
-        decision_options: ["approved", "rejected", "needs_changes"],
-        approval_record_template: {
-          id: "approval-agent-blocked-manual-agent-radar-seed-agent-blocked-20260707",
-          schema_version: "approval_record.v1",
-          target_type: "tool_card_draft",
-          target_id: "agent-blocked",
-          source_record_id: "manual-agent-radar-seed-agent-blocked-20260707",
-          required_fields: ["decision", "reason", "reviewer", "reviewed_at"]
-        }
+        id: "intervention-agent-blocked-manual-agent-radar-seed-agent-blocked-20260707",
+        schema_version: "tool_card_intervention_request.v1",
+        target_id: "agent-blocked",
+        suggested_action: "resolve_before_release"
       }
     ]
   },
@@ -274,7 +269,7 @@ const ingestionResult: RunIngestionResult = {
         tool_id: "agent-codex",
         source_record_id: "manual-agent-radar-seed-agent-codex-20260707",
         status: "eligible_for_publish",
-        gate: "manual_approval",
+        gate: "approval_override",
         blocking_reasons: []
       },
       {
@@ -332,7 +327,7 @@ const ingestionResult: RunIngestionResult = {
           updated_at: "2026-07-07T00:00:00Z"
         },
         review: {
-          gate: "manual_approval",
+          gate: "approval_override",
           reviewed_by: "maintainer",
           reviewed_at: "2026-07-07T12:00:00Z",
           reason: "Reviewed for preview."
@@ -356,7 +351,7 @@ const ingestionResult: RunIngestionResult = {
         target_artifact: "public/data/tool_cards.jsonl",
         candidate_artifact_path: "data/promotion_candidates/tool_cards.json",
         review: {
-          gate: "manual_approval",
+          gate: "approval_override",
           reviewed_by: "maintainer",
           reviewed_at: "2026-07-07T12:00:00Z",
           reason: "Reviewed for preview."
@@ -403,23 +398,22 @@ test("renders ingestion review markdown for preview reviewers", () => {
   assert.match(markdown, /## Discovery Candidates/);
   assert.match(markdown, /modelcontextprotocol\/servers source=github-topic-mcp source_record=github-topic-mcp-modelcontextprotocol-servers-20260708 repo=https:\/\/github.com\/modelcontextprotocol\/servers stars=51000 review_status=pending_manual_review action=review_before_tool_card_draft/);
   assert.match(markdown, /Crawl audit: 1 success, 0 partial, 0 failed/);
-  assert.match(markdown, /Approvals: 1 approved, 0 rejected, 0 needs changes/);
+  assert.match(markdown, /Approval overrides: 1 approved, 0 rejected, 0 needs changes/);
   assert.match(markdown, /Auto review: 1 promote, 1 needs review, 0 keep draft/);
   assert.match(markdown, /## Field Value Provenance/);
   assert.match(markdown, /agent-codex summary type=source_record source=raw_fields\.summary source_record=manual-agent-radar-seed-agent-codex-20260707 value=Cloud coding agent for software development tasks\./);
-  assert.match(markdown, /## Approval Requests/);
-  assert.match(markdown, /agent-blocked \(Blocked Agent\) source_record=manual-agent-radar-seed-agent-blocked-20260707 review_status=ready_for_review published_duplicates=agent-codex draft_duplicates=agent-draft-twin template_id=approval-agent-blocked-manual-agent-radar-seed-agent-blocked-20260707/);
-  assert.match(markdown, /decision_options=approved,rejected,needs_changes required_fields=decision,reason,reviewer,reviewed_at/);
+  assert.match(markdown, /## Intervention Requests/);
+  assert.match(markdown, /agent-blocked \(Blocked Agent\) source_record=manual-agent-radar-seed-agent-blocked-20260707 review_status=ready_for_review published_duplicates=agent-codex draft_duplicates=agent-draft-twin action=resolve_before_release/);
   assert.match(markdown, /Release admission: 1 eligible, 1 blocked/);
   assert.match(markdown, /## Auto Review/);
   assert.match(markdown, /agent-codex source_record=manual-agent-radar-seed-agent-codex-20260707 action=promote score=10/);
   assert.match(markdown, /## Release Admission/);
-  assert.match(markdown, /agent-codex source_record=manual-agent-radar-seed-agent-codex-20260707 status=eligible_for_publish gate=manual_approval blocking_reasons=none/);
+  assert.match(markdown, /agent-codex source_record=manual-agent-radar-seed-agent-codex-20260707 status=eligible_for_publish gate=approval_override blocking_reasons=none/);
   assert.match(markdown, /agent-blocked source_record=manual-agent-radar-seed-agent-blocked-20260707 status=blocked gate=blocked blocking_reasons=approval_or_auto_review_not_passed,possible_duplicate/);
   assert.match(markdown, /Promotion candidates: 1/);
   assert.match(markdown, /Promotion plan: 1 candidates, ready for reliable publish/);
   assert.match(markdown, /## Promotion Candidates/);
-  assert.match(markdown, /agent-codex \(Codex\) source_record=manual-agent-radar-seed-agent-codex-20260707 gate=manual_approval reviewer=maintainer reviewed_at=2026-07-07T12:00:00Z/);
+  assert.match(markdown, /agent-codex \(Codex\) source_record=manual-agent-radar-seed-agent-codex-20260707 gate=approval_override reviewer=maintainer reviewed_at=2026-07-07T12:00:00Z/);
   assert.match(markdown, /review_reason=Reviewed for preview\./);
   assert.match(markdown, /## Promotion Plan/);
   assert.match(markdown, /agent-codex target=public\/data\/tool_cards\.jsonl action=publish_via_reliable_pipeline candidate_artifact=data\/promotion_candidates\/tool_cards\.json/);
@@ -513,8 +507,8 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
         needs_changes: 1
       }
     },
-    approval_requests: {
-      pending_approval: 18,
+    intervention_requests: {
+      pending_intervention: 18,
       duplicate_review_required: 12,
       blocked_validation: 1
     },
@@ -567,8 +561,8 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
   assert.match(markdown, /- Crawl audit: 1 success, 1 partial, 1 failed \(3 total\)/);
   assert.match(markdown, /- Source registry review: 1\/2 confirmed, 1 pending, 0 rejected, 0 needs changes/);
   assert.match(markdown, /- Source registry review requests: 1 pending, 1 confirmation required/);
-  assert.match(markdown, /- Ingestion approvals: 2 approved, 1 rejected, 1 needs changes/);
-  assert.match(markdown, /- Approval requests: 18 pending, 12 duplicate review, 1 blocked validation/);
+  assert.match(markdown, /- Approval overrides: 2 approved, 1 rejected, 1 needs changes/);
+  assert.match(markdown, /- Intervention requests: 18 pending, 12 duplicate review, 1 blocked validation/);
   assert.match(markdown, /- Field value provenance: 240 field values across 20 Tool Cards/);
   assert.match(markdown, /- Auto review: 12 promote, 5 needs review, 3 keep draft, 1 reject, 0 retire/);
   assert.match(markdown, /- Release admission: 2 eligible, 18 blocked/);
@@ -603,8 +597,8 @@ test("renders compact review summary with only actionable review items", () => {
         pending_review: 1,
         confirmation_required: 1
       },
-      approval_requests: {
-        pending_approval: 2,
+      intervention_requests: {
+        pending_intervention: 2,
         duplicate_review_required: 1,
         blocked_validation: 0
       },
@@ -650,7 +644,7 @@ test("renders compact review summary with only actionable review items", () => {
   assert.match(markdown, /- Preview: https:\/\/example\.pages\.dev/);
   assert.match(markdown, /### Review Required/);
   assert.match(markdown, /- Source registry: 1 pending confirmation, 1 required/);
-  assert.match(markdown, /- Tool Card approvals: 2 pending, 1 duplicate review, 0 blocked validation/);
+  assert.match(markdown, /- Tool Card interventions: 2 pending, 1 duplicate review, 0 blocked validation/);
   assert.match(markdown, /- Golden eval: 1 failing/);
   assert.match(markdown, /- Field provenance: 3 critical fields missing evidence/);
   assert.match(markdown, /- Crawl audit: 0 failed, 1 partial/);
@@ -671,7 +665,7 @@ test("renders compact review summary as clean when no action is needed", () => {
       eval: { passed: 10, total: 10, model: "deepseek-v4-flash", failure_categories: { none: 10 } },
       source_registry_review: { total_requirements: 0, confirmed: 0, rejected: 0, needs_changes: 0, pending: 0 },
       source_registry_review_requests: { pending_review: 0, confirmation_required: 0 },
-      approval_requests: { pending_approval: 0, duplicate_review_required: 0, blocked_validation: 0 },
+      intervention_requests: { pending_intervention: 0, duplicate_review_required: 0, blocked_validation: 0 },
       release_admission: { eligible_for_publish: 10, blocked: 0 },
       promotion_check: { candidates: 10, ready_for_publish: 10, blocked: 0, duplicate_tool_ids: 0, validation_errors: 0, validation_warnings: 0, passed: true },
       tool_card_field_provenance: { cards_checked: 10, fields_checked: 30, covered: 30, covered_by_manual_review: 0, missing: 0 },
@@ -750,14 +744,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
             field: "enabled",
             reason: "Source enablement changes crawl scope and require maintainer confirmation.",
             confirmation_required: true,
-            decision_options: ["confirmed", "rejected", "needs_changes"],
-            review_record_template: {
-              id: "source-review-github-topic-mcp-enabled",
-              schema_version: "source_registry_review_record.v1",
-              source_id: "github-topic-mcp",
-              field: "enabled",
-              required_fields: ["decision", "reason", "reviewer", "reviewed_at"]
-            }
+            suggested_action: "review_in_production_gate"
           }
         ]
       }),
@@ -783,7 +770,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       tool_card_url_validation: { checked: number; reachable: number; failed: number; skipped: number };
       tool_card_field_provenance: { cards_checked: number; fields_checked: number; covered: number; covered_by_manual_review: number; missing: number };
       ingestion_review: { approvals: { approved: number; rejected: number; needs_changes: number } };
-      approval_requests: { pending_approval: number; duplicate_review_required: number; blocked_validation: number };
+      intervention_requests: { pending_intervention: number; duplicate_review_required: number; blocked_validation: number };
       field_value_provenance: { tool_cards: number; field_values: number };
       auto_review: { promote: number; keep_draft: number; needs_review: number; reject: number; retire: number };
       release_admission: { eligible_for_publish: number; blocked: number };
@@ -797,7 +784,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.match(reviewMarkdown, /## Source Registry Review Requirements/);
     assert.match(reviewMarkdown, /github-topic-mcp: enabled - Source enablement changes crawl scope and require maintainer confirmation\./);
     assert.match(reviewMarkdown, /## Source Registry Review Requests/);
-    assert.match(reviewMarkdown, /github-topic-mcp:enabled template_id=source-review-github-topic-mcp-enabled decision_options=confirmed,rejected,needs_changes required_fields=decision,reason,reviewer,reviewed_at/);
+    assert.match(reviewMarkdown, /github-topic-mcp:enabled action=review_in_production_gate/);
     assert.equal(artifactManifest.git_sha, "abc123");
     assert.deepEqual(artifactManifest.crawl_audit, { total: 1, success: 1, partial: 0, failed: 0 });
     assert.deepEqual(artifactManifest.source_registry_diff, { added: 2, removed: 0, changed: 1 });
@@ -806,7 +793,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.deepEqual(artifactManifest.tool_card_url_validation, { checked: 0, reachable: 0, failed: 0, skipped: 12 });
     assert.deepEqual(artifactManifest.tool_card_field_provenance, { cards_checked: 20, fields_checked: 60, covered: 0, covered_by_manual_review: 60, missing: 0 });
     assert.deepEqual(artifactManifest.ingestion_review.approvals, { approved: 1, rejected: 0, needs_changes: 0 });
-    assert.deepEqual(artifactManifest.approval_requests, { pending_approval: 1, duplicate_review_required: 1, blocked_validation: 0 });
+    assert.deepEqual(artifactManifest.intervention_requests, { pending_intervention: 1, duplicate_review_required: 1, blocked_validation: 0 });
     assert.deepEqual(artifactManifest.field_value_provenance, { tool_cards: 1, field_values: 2 });
     assert.deepEqual(artifactManifest.auto_review, { promote: 1, keep_draft: 0, needs_review: 1, reject: 0, retire: 0 });
     assert.deepEqual(artifactManifest.release_admission, { eligible_for_publish: 1, blocked: 1 });

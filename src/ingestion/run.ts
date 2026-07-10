@@ -1,7 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildApprovalArtifact, type ApprovalArtifact, type ApprovalRecord } from "./approval.js";
-import { buildToolCardApprovalRequests, type ToolCardApprovalRequests } from "./approval-requests.js";
 import { buildToolCardAutoReview, type ToolCardAutoReview } from "./auto-review.js";
 import { buildCrawlAudit, type CrawlAudit } from "./crawl-audit.js";
 import { buildSourceCrawlPlan, type SourceCrawlPlan } from "./crawl-plan.js";
@@ -9,6 +8,7 @@ import { crawlEnabledSources } from "./crawler.js";
 import { buildToolCardDuplicateReport, type ToolCardDuplicateReport } from "./deduper.js";
 import { buildToolDiscoveryCandidates, type ToolDiscoveryCandidates } from "./discovery-candidates.js";
 import { buildToolCardFieldValueProvenance, type ToolCardFieldValueProvenance } from "./field-provenance.js";
+import { buildToolCardInterventionRequests, type ToolCardInterventionRequests } from "./intervention-requests.js";
 import { normalizeToolCardDrafts, type OverrideRecord } from "./normalizer.js";
 import { parseSnapshot } from "./parser.js";
 import { buildToolCardPromotionCheck, type ToolCardPromotionCheck } from "./promotion-check.js";
@@ -38,7 +38,7 @@ export interface RunIngestionResult {
   toolCardDrafts: ToolCard[];
   overrideRecords: OverrideRecord[];
   approvalArtifact: ApprovalArtifact;
-  approvalRequests: ToolCardApprovalRequests;
+  interventionRequests: ToolCardInterventionRequests;
   fieldProvenance: ToolCardFieldValueProvenance;
   duplicateReport: ToolCardDuplicateReport;
   reviewQueue: ToolCardReviewQueue;
@@ -93,8 +93,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeReviewQueue(options.outputDir, reviewQueue);
   const autoReview = buildToolCardAutoReview(toolCardDrafts, sourceRecords, reviewQueue, now);
   await writeAutoReview(options.outputDir, autoReview);
-  const approvalRequests = buildToolCardApprovalRequests(reviewQueue, now);
-  await writeApprovalRequests(options.outputDir, approvalRequests);
+  const interventionRequests = buildToolCardInterventionRequests(reviewQueue, now);
+  await writeInterventionRequests(options.outputDir, interventionRequests);
   const releaseAdmission = buildToolCardReleaseAdmission(reviewQueue, now, autoReview);
   await writeReleaseAdmission(options.outputDir, releaseAdmission);
   const promotionCandidates = buildToolCardPromotionCandidates(toolCardDrafts, releaseAdmission, approvalRecords, now, autoReview);
@@ -113,7 +113,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     toolCardDrafts,
     overrideRecords,
     approvalArtifact,
-    approvalRequests,
+    interventionRequests,
     fieldProvenance,
     duplicateReport,
     reviewQueue,
@@ -205,27 +205,12 @@ async function writeReviewQueue(outputDir: string, reviewQueue: ToolCardReviewQu
   await writeFile(join(reviewQueueDir, "tool_card_drafts.json"), JSON.stringify(reviewQueue, null, 2), "utf8");
 }
 
-async function writeApprovalRequests(outputDir: string, approvalRequests: ToolCardApprovalRequests): Promise<void> {
-  const approvalRequestsDir = join(outputDir, "data", "approval_requests");
-  await mkdir(approvalRequestsDir, { recursive: true });
-  await writeFile(join(approvalRequestsDir, "tool_card_drafts.json"), JSON.stringify(approvalRequests, null, 2), "utf8");
-  await writeFile(join(approvalRequestsDir, "approval_record_templates.jsonl"), serializeApprovalRecordTemplates(approvalRequests), "utf8");
-}
-
-function serializeApprovalRecordTemplates(approvalRequests: ToolCardApprovalRequests): string {
-  const lines = approvalRequests.items
-    .map((item) =>
-      JSON.stringify({
-        ...item.approval_record_template,
-        decision_options: item.decision_options,
-        duplicate_of_tool_ids: item.duplicate_of_tool_ids,
-        duplicate_of_draft_tool_ids: item.duplicate_of_draft_tool_ids,
-        validation_errors: item.validation_errors,
-        validation_warnings: item.validation_warnings
-      })
-    )
-    .join("\n");
-  return lines ? `${lines}\n` : "";
+async function writeInterventionRequests(outputDir: string, interventionRequests: ToolCardInterventionRequests): Promise<void> {
+  const interventionRequestsDir = join(outputDir, "data", "intervention_requests");
+  await mkdir(interventionRequestsDir, { recursive: true });
+  await writeFile(join(interventionRequestsDir, "tool_card_drafts.json"), JSON.stringify(interventionRequests, null, 2), "utf8");
+  const lines = interventionRequests.items.map((item) => JSON.stringify(item)).join("\n");
+  await writeFile(join(interventionRequestsDir, "tool_card_drafts.jsonl"), lines ? `${lines}\n` : "", "utf8");
 }
 
 async function writeFieldProvenance(outputDir: string, fieldProvenance: ToolCardFieldValueProvenance): Promise<void> {

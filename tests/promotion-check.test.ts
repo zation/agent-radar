@@ -115,7 +115,7 @@ function candidatesWithDraft(draft: ToolCardPromotionCandidates["items"][number]
         source_record_id: `source-record-${draft.id}`,
         draft,
         review: {
-          gate: "manual_approval",
+          gate: "approval_override",
           reviewed_by: "maintainer",
           reviewed_at: generatedAt,
           reason: "Reviewed for promotion dry-run."

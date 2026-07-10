@@ -89,9 +89,9 @@ changed:
         confirmation_required: true
 ```
 
-当前会生成 review requirement 的字段包括：`enabled`、`url`、`source_type`、`collection_method`、`recommended_frequency`、`trust_level`、`field_coverage`、`rate_limits`、`terms_notes`、`access_review`、`parser` 和 `profile`。Cloudflare Pages preview 的 ingestion review markdown 会展示这些字段级审核提示，便于 reviewer 在 Actions Summary 中确认高影响来源变更。该 artifact 只提供审核提示，不自动信任新来源，也不替代人工确认。
+当前会生成 review requirement 的字段包括：`enabled`、`url`、`source_type`、`collection_method`、`recommended_frequency`、`trust_level`、`field_coverage`、`rate_limits`、`terms_notes`、`access_review`、`parser` 和 `profile`。Cloudflare Pages preview 的 ingestion review markdown 会展示这些字段级审核提示，便于 reviewer 在 GitHub production environment approval 前确认高影响来源变更。该 artifact 只提供审核提示，不自动信任新来源，也不替代 production gate。
 
-`source_registry_review.json` 记录这些 requirements 的人工确认状态：
+`source_registry_review.json` 记录这些 requirements 的 production gate 关注状态：
 
 ```yaml
 schema_version: source_registry_review.v1
@@ -105,17 +105,12 @@ items:
   - source_id:
     field:
     reason:
-    status: pending | confirmed | rejected | needs_changes
-    confirmation:
-      record_id:
-      reviewer:
-      reviewed_at:
-      reason:
+    status: pending
 ```
 
-没有匹配 confirmation record 的 requirement 默认为 `pending`。该 artifact 只表达审核状态，不会自动启用来源或提升来源可信度。
+当前不持久化逐字段 confirmation record；有 review requirement 的字段保持 `pending`，并由 reviewed bundle 的 GitHub production approval 作为人工确认边界。该 artifact 只表达审核关注项，不会自动启用来源或提升来源可信度。
 
-`source_registry_review_requests.json` 会为仍处于 `pending` 的 requirement 输出可操作确认模板：
+`source_registry_review_requests.json` 会为仍处于 `pending` 的 requirement 输出 production gate action：
 
 ```yaml
 schema_version: source_registry_review_requests.v1
@@ -127,16 +122,10 @@ items:
     field:
     reason:
     confirmation_required:
-    decision_options: [confirmed, rejected, needs_changes]
-    review_record_template:
-      id:
-      schema_version: source_registry_review_record.v1
-      source_id:
-      field:
-      required_fields: [decision, reason, reviewer, reviewed_at]
+    suggested_action: review_in_production_gate | covered_by_release_summary
 ```
 
-该 artifact 用于让 reviewer 在 preview summary 中看到可填写的 confirmation record 模板；模板本身不是确认记录，不会自动启用来源或改变来源可信度。
+该 artifact 用于让 reviewer 在 preview summary 和 Review 页面中看到需要 production gate 关注的来源变更；它不提供可填写的 confirmation record 模板，不会自动启用来源或改变来源可信度。
 
 ## 来源类型
 

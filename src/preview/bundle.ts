@@ -38,10 +38,10 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
       needs_changes: options.ingestion.approvalArtifact.summary.needs_changes
     }
   };
-  manifest.approval_requests = {
-    pending_approval: options.ingestion.approvalRequests.summary.pending_approval,
-    duplicate_review_required: options.ingestion.approvalRequests.summary.duplicate_review_required,
-    blocked_validation: options.ingestion.approvalRequests.summary.blocked_validation
+  manifest.intervention_requests = {
+    pending_intervention: options.ingestion.interventionRequests.summary.pending_intervention,
+    duplicate_review_required: options.ingestion.interventionRequests.summary.duplicate_review_required,
+    blocked_validation: options.ingestion.interventionRequests.summary.blocked_validation
   };
   manifest.field_value_provenance = {
     tool_cards: options.ingestion.fieldProvenance.summary.tool_cards,
@@ -87,23 +87,17 @@ async function readSourceRegistryReviewRequests(distDir: string): Promise<Source
       items?: Array<{
         source_id?: string;
         field?: string;
-        decision_options?: string[];
-        review_record_template?: {
-          id?: string;
-          required_fields?: string[];
-        };
+        suggested_action?: string;
       }>;
     };
 
     return (requests.items ?? []).flatMap((item) => {
-      if (!item.source_id || !item.field || !item.review_record_template?.id) return [];
+      if (!item.source_id || !item.field || !item.suggested_action) return [];
       return [
         {
           source_id: item.source_id,
           field: item.field,
-          template_id: item.review_record_template.id,
-          decision_options: item.decision_options ?? [],
-          required_fields: item.review_record_template.required_fields ?? []
+          suggested_action: item.suggested_action
         }
       ];
     });

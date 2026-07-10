@@ -8,7 +8,7 @@ export interface ToolCardPromotionCandidateItem {
   source_record_id: string;
   draft: ToolCard;
   review: {
-    gate: "manual_approval" | "auto_review";
+    gate: "approval_override" | "auto_review";
     reviewed_by: string;
     reviewed_at: string;
     reason: string;
@@ -51,7 +51,7 @@ export function buildToolCardPromotionCandidates(
           draft,
           review: approval
             ? {
-                gate: "manual_approval" as const,
+                gate: "approval_override" as const,
                 reviewed_by: approval.reviewer,
                 reviewed_at: approval.reviewed_at,
                 reason: approval.reason

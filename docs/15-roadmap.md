@@ -31,7 +31,7 @@
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
 - React/Vite Web UI 已包含 `Tools` 和 `Recommend` 两个主页面，支持工具浏览、详情、评分解释、风险展示、推荐结果列表和 eval 状态弹层。
 - Web UI 已增加 `Compare` 页面，支持最多 4 个 Tool Cards 横向比较评分、风险、证据、权限和适用/不适用场景。
-- Web UI 已增加 `Review` 页面，读取 `source_registry_review_requests.json`，展示 Source Registry confirmation request 的 template id、decision options、required fields 和审核原因，并可在本地生成/复制 review record JSON 草稿。
+- Web UI 已增加 `Review` 页面，读取 `source_registry_review_requests.json`，展示 Source Registry production gate review request 的审核原因和 suggested action。
 - Workers 风格只读 API 已实现 `search_tools`、`get_tool_card`、`recommend_tools`、`explain_rating`。
 - 本地 Vite dev server 已挂载 `/api/*`，避免本地开发时前端请求 API 404。
 - 推荐路径已从本地关键词/规则排序改为 BYOK LLM-backed 推荐；本地代码负责组装 Tool Card/Rating 上下文、调用 provider、校验已知 `tool_id`、保留风险边界并归一化输出。
@@ -48,24 +48,24 @@
 - Preview artifact manifest 已汇总 eval failure categories，便于发布审核快速判断失败类型。
 - GitHub Actions preview summary 已展示 eval failure categories，便于 reviewer 不打开 JSON 也能看到失败类型分布。
 - Preview artifact manifest 已汇总 ingestion approval summary，便于发布审核快速确认 draft 审核状态。
-- Preview artifact manifest 已汇总 approval requests summary，便于维护者确认还有多少 draft 缺真实 approval、多少需要重复项审核或 validation 修复。
+- Preview artifact manifest 已汇总 intervention requests summary，便于维护者确认还有多少 draft 需要在发布前处理重复项或 validation 修复。
 - Preview artifact manifest 和 ingestion review 已汇总 auto review 与 release admission summary，便于发布审核快速确认草稿自动审核建议、发布 gate 和阻断原因。
 - Preview artifact manifest、GitHub Actions preview summary 和 ingestion review 已汇总 discovery candidates summary，便于维护者审核发现候选而不自动生成 Tool Card draft。
 - 无 `AGENT_RADAR_LLM_API_KEY` 时，pipeline/eval 会生成 blocked eval summary，而不是运行旧本地推荐引擎。
 - 已用真实 provider key 跑通 5 个 MVP golden queries，并通过 release gate。
 - `npm run ingest` 已提供 v0.2 最小采集草稿链路：读取 enabled Source Registry、保存 Raw Snapshot、输出 Source Records，并为完整且无 parser warnings 的 manual 记录经 normalizer 生成待审核 Tool Card drafts 和 review queue。
 - 采集草稿链路已支持最小 Override Record artifact，可对待审核 draft 应用有证据的人工修正，同时保留 override 审计记录。
-- 采集草稿链路已支持最小 Approval Record artifact，可记录 draft 的 `approved`、`rejected` 和 `needs_changes` 审核决定，但不会自动发布。
-- 采集草稿链路已支持 Approval Request artifact，为缺少 approval 的 draft 输出 approval record template、decision options、duplicate review 背景和 validation 背景，并额外生成逐行可处理的 `approval_record_templates.jsonl`；模板本身不会解除发布阻断。
+- 采集草稿链路保留最小 Approval Record artifact 作为 break-glass override，但默认审核路径由 auto review、release admission、promotion check 和 GitHub production approval 完成。
+- 采集草稿链路已支持 Intervention Request artifact，为自动审核无法闭合的 draft 输出 `resolve_before_release` action、duplicate review 背景和 validation 背景，并额外生成逐行可处理的 `tool_card_drafts.jsonl`；它不要求维护者逐条填写 approval record。
 - 采集草稿链路已输出最小 dedup report，按 draft id 和 canonical URL 标注对已发布 Tool Cards 以及同批 incoming drafts 的可能重复项，供人工审核参考。
-- review queue 已包含最小重复信号和 approval decision，可标注 draft 可能对应的已发布 `tool_id`、同批重复 draft id 及人工审核决定，但不会自动合并或发布。
-- 采集草稿链路已输出 auto review 和 release admission artifact；ready 且无重复信号的 draft 可通过人工 `approved` 或自动审核 `promote` gate 标为 `eligible_for_publish`，但不会自动发布。
-- 采集草稿链路已输出 promotion candidates artifact，把 eligible drafts 和 manual/auto review evidence 汇总为发布候选，并输出 promotion plan artifact 和 promotion check dry-run，标注目标 artifact、候选 artifact 路径、推荐发布动作、发布前检查项和阻断原因；`npm run pipeline` 默认消费通过 gate 的候选生成可靠 Tool Cards。
+- review queue 已包含最小重复信号，可标注 draft 可能对应的已发布 `tool_id` 和同批重复 draft id，但不会自动合并或发布。
+- 采集草稿链路已输出 auto review 和 release admission artifact；ready 且无重复信号的 draft 可通过自动审核 `promote` gate 标为 `eligible_for_publish`；少数 Approval Record 只作为 `approval_override` break-glass gate。
+- 采集草稿链路已输出 promotion candidates artifact，把 eligible drafts 和 auto review / approval override evidence 汇总为发布候选，并输出 promotion plan artifact 和 promotion check dry-run，标注目标 artifact、候选 artifact 路径、推荐发布动作、发布前检查项和阻断原因；`npm run pipeline` 默认消费通过 gate 的候选生成可靠 Tool Cards。
 - 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
 - 发布流水线已输出 `source_registry_diff.json` artifact，记录 Source Registry 来源配置 added、removed 和 changed 摘要，并为高影响 changed fields 输出 review requirements；摘要已同步到 preview artifact manifest。
 - Preview ingestion review 已展示 Source Registry 字段级 review requirements，便于 reviewer 在 Actions Summary 中看到高影响来源变更的确认原因。
-- 发布流水线已输出 `source_registry_review.json` artifact，记录 Source Registry review requirements 的 `pending`、`confirmed`、`rejected` 和 `needs_changes` 状态；summary 已同步到 preview artifact manifest。
-- 发布流水线已输出 `source_registry_review_requests.json` artifact，为 pending Source Registry requirements 生成 confirmation record template、decision options 和 required fields；summary 与模板已同步到 preview/Actions review 材料，并已接入 Web UI 的 Review 页面生成/复制草稿流程。
+- 发布流水线已输出 `source_registry_review.json` artifact，记录 Source Registry review requirements 的 pending production gate 关注项；summary 已同步到 preview artifact manifest。
+- 发布流水线已输出 `source_registry_review_requests.json` artifact，为 pending Source Registry requirements 生成 `suggested_action`；summary 已同步到 preview/Actions review 材料，并已接入 Web UI 的 Review 页面只读展示。
 - Source Registry validator 已检查 enabled source 是否声明已实现 parser，避免 registry 启用未接入解析器的来源。
 - Source Registry validator 已检查 enabled source 是否包含审核 owner 和合法 `last_reviewed_at`。
 - Source Registry validator 已检查 enabled source 是否包含 robots/terms 审核记录。
@@ -86,8 +86,8 @@
 
 - Tool Card 默认覆盖现在取决于 enabled Source Registry 的采集结果；仍需继续提升来源数量、覆盖广度和更细字段级证据质量。
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
-- 当前 `npm run pipeline` 已从 enabled Source Registry 生成可靠发布 artifacts；下一步重点是扩展更多高质量来源、完善跨来源冲突处理，并补齐可持久化的审核记录导入流程。
-- 更细的 Tool Card 字段 provenance 已绑定具体 Source Record 字段和值，并会为已应用的 Override Record 输出 `override_record` 字段值 provenance；最小 incoming draft duplicate gates 已接入 dedup report、review queue、approval requests、auto review 和 release admission；GitHub topic 与 npm package sources 已启用为受控公共 metadata 来源，repo/package drafts 会经过最小跨来源 normalizer、preview 审核材料和 promotion candidate gate；仍缺更完整的字段冲突合并策略、跨生态 package parser 和写入真实 review record artifact 的持久化流程。
+- 当前 `npm run pipeline` 已从 enabled Source Registry 生成可靠发布 artifacts；下一步重点是扩展更多高质量来源、完善跨来源冲突处理，并继续增强 reviewed bundle 中审核结果的持久化摘要。
+- 更细的 Tool Card 字段 provenance 已绑定具体 Source Record 字段和值，并会为已应用的 Override Record 输出 `override_record` 字段值 provenance；最小 incoming draft duplicate gates 已接入 dedup report、review queue、intervention requests、auto review 和 release admission；GitHub topic 与 npm package sources 已启用为受控公共 metadata 来源，repo/package drafts 会经过最小跨来源 normalizer、preview 审核材料和 promotion candidate gate；仍缺更完整的字段冲突合并策略和跨生态 package parser。
 - Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact、MCP deployment smoke checklist 和可配置的部署后 smoke 命令；后续仍需完成 MCP server 的 Cloudflare Workers 或 Pages Functions 部署，并把 smoke test 改为从部署成功输出自动获取刚部署的 MCP/API base URL。
 - BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；还缺更完整的 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
 
@@ -232,7 +232,7 @@ MVP baseline 已完成。当前完成标准为：
 v0.2 建议拆成 5 条并行但有优先级的工作线：
 
 1. 推荐质量线：真实 LLM golden eval、prompt 版本化、provider 错误分类、`no_reliable_match` 和 `ask_human` 质量抽查。
-2. 审核自动化线：把 `draft -> approval -> promotion candidates` 从人工逐条批准升级为自动证据汇总、规则/LLM Review Summary、发布准入评分卡和人工异常队列。
+2. 审核自动化线：把 `draft -> auto review -> release admission -> promotion candidates` 的自动证据汇总、规则/LLM Review Summary、发布准入评分卡和 intervention requests 继续打磨成稳定 reviewed bundle 证据。
 3. 数据覆盖线：把首批 20 张扩到 20-50 张，优先覆盖 OpenAI/Codex、Claude Code、Cursor、OpenCode、Gemini CLI、常见 MCP server、测试/浏览器/支付/邮件/数据库类工具。
 4. API/MCP 线：把 HTTP JSON API 包装为 agent 可调用的 MCP 工具定义，补充 contract tests 和示例请求，并预留只写反馈接口设计。
 5. 本地/部署线：完善 BYOK dev/prod 配置、Cloudflare Worker 部署说明、provider key 不落盘检查和日志脱敏。
@@ -368,8 +368,8 @@ v0.2 建议拆成 5 条并行但有优先级的工作线：
 ### P0：v0.2 数据接入
 
 - 继续增加高价值来源和 Tool Cards，把默认采集发布覆盖扩展到更稳健的 30-50 张。
-- 把 `npm run ingest` 输出的 approval requests、auto review 和 promotion candidates 继续打磨成可靠审核 artifact；当前 preview review markdown 已展示 approval record 模板、auto review 建议动作、release admission blocked reasons，以及候选 tool id、Source Record id、review gate、reviewer、review time、review reason、目标 artifact 和 promotion check 状态，approval requests 也已输出逐行 JSONL 模板。
-- 将 Source Registry review confirmation requests 从本地 JSON 草稿生成推进到真实 review record artifact 导入/持久化流程；当前 preview markdown 已展示 requirements 和 confirmation record 模板，artifact manifest 已汇总确认状态与 pending request summary，Web UI 已可结构化查看 pending request 并复制 review record 草稿。
+- 把 `npm run ingest` 输出的 intervention requests、auto review 和 promotion candidates 继续打磨成可靠审核 artifact；当前 preview review markdown 已展示 intervention action、auto review 建议动作、release admission blocked reasons，以及候选 tool id、Source Record id、review gate、reviewer、review time、review reason、目标 artifact 和 promotion check 状态，intervention requests 也已输出逐行 JSONL 摘要。
+- 将 Source Registry review requests 继续打磨成 production gate 前更清晰的 reviewed bundle 证据；当前 preview markdown 已展示 requirements 和 suggested action，artifact manifest 已汇总 pending request summary，Web UI 已可结构化查看 pending request。
 - 将 Tool Card 字段 provenance 继续细化到 Source Record 字段和值，并决定是否在 CI 默认启用 URL 可达性检查；schema-level `tool_card_field_provenance.json` 和 ingest-time `tool_card_field_value_provenance.v1` artifact 已实现，且 ingest-time artifact 已覆盖已应用 Override Record 的字段值 provenance。
 - 扩展跨来源 deduper/normalizer 的字段冲突处理、alias/package key 规则和 Tool Card drafts 发布准入。
 - 使用真实 provider key 重跑 10 条 golden queries，并审查新增 case 的推荐质量。

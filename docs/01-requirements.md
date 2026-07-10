@@ -264,7 +264,7 @@ MVP 必须实现：
 
 MVP 使用人工复核和手动触发更新，不做自动定时采集。
 
-当前可靠发布路径已改为采集优先：`npm run pipeline` 默认读取 enabled Source Registry，抓取公开来源，生成 Source Records、Tool Card drafts、最小 normalizer/deduper、人工 override artifact、approval/review/release admission、promotion candidates 和 promotion plan，并把通过 promotion check 的候选生成可靠发布 artifacts。源码内的 seed Tool Cards 不再作为生产发布输入。
+当前可靠发布路径已改为采集优先：`npm run pipeline` 默认读取 enabled Source Registry，抓取公开来源，生成 Source Records、Tool Card drafts、最小 normalizer/deduper、人工 override artifact、intervention requests、auto review、release admission、promotion candidates 和 promotion plan，并把通过 promotion check 的候选生成可靠发布 artifacts。源码内的 seed Tool Cards 不再作为生产发布输入。
 
 反馈闭环不进入 MVP 可靠发布路径。后续引入反馈写接口时，应先输出反馈 records 和汇总报告，再进入 Review Summary 和评测；不得直接改写发布 artifacts。
 

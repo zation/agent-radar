@@ -402,7 +402,7 @@ Feedback Eval 将 Web UI、MCP/API 和 agent runtime 的反馈转化为可操作
 
 ## Human Review
 
-人工审核应从“逐条批准所有 draft”转为“处理自动化无法安全判断的异常”。样本包括：
+发布审核应从“逐条批准所有 draft”转为“自动审核结果持久化 + production gate 整批确认”；人工只处理自动化无法安全判断的异常。样本包括：
 
 - 高风险候选或风险等级降低的候选。
 - LLM Review Summary 与规则校验冲突的候选。

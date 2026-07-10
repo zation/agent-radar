@@ -17,7 +17,7 @@ test("creates tool view models with ratings and default sort", () => {
   assert.ok(viewModels.every((model) => model.card.id === model.rating.tool_id));
 });
 
-test("loads source registry review requests for the review page", async () => {
+test("loads source registry review summary requests without manual record templates", async () => {
   const firstCard = reviewedToolCardFixtures[0];
   assert.ok(firstCard);
   const cards = `${JSON.stringify(firstCard)}\n`;
@@ -53,14 +53,7 @@ test("loads source registry review requests for the review page", async () => {
               field: "enabled",
               reason: "Enabled source changes crawler scope.",
               confirmation_required: true,
-              decision_options: ["confirmed", "rejected", "needs_changes"],
-              review_record_template: {
-                id: "source-review-github-topic-mcp-enabled",
-                schema_version: "source_registry_review_record.v1",
-                source_id: "github-topic-mcp",
-                field: "enabled",
-                required_fields: ["decision", "reason", "reviewer", "reviewed_at"]
-              }
+              suggested_action: "review_in_production_gate"
             }
           ]
         })
@@ -74,7 +67,7 @@ test("loads source registry review requests for the review page", async () => {
 
     assert.ok(requestedUrls.includes("/data/source_registry_review_requests.json"));
     assert.equal(artifacts.sourceReviewRequests.summary.pending_review, 1);
-    assert.equal(artifacts.sourceReviewRequests.items[0]?.review_record_template.id, "source-review-github-topic-mcp-enabled");
+    assert.equal(artifacts.sourceReviewRequests.items[0]?.suggested_action, "review_in_production_gate");
   } finally {
     globalThis.fetch = originalFetch;
   }

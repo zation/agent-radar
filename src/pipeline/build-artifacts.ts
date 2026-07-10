@@ -51,7 +51,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   const dataVersion = "data-2026-07-06";
   const sourceRegistryArtifact = buildSourceRegistryArtifact(sourceRegistry, "2026-07-06T00:00:00Z");
   const sourceRegistryDiff = buildSourceRegistryDiff([], sourceRegistry, "2026-07-06T00:00:00Z");
-  const sourceRegistryReview = buildSourceRegistryReviewArtifact(sourceRegistryDiff, [], "2026-07-06T00:00:00Z");
+  const sourceRegistryReview = buildSourceRegistryReviewArtifact(sourceRegistryDiff, "2026-07-06T00:00:00Z");
   const sourceRegistryReviewRequests = buildSourceRegistryReviewRequests(sourceRegistryReview, "2026-07-06T00:00:00Z");
   const shouldCheckUrls = options.checkUrlReachability ?? process.env.AGENT_RADAR_CHECK_URLS === "true";
   const toolCardUrlValidation = shouldCheckUrls

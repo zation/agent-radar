@@ -426,7 +426,7 @@ Override Record 记录人工修正。
 
 ## Review Summary
 
-Review Summary 是对 Tool Card draft、已发布 Tool Card 或 promotion candidate 的自动审核摘要。它用于减少人工逐条审核成本，但不替代安全 gate。
+Review Summary 是对 Tool Card draft、已发布 Tool Card 或 promotion candidate 的自动审核摘要。它用于把规则/LLM 审核结果持久化进 reviewed bundle，降低 production gate 前的证据扫描成本，但不替代安全 gate 或 GitHub production environment approval。
 
 ```json
 {

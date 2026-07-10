@@ -2,7 +2,7 @@ import type { ToolCardReviewQueue } from "./review-queue.js";
 import type { ToolCardAutoReview } from "./auto-review.js";
 
 export type ToolCardReleaseAdmissionStatus = "eligible_for_publish" | "blocked";
-export type ToolCardReleaseAdmissionGate = "manual_approval" | "auto_review";
+export type ToolCardReleaseAdmissionGate = "approval_override" | "auto_review";
 
 export interface ToolCardReleaseAdmissionItem {
   tool_id: string;
@@ -34,16 +34,16 @@ export function buildToolCardReleaseAdmission(reviewQueue: ToolCardReviewQueue, 
     const autoReviewItem = autoReviewByToolId.get(item.tool_id);
     const blockingReasons: string[] = [];
     if (item.status !== "ready_for_review") blockingReasons.push("validation_not_ready");
-    const manualApprovalPassed = item.approval?.decision === "approved";
+    const approvalOverridePassed = item.approval?.decision === "approved";
     const autoReviewPassed = autoReviewItem?.suggested_action === "promote" && autoReviewItem.human_review_reasons.length === 0;
-    if (!manualApprovalPassed && !autoReviewPassed) blockingReasons.push("approval_or_auto_review_not_passed");
+    if (!approvalOverridePassed && !autoReviewPassed) blockingReasons.push("approval_override_or_auto_review_not_passed");
     if (item.duplicate_of_tool_ids.length > 0 || item.duplicate_of_draft_tool_ids.length > 0) blockingReasons.push("possible_duplicate");
 
     return {
       tool_id: item.tool_id,
       source_record_id: item.source_record_id,
       status: blockingReasons.length === 0 ? "eligible_for_publish" : "blocked",
-      gate: blockingReasons.length > 0 ? "blocked" : manualApprovalPassed ? "manual_approval" : "auto_review",
+      gate: blockingReasons.length > 0 ? "blocked" : approvalOverridePassed ? "approval_override" : "auto_review",
       blocking_reasons: blockingReasons,
       auto_review: autoReviewItem
         ? {

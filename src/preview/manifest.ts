@@ -56,8 +56,8 @@ export interface ArtifactManifest {
       needs_changes: number;
     };
   };
-  approval_requests?: {
-    pending_approval: number;
+  intervention_requests?: {
+    pending_intervention: number;
     duplicate_review_required: number;
     blocked_validation: number;
   };

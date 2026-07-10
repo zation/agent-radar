@@ -7,9 +7,9 @@ export interface IngestionCliSummaryInput {
       pending_manual_review: number;
     };
   };
-  approvalRequests: {
+  interventionRequests: {
     summary: {
-      pending_approval: number;
+      pending_intervention: number;
       duplicate_review_required: number;
       blocked_validation: number;
     };
@@ -65,8 +65,8 @@ export interface IngestionCliSummary {
     candidates: number;
     pending_manual_review: number;
   };
-  approval_requests: {
-    pending_approval: number;
+  intervention_requests: {
+    pending_intervention: number;
     duplicate_review_required: number;
     blocked_validation: number;
   };
@@ -108,10 +108,10 @@ export function formatIngestionCliSummary(result: IngestionCliSummaryInput): Ing
       candidates: result.discoveryCandidates.summary.candidates,
       pending_manual_review: result.discoveryCandidates.summary.pending_manual_review
     },
-    approval_requests: {
-      pending_approval: result.approvalRequests.summary.pending_approval,
-      duplicate_review_required: result.approvalRequests.summary.duplicate_review_required,
-      blocked_validation: result.approvalRequests.summary.blocked_validation
+    intervention_requests: {
+      pending_intervention: result.interventionRequests.summary.pending_intervention,
+      duplicate_review_required: result.interventionRequests.summary.duplicate_review_required,
+      blocked_validation: result.interventionRequests.summary.blocked_validation
     },
     field_value_provenance: {
       tool_cards: result.fieldProvenance.summary.tool_cards,

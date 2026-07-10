@@ -10,9 +10,7 @@ export interface SourceRegistryReviewRequirementSummary {
 export interface SourceRegistryReviewRequestSummary {
   source_id: string;
   field: string;
-  template_id: string;
-  decision_options: string[];
-  required_fields: string[];
+  suggested_action: string;
 }
 
 export function renderIngestionReviewMarkdown(
@@ -31,7 +29,7 @@ export function renderIngestionReviewMarkdown(
     `- Review blocked: ${result.reviewQueue.summary.blocked_validation}`,
     `- Discovery candidates: ${result.discoveryCandidates.summary.pending_manual_review} pending manual review`,
     `- Crawl audit: ${result.crawlAudit.summary.success} success, ${result.crawlAudit.summary.partial} partial, ${result.crawlAudit.summary.failed} failed`,
-    `- Approvals: ${result.approvalArtifact.summary.approved} approved, ${result.approvalArtifact.summary.rejected} rejected, ${result.approvalArtifact.summary.needs_changes} needs changes`,
+    `- Approval overrides: ${result.approvalArtifact.summary.approved} approved, ${result.approvalArtifact.summary.rejected} rejected, ${result.approvalArtifact.summary.needs_changes} needs changes`,
     `- Auto review: ${result.autoReview.summary.promote} promote, ${result.autoReview.summary.needs_review} needs review, ${result.autoReview.summary.keep_draft} keep draft`,
     `- Release admission: ${result.releaseAdmission.summary.eligible_for_publish} eligible, ${result.releaseAdmission.summary.blocked} blocked`,
     `- Promotion candidates: ${result.promotionCandidates.summary.candidates}`,
@@ -50,7 +48,7 @@ export function renderIngestionReviewMarkdown(
     ...renderDiscoveryCandidates(result),
     ...renderFieldValueProvenance(result),
     ...renderAutoReview(result),
-    ...renderApprovalRequests(result),
+    ...renderInterventionRequests(result),
     ...renderReleaseAdmission(result),
     ...renderPromotionCandidates(result),
     ...renderPromotionPlan(result),
@@ -95,7 +93,7 @@ export function renderSourceRegistryReviewRequests(requests: SourceRegistryRevie
     "",
     "## Source Registry Review Requests",
     ...requests.map((request) => {
-      return `- ${request.source_id}:${request.field} template_id=${request.template_id} decision_options=${request.decision_options.join(",")} required_fields=${request.required_fields.join(",")}`;
+      return `- ${request.source_id}:${request.field} action=${request.suggested_action}`;
     })
   ];
 }
@@ -113,16 +111,16 @@ function renderFieldValueProvenance(result: RunIngestionResult): string[] {
   ];
 }
 
-function renderApprovalRequests(result: RunIngestionResult): string[] {
-  if (result.approvalRequests.items.length === 0) return [];
+function renderInterventionRequests(result: RunIngestionResult): string[] {
+  if (result.interventionRequests.items.length === 0) return [];
 
   return [
     "",
-    "## Approval Requests",
-    ...result.approvalRequests.items.map((item) => {
+    "## Intervention Requests",
+    ...result.interventionRequests.items.map((item) => {
       const publishedDuplicates = item.duplicate_of_tool_ids.length > 0 ? item.duplicate_of_tool_ids.join(",") : "none";
       const draftDuplicates = item.duplicate_of_draft_tool_ids.length > 0 ? item.duplicate_of_draft_tool_ids.join(",") : "none";
-      return `- ${item.tool_id} (${item.name}) source_record=${item.source_record_id} review_status=${item.review_status} published_duplicates=${publishedDuplicates} draft_duplicates=${draftDuplicates} template_id=${item.approval_record_template.id} decision_options=${item.decision_options.join(",")} required_fields=${item.approval_record_template.required_fields.join(",")}`;
+      return `- ${item.tool_id} (${item.name}) source_record=${item.source_record_id} review_status=${item.review_status} published_duplicates=${publishedDuplicates} draft_duplicates=${draftDuplicates} action=${item.suggested_action}`;
     })
   ];
 }

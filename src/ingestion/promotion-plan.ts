@@ -7,7 +7,7 @@ export interface ToolCardPromotionPlanItem {
   target_artifact: "public/data/tool_cards.jsonl";
   candidate_artifact_path: "data/promotion_candidates/tool_cards.json";
   review: {
-    gate: "manual_approval" | "auto_review";
+    gate: "approval_override" | "auto_review";
     reviewed_by: string;
     reviewed_at: string;
     reason: string;

@@ -72,12 +72,12 @@ test("source registry exposes enabled source-backed coverage for golden query do
   assert.equal(enabled.find((source) => source.id === "docs-stripe-checkout")?.parser, "official_docs_parser");
 });
 
-test("ingestion CLI summary includes approval and release gates", () => {
+test("ingestion CLI summary includes auto review and release gates", () => {
   const summary = formatIngestionCliSummary({
     snapshots: [{ source_id: "manual-agent-radar-seed" }],
     sourceRecords: [{}, {}],
     discoveryCandidates: { summary: { candidates: 1, pending_manual_review: 1 } },
-    approvalRequests: { summary: { pending_approval: 2, duplicate_review_required: 1, blocked_validation: 0 } },
+    interventionRequests: { summary: { pending_intervention: 2, duplicate_review_required: 1, blocked_validation: 0 } },
     fieldProvenance: { summary: { tool_cards: 2, field_values: 24 } },
     autoReview: { summary: { promote: 1, keep_draft: 0, needs_review: 1, reject: 0, retire: 0 } },
     releaseAdmission: { summary: { eligible_for_publish: 1, blocked: 1 } },
@@ -94,8 +94,8 @@ test("ingestion CLI summary includes approval and release gates", () => {
       candidates: 1,
       pending_manual_review: 1
     },
-    approval_requests: {
-      pending_approval: 2,
+    intervention_requests: {
+      pending_intervention: 2,
       duplicate_review_required: 1,
       blocked_validation: 0
     },
@@ -481,7 +481,7 @@ test("source registry diff records added removed and changed source ids", () => 
   assert.deepEqual(diff.changed[0]?.review_requirements, []);
 });
 
-test("source registry review artifact tracks pending and confirmed requirements", () => {
+test("source registry review artifact tracks pending production gate requirements", () => {
   const diff = buildSourceRegistryDiff(
     [githubTopicSource],
     [
@@ -496,36 +496,15 @@ test("source registry review artifact tracks pending and confirmed requirements"
     "2026-07-08T00:00:00Z"
   );
 
-  const pendingReview = buildSourceRegistryReviewArtifact(diff, [], "2026-07-08T01:00:00Z");
+  const pendingReview = buildSourceRegistryReviewArtifact(diff, "2026-07-08T01:00:00Z");
 
   assert.equal(pendingReview.schema_version, "source_registry_review.v1");
   assert.deepEqual(pendingReview.summary, { total_requirements: 1, confirmed: 0, rejected: 0, needs_changes: 0, pending: 1 });
   assert.equal(pendingReview.items[0]?.source_id, "github-topic-mcp");
   assert.equal(pendingReview.items[0]?.status, "pending");
-
-  const confirmedReview = buildSourceRegistryReviewArtifact(
-    diff,
-    [
-      {
-        id: "source-review-github-topic-mcp-trust-level-20260708",
-        schema_version: "source_registry_review_record.v1",
-        source_id: "github-topic-mcp",
-        field: "trust_level",
-        decision: "confirmed",
-        reason: "Reviewed trust level change for preview only.",
-        reviewer: "maintainer",
-        reviewed_at: "2026-07-08T01:00:00Z"
-      }
-    ],
-    "2026-07-08T01:00:00Z"
-  );
-
-  assert.deepEqual(confirmedReview.summary, { total_requirements: 1, confirmed: 1, rejected: 0, needs_changes: 0, pending: 0 });
-  assert.equal(confirmedReview.items.find((item) => item.field === "trust_level")?.status, "confirmed");
-  assert.equal(confirmedReview.items.find((item) => item.field === "trust_level")?.confirmation?.reviewer, "maintainer");
 });
 
-test("source registry review requests provide templates for pending requirements", () => {
+test("source registry review requests provide production gate actions for pending requirements", () => {
   const diff = buildSourceRegistryDiff(
     [githubTopicSource],
     [
@@ -539,22 +518,7 @@ test("source registry review requests provide templates for pending requirements
     ],
     "2026-07-08T00:00:00Z"
   );
-  const review = buildSourceRegistryReviewArtifact(
-    diff,
-    [
-      {
-        id: "source-review-github-topic-mcp-enabled-20260708",
-        schema_version: "source_registry_review_record.v1",
-        source_id: "github-topic-mcp",
-        field: "enabled",
-        decision: "confirmed",
-        reason: "Reviewed crawl scope.",
-        reviewer: "maintainer",
-        reviewed_at: "2026-07-08T01:00:00Z"
-      }
-    ],
-    "2026-07-08T01:00:00Z"
-  );
+  const review = buildSourceRegistryReviewArtifact(diff, "2026-07-08T01:00:00Z");
 
   const requests = buildSourceRegistryReviewRequests(review, "2026-07-08T01:05:00Z");
 
@@ -562,14 +526,7 @@ test("source registry review requests provide templates for pending requirements
   assert.deepEqual(requests.summary, { pending_review: 1, confirmation_required: 1 });
   assert.equal(requests.items[0]?.source_id, "github-topic-mcp");
   assert.equal(requests.items[0]?.field, "trust_level");
-  assert.deepEqual(requests.items[0]?.decision_options, ["confirmed", "rejected", "needs_changes"]);
-  assert.deepEqual(requests.items[0]?.review_record_template, {
-    id: "source-review-github-topic-mcp-trust-level",
-    schema_version: "source_registry_review_record.v1",
-    source_id: "github-topic-mcp",
-    field: "trust_level",
-    required_fields: ["decision", "reason", "reviewer", "reviewed_at"]
-  });
+  assert.equal(requests.items[0]?.suggested_action, "review_in_production_gate");
 });
 
 test("crawler saves immutable raw snapshots without request secrets", async () => {
@@ -818,20 +775,12 @@ test("ingestion writes tool card drafts from complete manual source records", as
     assert.equal(result.reviewQueue.items[0]?.status, "ready_for_review");
     assert.equal(result.reviewQueue.items[0]?.tool_id, "agent-codex");
     assert.deepEqual(result.reviewQueue.items[0]?.duplicate_of_tool_ids, ["agent-codex"]);
-    assert.equal(result.approvalRequests.schema_version, "tool_card_approval_requests.v1");
-    assert.equal(result.approvalRequests.summary.pending_approval, 1);
-    assert.equal(result.approvalRequests.items[0]?.tool_id, "agent-codex");
-    assert.equal(result.approvalRequests.items[0]?.source_record_id, "manual-agent-radar-seed-agent-codex-20260708");
-    assert.deepEqual(result.approvalRequests.items[0]?.duplicate_of_tool_ids, ["agent-codex"]);
-    assert.deepEqual(result.approvalRequests.items[0]?.decision_options, ["approved", "rejected", "needs_changes"]);
-    assert.deepEqual(result.approvalRequests.items[0]?.approval_record_template, {
-      id: "approval-agent-codex-manual-agent-radar-seed-agent-codex-20260708",
-      schema_version: "approval_record.v1",
-      target_type: "tool_card_draft",
-      target_id: "agent-codex",
-      source_record_id: "manual-agent-radar-seed-agent-codex-20260708",
-      required_fields: ["decision", "reason", "reviewer", "reviewed_at"]
-    });
+    assert.equal(result.interventionRequests.schema_version, "tool_card_intervention_requests.v1");
+    assert.equal(result.interventionRequests.summary.pending_intervention, 1);
+    assert.equal(result.interventionRequests.items[0]?.tool_id, "agent-codex");
+    assert.equal(result.interventionRequests.items[0]?.source_record_id, "manual-agent-radar-seed-agent-codex-20260708");
+    assert.deepEqual(result.interventionRequests.items[0]?.duplicate_of_tool_ids, ["agent-codex"]);
+    assert.equal(result.interventionRequests.items[0]?.suggested_action, "resolve_before_release");
     assert.equal(result.fieldProvenance.schema_version, "tool_card_field_value_provenance.v1");
     assert.equal(result.fieldProvenance.summary.tool_cards, 1);
     assert.ok(result.fieldProvenance.summary.field_values >= 3);
@@ -864,30 +813,32 @@ test("ingestion writes tool card drafts from complete manual source records", as
     assert.equal(duplicateReport.summary.possible_duplicates, 1);
     assert.deepEqual(duplicateReport.items[0].duplicate_of_tool_ids, ["agent-codex"]);
 
-    const approvalRequests = JSON.parse(await readFile(join(outputDir, "data", "approval_requests", "tool_card_drafts.json"), "utf8")) as {
+    const interventionRequests = JSON.parse(await readFile(join(outputDir, "data", "intervention_requests", "tool_card_drafts.json"), "utf8")) as {
       schema_version: string;
-      summary: { pending_approval: number };
-      items: Array<{ tool_id: string; approval_record_template: { target_id: string } }>;
+      summary: { pending_intervention: number };
+      items: Array<{ tool_id: string; target_id: string; suggested_action: string }>;
     };
-    assert.equal(approvalRequests.schema_version, "tool_card_approval_requests.v1");
-    assert.equal(approvalRequests.summary.pending_approval, 1);
-    assert.equal(approvalRequests.items[0]?.approval_record_template.target_id, "agent-codex");
+    assert.equal(interventionRequests.schema_version, "tool_card_intervention_requests.v1");
+    assert.equal(interventionRequests.summary.pending_intervention, 1);
+    assert.equal(interventionRequests.items[0]?.target_id, "agent-codex");
 
-    const approvalTemplateText = await readFile(join(outputDir, "data", "approval_requests", "approval_record_templates.jsonl"), "utf8");
-    assert.equal(approvalTemplateText.endsWith("\n"), true);
-    const approvalTemplateLines = approvalTemplateText
+    const interventionText = await readFile(join(outputDir, "data", "intervention_requests", "tool_card_drafts.jsonl"), "utf8");
+    assert.equal(interventionText.endsWith("\n"), true);
+    const interventionLines = interventionText
       .trim()
       .split("\n")
-      .map((line) => JSON.parse(line) as { target_id: string; decision_options: string[]; duplicate_of_tool_ids: string[] });
-    assert.deepEqual(approvalTemplateLines, [
+      .map((line) => JSON.parse(line) as { target_id: string; suggested_action: string; duplicate_of_tool_ids: string[] });
+    assert.deepEqual(interventionLines, [
       {
-        id: "approval-agent-codex-manual-agent-radar-seed-agent-codex-20260708",
-        schema_version: "approval_record.v1",
-        target_type: "tool_card_draft",
+        id: "intervention-agent-codex-manual-agent-radar-seed-agent-codex-20260708",
+        schema_version: "tool_card_intervention_request.v1",
+        tool_id: "agent-codex",
+        name: "Codex",
+        source_id: "manual-agent-radar-seed",
         target_id: "agent-codex",
         source_record_id: "manual-agent-radar-seed-agent-codex-20260708",
-        required_fields: ["decision", "reason", "reviewer", "reviewed_at"],
-        decision_options: ["approved", "rejected", "needs_changes"],
+        review_status: "ready_for_review",
+        suggested_action: "resolve_before_release",
         duplicate_of_tool_ids: ["agent-codex"],
         duplicate_of_draft_tool_ids: [],
         validation_errors: [],
@@ -1106,7 +1057,7 @@ test("ingestion writes release admission for approved non-duplicate drafts", asy
     assert.equal(result.promotionCandidates.schema_version, "tool_card_promotion_candidates.v1");
     assert.equal(result.promotionCandidates.summary.candidates, 1);
     assert.equal(result.promotionCandidates.items[0]?.tool_id, "agent-new-tool");
-    assert.equal(result.promotionCandidates.items[0]?.review.gate, "manual_approval");
+    assert.equal(result.promotionCandidates.items[0]?.review.gate, "approval_override");
     assert.equal(result.promotionCandidates.items[0]?.review.reviewed_by, "maintainer");
     assert.equal(result.promotionCandidates.items[0]?.draft.id, "agent-new-tool");
     assert.equal(result.promotionPlan.schema_version, "tool_card_promotion_plan.v1");

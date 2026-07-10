@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   CircleHelp,
   ClipboardCheck,
-  Copy,
   Database,
   Filter,
   Gauge,
@@ -36,7 +35,7 @@ import { buildCollapsedRecommendationSummary, getRecommendationSubmitLabel } fro
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
 import { createRecommendationItems, formatRecommendationApiError, parseRecommendationApiResponse, type RecommendationApiErrorBody, type RecommendationItem } from "./recommendation-view.js";
 import { listUiRecommendationModelOptions } from "./provider-options.js";
-import { buildSourceReviewRecordDraft, createSourceReviewRows, formatCurrentIsoUtc, type SourceReviewRow } from "./review-view.js";
+import { createSourceReviewRows, type SourceReviewRow } from "./review-view.js";
 import "./styles.css";
 
 const fallbackQuery = "在 Codex 中读取 Gmail 并总结待办";
@@ -786,22 +785,6 @@ function ReviewMetric({ label, value }: { label: string; value: string | number 
 }
 
 function SourceReviewCard({ row }: { row: SourceReviewRow }) {
-  const [decision, setDecision] = useState<"confirmed" | "rejected" | "needs_changes">("confirmed");
-  const [reviewer, setReviewer] = useState("");
-  const [reason, setReason] = useState("");
-  const [reviewedAt, setReviewedAt] = useState(() => formatCurrentIsoUtc());
-  const [copyStatus, setCopyStatus] = useState("");
-  const draft = buildSourceReviewRecordDraft(row, { decision, reason, reviewer, reviewedAt });
-
-  async function copyDraftJson() {
-    if (!draft.isValid) {
-      setCopyStatus("Complete required fields first.");
-      return;
-    }
-    await navigator.clipboard.writeText(draft.json);
-    setCopyStatus("Review record JSON copied.");
-  }
-
   return (
     <Card className="app-card">
       <CardHeader>
@@ -818,71 +801,9 @@ function SourceReviewCard({ row }: { row: SourceReviewRow }) {
       <CardContent className="grid gap-3">
         <p className="text-sm leading-6 text-muted-foreground">{row.reason}</p>
         <div className="grid gap-3 md:grid-cols-2">
-          <InfoBlock icon={<CheckCircle2 />} label="Decision Options" value={row.decisionOptions} />
-          <InfoBlock icon={<ClipboardCheck />} label="Required Fields" value={row.requiredFields} />
+          <InfoBlock icon={<CheckCircle2 />} label="Release Gate Action" value={row.suggestedAction} />
+          <InfoBlock icon={<ClipboardCheck />} label="Persistent Evidence" value="artifact manifest and GitHub production approval" />
         </div>
-        <Separator />
-        <section className="grid gap-3" aria-label={`Review record generator for ${row.id}`}>
-          <div className="grid gap-3 md:grid-cols-[180px_1fr_220px]">
-            <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
-              Decision
-              <Select
-                items={[
-                  { label: "confirmed", value: "confirmed" },
-                  { label: "rejected", value: "rejected" },
-                  { label: "needs_changes", value: "needs_changes" }
-                ]}
-                value={decision}
-                onValueChange={(value) => {
-                  if (value === "confirmed" || value === "rejected" || value === "needs_changes") setDecision(value);
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent alignItemWithTrigger={false} sideOffset={6} className="recommend-model-menu">
-                  <SelectGroup>
-                    {(["confirmed", "rejected", "needs_changes"] as const).map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
-              Reviewer
-              <Input value={reviewer} onChange={(event) => setReviewer(event.target.value)} placeholder="maintainer" />
-            </label>
-            <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
-              Reviewed at
-              <Input value={reviewedAt} onChange={(event) => setReviewedAt(event.target.value)} placeholder="2026-07-08T12:00:00Z" />
-            </label>
-          </div>
-          <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
-            Reason
-            <Textarea className="min-h-20 resize-y" value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Record the evidence reviewed and decision rationale" />
-          </label>
-          {draft.errors.length > 0 && (
-            <Alert variant="destructive" aria-live="polite">
-              <AlertTriangle />
-              <AlertTitle>Record draft incomplete</AlertTitle>
-              <AlertDescription>{draft.errors.join("; ")}</AlertDescription>
-            </Alert>
-          )}
-          <label className="flex min-w-0 flex-col gap-1.5 text-sm font-medium">
-            Review record JSON
-            <Textarea className="review-json-preview min-h-52 font-mono text-xs" readOnly value={draft.json} />
-          </label>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button type="button" variant="outline" disabled={!draft.isValid} onClick={() => void copyDraftJson()}>
-              <Copy data-icon="inline-start" />
-              Copy JSON
-            </Button>
-            {copyStatus && <span className="text-xs text-muted-foreground" aria-live="polite">{copyStatus}</span>}
-          </div>
-        </section>
       </CardContent>
     </Card>
   );

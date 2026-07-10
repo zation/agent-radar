@@ -13,8 +13,8 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     ...(manifest.crawl_audit ? [`- Crawl audit: ${formatCrawlAudit(manifest.crawl_audit)}`] : []),
     ...(manifest.source_registry_review ? [`- Source registry review: ${formatSourceRegistryReview(manifest.source_registry_review)}`] : []),
     ...(manifest.source_registry_review_requests ? [`- Source registry review requests: ${formatSourceRegistryReviewRequests(manifest.source_registry_review_requests)}`] : []),
-    ...(manifest.ingestion_review ? [`- Ingestion approvals: ${formatIngestionApprovals(manifest.ingestion_review.approvals)}`] : []),
-    ...(manifest.approval_requests ? [`- Approval requests: ${formatApprovalRequests(manifest.approval_requests)}`] : []),
+    ...(manifest.ingestion_review ? [`- Approval overrides: ${formatIngestionApprovals(manifest.ingestion_review.approvals)}`] : []),
+    ...(manifest.intervention_requests ? [`- Intervention requests: ${formatInterventionRequests(manifest.intervention_requests)}`] : []),
     ...(manifest.field_value_provenance ? [`- Field value provenance: ${formatFieldValueProvenance(manifest.field_value_provenance)}`] : []),
     ...(manifest.auto_review ? [`- Auto review: ${formatAutoReview(manifest.auto_review)}`] : []),
     ...(manifest.release_admission ? [`- Release admission: ${formatReleaseAdmission(manifest.release_admission)}`] : []),
@@ -77,10 +77,10 @@ function renderReviewRequired(manifest: ArtifactManifest): string[] {
     items.push(`- Source registry: ${sourceRequests.pending_review} pending confirmation${sourceRequests.confirmation_required > 0 ? `, ${sourceRequests.confirmation_required} required` : ""}`);
   }
 
-  const approvalRequests = manifest.approval_requests;
-  if (approvalRequests && (approvalRequests.pending_approval > 0 || approvalRequests.duplicate_review_required > 0 || approvalRequests.blocked_validation > 0)) {
+  const interventionRequests = manifest.intervention_requests;
+  if (interventionRequests && (interventionRequests.pending_intervention > 0 || interventionRequests.duplicate_review_required > 0 || interventionRequests.blocked_validation > 0)) {
     items.push(
-      `- Tool Card approvals: ${approvalRequests.pending_approval} pending, ${approvalRequests.duplicate_review_required} duplicate review, ${approvalRequests.blocked_validation} blocked validation`
+      `- Tool Card interventions: ${interventionRequests.pending_intervention} pending, ${interventionRequests.duplicate_review_required} duplicate review, ${interventionRequests.blocked_validation} blocked validation`
     );
   }
 
@@ -161,8 +161,8 @@ function formatIngestionApprovals(approvals: NonNullable<ArtifactManifest["inges
   return `${approvals.approved} approved, ${approvals.rejected} rejected, ${approvals.needs_changes} needs changes`;
 }
 
-function formatApprovalRequests(requests: NonNullable<ArtifactManifest["approval_requests"]>): string {
-  return `${requests.pending_approval} pending, ${requests.duplicate_review_required} duplicate review, ${requests.blocked_validation} blocked validation`;
+function formatInterventionRequests(requests: NonNullable<ArtifactManifest["intervention_requests"]>): string {
+  return `${requests.pending_intervention} pending, ${requests.duplicate_review_required} duplicate review, ${requests.blocked_validation} blocked validation`;
 }
 
 function formatFieldValueProvenance(provenance: NonNullable<ArtifactManifest["field_value_provenance"]>): string {

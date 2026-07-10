@@ -82,7 +82,7 @@ enabled Source Registry
   -> Worker Static Assets serves Web/data and Worker API reads same deployment artifacts
 ```
 
-当前已实现 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、repo/package/docs 跨来源 normalizer、source profile 字段映射、最小 deduper、人工 override artifact、Approval Request、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 已可展示 Source Registry review confirmation requests，并生成可复制的 review record JSON 草稿。尚未实现的是更完整的跨来源冲突处理和人工 override 审核记录导入。
+当前已实现 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、repo/package/docs 跨来源 normalizer、source profile 字段映射、最小 deduper、人工 override artifact、intervention requests、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 已可展示 Source Registry production gate review requests，但不生成逐条人工 review record。尚未实现的是更完整的跨来源冲突处理和人工 override 审计。
 
 ### 目标形态
 
@@ -270,7 +270,7 @@ Browser UI
 - provider 401/403、429、模型不可用和 JSON 输出异常会映射为稳定 API error code，并由 Recommend UI 展示 provider/status 上下文。
 - 本地 dev API 和 Workers API 都必须保持只读，不安装、不授权、不执行推荐工具。
 
-Web UI 的 Review 页面读取 `data/source_registry_review_requests.json`，展示 pending Source Registry confirmation request、decision options 和 required fields，并在浏览器本地生成可复制的 `source_registry_review_record.v1` JSON 草稿。该页面不写入 review record，不自动确认来源，也不改变发布数据。
+Web UI 的 Review 页面读取 `data/source_registry_review_requests.json`，展示 pending Source Registry production gate review request 和 suggested action。该页面不写入 review record，不生成可复制的人工确认 JSON，不自动确认来源，也不改变发布数据。
 
 当前 D1 相关文件：
 
@@ -318,11 +318,11 @@ Worker deployment 应包含：
 - `data/mcp_examples.json`：MCP JSON-RPC 请求示例，供 agent/client 集成验证。
 - `data/mcp_smoke_checklist.json`：MCP deployment review checklist，列出 initialize、tools/list、只读 tools/call 和只读边界的必检项。
 - `reports/*`：eval report。
-- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、Tool Card field provenance summary、crawl audit summary、ingestion approval summary、discovery candidates summary、approval requests summary、field value provenance summary、auto review summary、release admission summary、promotion candidates summary、promotion check summary、构建时间和关键文件 checksum；checksum 覆盖 `provider_registry.json`、`tool_card_field_provenance.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`。
+- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、Tool Card field provenance summary、crawl audit summary、approval override summary、discovery candidates summary、intervention requests summary、field value provenance summary、auto review summary、release admission summary、promotion candidates summary、promotion check summary、构建时间和关键文件 checksum；checksum 覆盖 `provider_registry.json`、`tool_card_field_provenance.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`。
 
 GitHub Actions summary 应包含：
 
-- compact review summary，用于维护者快速判断是否需要人工介入。summary 只展示 ref/SHA、data version、Cloudflare Worker URL、golden eval、source registry 待确认、Tool Card approval 待处理、release admission blocked、promotion check failure、critical field provenance missing、crawl failure/partial 和 MCP smoke 等需要审核的重要信息。
+- compact review summary，用于维护者在 GitHub production environment approval 前快速判断是否需要介入。summary 只展示 ref/SHA、data version、Cloudflare Worker URL、golden eval、source registry production gate request、Tool Card intervention request、release admission blocked、promotion check failure、critical field provenance missing、crawl failure/partial 和 MCP smoke 等会影响整批发布确认的重要信息。
 - `artifacts/review/ingestion.md` 仍作为 uploaded artifact 保存完整采集明细，包括 discovery candidate、approval request 模板、auto review scorecard、release admission item、promotion candidate 和 promotion plan；不再整段写入 GitHub Step Summary。
 - `artifact-manifest.json` 继续作为机器可读摘要保存在 preview bundle 中；Step Summary 只展示其中会影响审核决策的字段。
 
