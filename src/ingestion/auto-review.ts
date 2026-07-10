@@ -49,7 +49,7 @@ export function buildToolCardAutoReview(drafts: ToolCard[], sourceRecords: Sourc
     const missingFields = collectMissingFields(draft);
     const keyRisks = collectKeyRisks(draft);
     const humanReviewReasons = collectHumanReviewReasons(draft, sourceRecord, reviewItem, missingFields, scorecard.total);
-    const suggestedAction = chooseSuggestedAction(draft, reviewItem, humanReviewReasons, scorecard.total);
+    const suggestedAction = chooseSuggestedAction(draft, sourceRecord, reviewItem, humanReviewReasons, scorecard.total);
 
     return {
       tool_id: draft.id,
@@ -142,10 +142,12 @@ function scoreSafetyClarity(draft: ToolCard): number {
 
 function chooseSuggestedAction(
   draft: ToolCard,
+  sourceRecord: SourceRecord | undefined,
   reviewItem: ToolCardReviewQueue["items"][number] | undefined,
   humanReviewReasons: string[],
   totalScore: number
 ): AutoReviewSuggestedAction {
+  if (isDiscoveryCollection(sourceRecord)) return "reject";
   if (draft.maintenance.status === "deprecated" || draft.maturity === "deprecated") return "retire";
   if (reviewItem?.status === "blocked_validation") return "keep_draft";
   if (humanReviewReasons.length > 0) return "needs_review";
@@ -195,10 +197,16 @@ function collectHumanReviewReasons(
   const sourceProfileReviewed = Boolean(sourceRecord?.parsed_fields.source_profile);
   if ((isHighRisk(draft.security.risk_level) || draft.security.requires_human_approval) && !sourceProfileReviewed) reasons.push("high_risk_requires_human_review");
   if (reviewItem && (reviewItem.duplicate_of_tool_ids.length > 0 || reviewItem.duplicate_of_draft_tool_ids.length > 0)) reasons.push("possible_duplicate");
-  if ((sourceRecord?.warnings?.length ?? 0) > 0) reasons.push("parser_warnings");
+  if ((sourceRecord?.warnings?.length ?? 0) > 0 && !sourceProfileReviewed) reasons.push("parser_warnings");
   if (missingFields.length > 0) reasons.push("missing_required_fields");
   if (totalScore < 8) reasons.push("score_below_auto_promote_threshold");
   return [...new Set(reasons)];
+}
+
+function isDiscoveryCollection(sourceRecord: SourceRecord | undefined): boolean {
+  if (!sourceRecord || sourceRecord.parsed_fields.source_profile) return false;
+  const repositoryName = sourceRecord.name.split("/").at(-1)?.toLowerCase() ?? "";
+  return repositoryName.startsWith("awesome-") || repositoryName.endsWith("-awesome");
 }
 
 function isHighRisk(riskLevel: RiskLevel): boolean {

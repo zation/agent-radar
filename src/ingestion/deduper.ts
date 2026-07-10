@@ -91,7 +91,10 @@ function findDuplicateSignals(draft: ToolCard, drafts: ToolCard[], existingToolC
 }
 
 function canonicalToolKeys(card: ToolCard): string[] {
-  return [card.repo_url, card.homepage_url, card.docs_url]
+  const identityUrls = card.repo_url
+    ? [card.repo_url]
+    : [card.homepage_url, card.docs_url];
+  return identityUrls
     .filter((value): value is string => Boolean(value))
     .map((value) => value.toLowerCase().replace(/\.git$/, "").replace(/\/$/, ""));
 }

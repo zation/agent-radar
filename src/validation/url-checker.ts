@@ -75,18 +75,19 @@ export async function checkToolCardUrlsV2(
     (options.previousArtifact?.items ?? []).map((item) => [historyKey(item), item]),
   );
   const resultByUrl = new Map<string, Promise<CheckResult>>();
-  const items: ToolCardUrlValidationItemV2[] = [];
-
-  for (const candidate of collectUrlCandidates(cards)) {
+  const candidates = collectUrlCandidates(cards);
+  for (const candidate of candidates) {
     let resultPromise = resultByUrl.get(candidate.url);
     if (!resultPromise) {
       resultPromise = checkUrl(candidate.url, fetchImpl, timeoutMs, maxRetries, sleepImpl);
       resultByUrl.set(candidate.url, resultPromise);
     }
-    const result = await resultPromise;
-    const previous = previousByKey.get(historyKey(candidate));
-    items.push(withHistory(candidate, result, previous, options.checkedAt));
   }
+  const items = await Promise.all(candidates.map(async (candidate) => {
+    const result = await resultByUrl.get(candidate.url)!;
+    const previous = previousByKey.get(historyKey(candidate));
+    return withHistory(candidate, result, previous, options.checkedAt);
+  }));
 
   return buildArtifact(items, options.checkedAt, true, timeoutMs, maxRetries);
 }

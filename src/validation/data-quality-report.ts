@@ -58,6 +58,7 @@ export interface BuildDataQualityReportOptions {
   dataVersion: string;
   generatedAt: string;
   previousReport?: DataQualityReport;
+  coverageRange?: { min: number; max: number };
 }
 
 const REQUIRED_FIELDS = [
@@ -165,6 +166,12 @@ export function assertDataQualityReport(report: DataQualityReport): void {
 
 function buildGates(options: BuildDataQualityReportOptions): DataQualityGateItem[] {
   const gates: DataQualityGateItem[] = [];
+  if (
+    options.coverageRange &&
+    (options.toolCards.length < options.coverageRange.min || options.toolCards.length > options.coverageRange.max)
+  ) {
+    gates.push(gate("tool_card_coverage_out_of_range", "tool_cards", "data/tool_cards.jsonl", `Keep reliable Tool Cards between ${options.coverageRange.min} and ${options.coverageRange.max}.`));
+  }
   if (options.fieldProvenanceV2.summary.critical_coverage !== 1) {
     gates.push(gate("critical_provenance_incomplete", "tool_cards", "data/field_provenance/tool_card_fields.v2.json", "Add source-backed or explicit unknown provenance for every critical field."));
   }

@@ -152,3 +152,31 @@ test("URL checker v2 produces explicit skipped results when disabled", () => {
   assert.equal(artifact.items[0]?.status, "skipped");
   assert.equal(artifact.items[0]?.reason_code, "url_reachability_check_not_enabled");
 });
+
+test("URL checker v2 checks distinct URLs concurrently", async () => {
+  let started = 0;
+  let releaseRequests: (() => void) | undefined;
+  const released = new Promise<void>((resolve) => {
+    releaseRequests = resolve;
+  });
+  const fetchImpl: typeof fetch = async () => {
+    started += 1;
+    await released;
+    return new Response("ok", { status: 200 });
+  };
+
+  const pending = checkToolCardUrlsV2(
+    [card(["https://example.com/one", "https://example.com/two"])],
+    {
+      fetchImpl,
+      checkedAt: "2026-07-10T00:00:00Z",
+      sleepImpl: () => Promise.resolve(),
+    },
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const startedBeforeRelease = started;
+  releaseRequests?.();
+  await pending;
+
+  assert.equal(startedBeforeRelease, 2);
+});

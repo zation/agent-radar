@@ -93,6 +93,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
     dataVersion,
     generatedAt: "2026-07-06T00:00:00Z",
     previousReport: options.previousDataQualityReport,
+    coverageRange: options.toolCards ? undefined : { min: 50, max: 150 },
   });
   await writeFile(join(publicDataDir, "data_quality_report.json"), JSON.stringify(dataQualityReport, null, 2), "utf8");
   assertDataQualityReport(dataQualityReport);

@@ -43,6 +43,7 @@ export function buildToolCardInterventionRequests(
     .filter((item) => {
       if (item.approval) return false;
       const autoReviewItem = autoReviewByToolId.get(item.tool_id);
+      if (autoReviewItem?.suggested_action === "reject" || autoReviewItem?.suggested_action === "retire") return false;
       return !(
         autoReviewItem?.suggested_action === "promote" &&
         autoReviewItem.human_review_reasons.length === 0

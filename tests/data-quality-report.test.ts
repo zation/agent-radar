@@ -112,3 +112,10 @@ test("data quality report compares absolute metrics with the previous release", 
   assert.equal(report.comparison.status, "compared");
   assert.equal(report.comparison.deltas.tool_cards_total, 1);
 });
+
+test("data quality report blocks a release outside the configured coverage range", () => {
+  const report = buildReport({ coverageRange: { min: 50, max: 150 } });
+
+  assert.equal(report.status, "blocked");
+  assert.equal(report.gates[0]?.reason_code, "tool_card_coverage_out_of_range");
+});

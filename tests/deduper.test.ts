@@ -94,3 +94,31 @@ test("deduper reports cross-source package url duplicates", () => {
   assert.equal(report.items[0]?.match_signals[0]?.value, "npm:@modelcontextprotocol/sdk");
   assert.deepEqual(report.items[1]?.duplicate_of_draft_tool_ids, ["mcp-typescript-sdk-github"]);
 });
+
+test("deduper does not merge distinct tools that only share a docs or homepage url", () => {
+  const base = reviewedToolCardFixtures.find((card) => card.id === "agent-codex");
+  assert.ok(base);
+
+  const report = buildToolCardDuplicateReport(
+    [
+      {
+        ...base,
+        id: "mcp-reference-servers",
+        repo_url: "https://github.com/modelcontextprotocol/servers",
+        docs_url: "https://modelcontextprotocol.io",
+        homepage_url: "https://modelcontextprotocol.io"
+      },
+      {
+        ...base,
+        id: "framework-mcp-typescript-sdk",
+        repo_url: "https://github.com/modelcontextprotocol/typescript-sdk",
+        docs_url: "https://modelcontextprotocol.io",
+        homepage_url: "https://modelcontextprotocol.io"
+      }
+    ],
+    [],
+    "2026-07-10T00:00:00Z"
+  );
+
+  assert.equal(report.summary.possible_duplicates, 0);
+});
