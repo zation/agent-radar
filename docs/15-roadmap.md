@@ -25,7 +25,7 @@
 
 ## 当前进度快照
 
-截至当前分支，Agent Radar 已完成 MVP baseline：
+截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段：
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
@@ -47,7 +47,7 @@
 - Eval summary 和 markdown eval report 已输出 `failure_category`，可区分 `blocked_no_key`、`provider_error`、`schema_error` 和 `quality_failure`。
 - Preview artifact manifest 已汇总 eval failure categories，便于发布审核快速判断失败类型。
 - GitHub Actions preview summary 已展示 eval failure categories，便于 reviewer 不打开 JSON 也能看到失败类型分布。
-- Preview artifact manifest 已汇总 ingestion approval summary，便于发布审核快速确认 draft 审核状态。
+- Preview artifact manifest 已汇总 approval override 使用情况，便于发布审核确认是否存在 break-glass evidence；它不表示默认逐条审核 draft。
 - Preview artifact manifest 已汇总 intervention requests summary，便于维护者确认还有多少 draft 需要在发布前处理重复项或 validation 修复。
 - Preview artifact manifest 和 ingestion review 已汇总 auto review 与 release admission summary，便于发布审核快速确认草稿自动审核建议、发布 gate 和阻断原因。
 - Preview artifact manifest、GitHub Actions preview summary 和 ingestion review 已汇总 discovery candidates summary，便于维护者审核发现候选而不自动生成 Tool Card draft。
@@ -63,7 +63,7 @@
 - 采集草稿链路已输出 promotion candidates artifact，把 eligible drafts 和 auto review / approval override evidence 汇总为发布候选，并输出 promotion plan artifact 和 promotion check dry-run，标注目标 artifact、候选 artifact 路径、推荐发布动作、发布前检查项和阻断原因；`npm run pipeline` 默认消费通过 gate 的候选生成可靠 Tool Cards。
 - 发布流水线已输出 `source_registry.json` artifact，并包含基础 Source Registry validator 结果。
 - 发布流水线已输出 `source_registry_diff.json` artifact，记录 Source Registry 来源配置 added、removed 和 changed 摘要，并为高影响 changed fields 输出 review requirements；摘要已同步到 preview artifact manifest。
-- Preview ingestion review 已展示 Source Registry 字段级 review requirements，便于 reviewer 在 Actions Summary 中看到高影响来源变更的确认原因。
+- Preview ingestion review artifact 已展示 Source Registry 字段级 review requirements；Actions compact summary 只展示 pending/confirmation 数量，便于 reviewer 判断是否需要打开完整明细。
 - 发布流水线已输出 `source_registry_review.json` artifact，记录 Source Registry review requirements 的 pending production gate 关注项；summary 已同步到 preview artifact manifest。
 - 发布流水线已输出 `source_registry_review_requests.json` artifact，为 pending Source Registry requirements 生成 `suggested_action`；summary 已同步到 preview/Actions review 材料，并已接入 Web UI 的 Review 页面只读展示。
 - Source Registry validator 已检查 enabled source 是否声明已实现 parser，避免 registry 启用未接入解析器的来源。
@@ -77,19 +77,23 @@
 - 发布流水线已输出 `tool_card_url_validation.json` artifact；默认跳过外网可达性检查，设置 `AGENT_RADAR_CHECK_URLS=true` 时可执行 Tool Card URL HEAD/GET 检查，并把 summary 同步到 preview artifact manifest。
 - 发布流水线已输出 `mcp_tools.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`，Workers API 提供 `/api/mcp_manifest` 返回只读工具定义，并提供 `/api/mcp` 最小 MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和只读 `tools/call`。
 - Golden queries 已扩展到 v0.2 下限 10 条，覆盖 coding agent、agent framework、数据库 MCP、GitHub 和监控调试场景。
-- Tag 触发的 Cloudflare Pages preview workflow 已建立，会生成网站、本体数据、eval report、artifact manifest 和 ingestion review，并把审核材料写入 GitHub Actions Summary。
+- Web、数据 artifacts、HTTP API 和 MCP JSON-RPC endpoint 已统一由一个启用 Static Assets 的 Cloudflare Worker 承载；`preview:build` 只是 reviewed bundle 的历史命令名，不代表独立预览部署。
+- `Release All` production workflow 已实现静态 assets/data build once、reviewed bundle 上传、GitHub `production` environment 人工确认、从同一不可变 tag/SHA 构建 Worker 并原样恢复 reviewed `dist-pages`、从 Wrangler deploy output 提取 Worker URL，以及部署后 MCP smoke。
+- Production evidence builder 已实现：workflow 在 smoke 后解析匹配的 GitHub production deployment，生成并上传 `production-release-evidence.json`，关联 run、SHA、tag、reviewed bundle、manifest checksum、D1 seed checksum、Worker/MCP endpoint 和 smoke 结果。
+- `all-v0.2.4` 是当前已验证 production baseline：29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 通过、已部署 MCP smoke 4/4。
+- `all-v0.2.5` 仍是待执行的 closeout release；只有本地质量门禁、GitHub `production` approval、部署、production evidence 和线上核验全部通过后，才能称为发布成功。
 - `npm run ingest` 已输出最小 crawl plan artifact，记录 Source Registry sources 的抓取方法、频率、parser 和 ready/disabled/blocked 状态。
 - `npm run ingest` 已输出最小 crawl audit artifact，记录本轮 Raw Snapshot 的来源、抓取状态、HTTP 状态、内容 hash、保存路径和 request metadata。
 - 已实现基础 `github_topic_parser` fixture、GitHub topic crawler 映射、基础 `npm_package_parser` 和 discovery candidates artifact，可把 GitHub topic/Search API repository payload 与 npm package metadata 解析成 Source Records，并记录 rate-limit/package metadata；`github-topic-mcp` 与 `npm-modelcontextprotocol-sdk` 已作为默认受控公共 metadata sources 启用，repository/package 记录会生成保守 Tool Card drafts 并进入 auto review、release admission、promotion candidates 和可靠发布 artifacts；discovery candidates 与 auto review summary 已同步到 preview/Actions review 材料。
 
-当前主要缺口：
+当前收口事项与后续缺口：
 
 - Tool Card 默认覆盖现在取决于 enabled Source Registry 的采集结果；仍需继续提升来源数量、覆盖广度和更细字段级证据质量。
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 已从 enabled Source Registry 生成可靠发布 artifacts；下一步重点是扩展更多高质量来源、完善跨来源冲突处理，并继续增强 reviewed bundle 中审核结果的持久化摘要。
 - 更细的 Tool Card 字段 provenance 已绑定具体 Source Record 字段和值，并会为已应用的 Override Record 输出 `override_record` 字段值 provenance；最小 incoming draft duplicate gates 已接入 dedup report、review queue、intervention requests、auto review 和 release admission；GitHub topic 与 npm package sources 已启用为受控公共 metadata 来源，repo/package drafts 会经过最小跨来源 normalizer、preview 审核材料和 promotion candidate gate；仍缺更完整的字段冲突合并策略和跨生态 package parser。
-- Workers API 已提供 HTTP/JSON 路由、只读 MCP tool manifest、最小 MCP JSON-RPC endpoint、agent-facing JSON-RPC examples artifact、MCP deployment smoke checklist 和可配置的部署后 smoke 命令；后续仍需完成 MCP server 的 Cloudflare Workers 或 Pages Functions 部署，并把 smoke test 改为从部署成功输出自动获取刚部署的 MCP/API base URL。
-- BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；还缺更完整的 provider 配置 UI 和 direct-to-provider/proxy 模式决策。
+- v0.2 剩余工作是执行 `all-v0.2.5` closeout release，并用 workflow、production evidence artifact 和线上 endpoint 完成发布核验；这是一项待完成的发布事件，不是已验证成功状态。
+- BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；更完整的 Provider 配置 UI、浏览器运行时读取 `provider_registry.json`，以及 direct-to-provider/proxy 模式决策已移到 v0.3/P2，不阻塞 v0.2。
 
 ## MVP
 
@@ -127,7 +131,7 @@
 - Cloudflare D1 SQLite 查询存储。
 - 基于 D1 的基础搜索和推荐输出。
 - Cloudflare Workers 标准轻量 MCP API 设计。
-- Cloudflare Pages 公开站点。
+- Cloudflare Worker Static Assets 公开站点。
 - 5-10 个 golden queries。
 
 ### 验收标准
@@ -168,9 +172,9 @@ MVP baseline 已完成。当前完成标准为：
 
 - 使用真实 LLM provider key 跑通 5 个 golden queries，并记录 eval summary。
 - Critical cases 不出现高风险误推荐，release gate 要求 golden eval 全部通过。
-- Cloudflare Pages preview build 可生成网站、本体数据、eval report、ingestion review 和 artifact manifest。
-- 生产发布遵循 build once、review preview、promote same deployment，不在 main release 重新运行 pipeline/eval。
-- 当前 20 张 Tool Cards 的字段完整、评分解释和 UI 展示一致。
+- Reviewed bundle build 可生成网站、本体数据、eval report、ingestion review 和 artifact manifest。
+- 生产发布对静态 assets/data 遵循 build once、review once、原样部署 reviewed `dist-pages`；Worker 从同一不可变 ref 构建，production job 不重新运行 pipeline/eval。
+- `all-v0.2.4` 已验证 29 张 Tool Cards 的字段、评分解释和 UI 展示一致。
 
 ## v0.2
 
@@ -251,6 +255,7 @@ v0.2 建议拆成 5 条并行但有优先级的工作线：
 - 用户反馈记录格式、反馈汇总和最小 Web UI/MCP 反馈入口。
 - 自动 Review Summary，将来源证据、规则检查、LLM 审核摘要和反馈摘要合并为发布点评材料。
 - 人工 override 机制。
+- P2 Provider 能力：更完整的 Provider 配置 UI、浏览器运行时读取 `provider_registry.json`，以及 direct-to-provider/proxy 模式决策。
 - 数据质量 dashboard 或报告。
 - 自迭代任务生成：
   - parser failure task。
@@ -365,31 +370,24 @@ v0.2 建议拆成 5 条并行但有优先级的工作线：
 
 ## 下一步计划
 
-### P0：v0.2 数据接入
+### P0：v0.2 收口发布
 
-- 继续增加高价值来源和 Tool Cards，把默认采集发布覆盖扩展到更稳健的 30-50 张。
-- 把 `npm run ingest` 输出的 intervention requests、auto review 和 promotion candidates 继续打磨成可靠审核 artifact；当前 preview review markdown 已展示 intervention action、auto review 建议动作、release admission blocked reasons，以及候选 tool id、Source Record id、review gate、reviewer、review time、review reason、目标 artifact 和 promotion check 状态，intervention requests 也已输出逐行 JSONL 摘要。
-- 将 Source Registry review requests 继续打磨成 production gate 前更清晰的 reviewed bundle 证据；当前 preview markdown 已展示 requirements 和 suggested action，artifact manifest 已汇总 pending request summary，Web UI 已可结构化查看 pending request。
-- 将 Tool Card 字段 provenance 继续细化到 Source Record 字段和值，并决定是否在 CI 默认启用 URL 可达性检查；schema-level `tool_card_field_provenance.json` 和 ingest-time `tool_card_field_value_provenance.v1` artifact 已实现，且 ingest-time artifact 已覆盖已应用 Override Record 的字段值 provenance。
-- 扩展跨来源 deduper/normalizer 的字段冲突处理、alias/package key 规则和 Tool Card drafts 发布准入。
-- 使用真实 provider key 重跑 10 条 golden queries，并审查新增 case 的推荐质量。
+- 运行全部本地质量门禁，确认 closeout 代码、文档和 reviewed bundle 一致。
+- 创建并推送 `all-v0.2.5` tag，等待 GitHub `production` environment 人工批准；`Release All` workflow 从该不可变 ref 构建 Worker，并部署 reviewed bundle 中原样恢复的 `dist-pages`。
+- 核验 `production-release-evidence.json`、GitHub deployment record、线上 `/api/version`、线上 data manifest 和 `/api/mcp`；确认 20-50 张 Tool Cards、真实 provider golden eval 至少 10/10、promotion gate 和 MCP smoke 全部通过。
+- 在上述证据全部成立前，保持 `all-v0.2.5` 为 closeout pending；若失败，`all-v0.2.4` 仍是最后一个已验证 production 版本。
 
-### P1：v0.2 基础
+### P1：v0.3 数据与可信度
 
-- 将 Cloudflare Pages preview 审核流程补齐到生产 promote 自动化：
-  - Reviewer 审核 preview URL、Actions Summary、artifact manifest 和 ingestion review。
-  - GitHub Actions `production` environment gate 已建立；Production 只 promote 已审核的 preview deployment 或同一个 immutable bundle，不重新运行 pipeline/eval。
-  - 记录 production deployment id、manifest checksum 和 D1 seed checksum。
-- 增加 1-2 个官方来源的 crawler/parser，并继续评估已启用 GitHub topic metadata 来源的噪声与发布 gate 效果。
-- 将 `provider_registry.json` 接入更完整的 provider 配置 UI；provider registry 版本号和 runtime config artifact 已实现。
-- 完成 MCP server 的 Cloudflare Workers 或 Pages Functions 部署，并把 `npm run mcp:smoke` 改为优先使用 deploy output 中刚部署的 API/Pages URL；`AGENT_RADAR_MCP_BASE_URL` 仅保留为本地或外部 endpoint override。最小 MCP JSON-RPC endpoint、agent-facing examples artifact、deployment checklist 和可配置 smoke 命令已实现。
-- 继续扩展 GitHub Actions 审核摘要中的发布证据；eval failure category 汇总已展示。
-
-### P2：可信度增强
-
-- 为 LLM prompt 和 provider routing 增加版本号。
+- 继续增加高价值来源和 Tool Cards，并完善跨来源字段冲突处理、alias/package key、deduper/normalizer 和发布准入。
+- 继续提升 intervention requests、auto review、Source Registry review requests、字段 provenance 和 URL 可达性检查的证据质量。
 - 增加 eval diff，比较同一 golden query 在不同 prompt/provider 下的动作、候选和风险提示变化。
-- 评估是否支持 browser direct provider mode；若支持，必须把前端 schema 校验和安全归一化同步搬到浏览器端。
+
+### P2：v0.3 Provider 能力
+
+- 将 `provider_registry.json` 接入更完整的 Provider 配置 UI，并决定浏览器运行时配置读取方式。
+- 明确 direct-to-provider 与 proxy 模式边界；若支持 browser direct provider mode，必须把前端 schema 校验和安全归一化同步搬到浏览器端。
+- 为 LLM prompt 和 provider routing 增加版本号，保证配置与评测结果可追溯。
 
 ## 明确不做清单
 

@@ -45,6 +45,9 @@ test("all release workflow uses environment approval before Worker deploy", asyn
 test("all release workflow uniquely binds evidence to the current Actions deployment", async () => {
   const workflow = await readFile(".github/workflows/release-all.yml", "utf8");
 
+  assert.doesNotMatch(workflow, /inputs\.ref/);
+  assert.doesNotMatch(workflow, /workflow_dispatch:\s*\n\s+inputs:/);
+  assert.equal(workflow.match(/ref: \$\{\{ github\.ref \}\}/g)?.length, 2);
   assert.match(workflow, /permissions:\s*\n(?:\s+.*\n)*?\s+deployments:\s*write/);
   assert.match(workflow, /repos\/\$\{GITHUB_REPOSITORY\}\/deployments/);
   assert.match(workflow, /-f environment=production/);

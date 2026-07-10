@@ -11,7 +11,9 @@
 - MVP/v0.2 固定使用 Cloudflare 免费栈：Cloudflare Workers Static Assets、Cloudflare Workers API 和 Cloudflare D1 SQLite。
 - 发布前必须跑 schema、数据质量、安全和推荐评测。
 - 每次发布记录数据版本、规则版本和索引版本。
-- 审核对象必须和发布对象一致；生产发布应使用已审核的 Worker bundle 和静态 assets，而不是重新运行 pipeline 生成新产物。
+- 正常审核由脚本、规则、LLM eval、auto review、release admission 和 promotion check 完成，并固化到 immutable reviewed bundle。
+- GitHub `production` environment gate 是唯一的常规人工发布确认。`approval_override` 只用于有证据的 break-glass 情况。
+- 审核对象必须和发布对象一致；生产 job 从同一不可变 tag/SHA 构建 Worker 代码，并原样恢复 reviewed bundle 中的静态 assets/data，不重新运行 pipeline 生成新数据产物。
 - 失败时保留上一稳定版本。
 - 不引入任何付费服务；新增基础设施前必须说明免费额度、成本和替代方案。
 
@@ -82,7 +84,7 @@ enabled Source Registry
   -> Worker Static Assets serves Web/data and Worker API reads same deployment artifacts
 ```
 
-当前已实现 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、repo/package/docs 跨来源 normalizer、source profile 字段映射、最小 deduper、人工 override artifact、intervention requests、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 已可展示 Source Registry production gate review requests，但不生成逐条人工 review record。尚未实现的是更完整的跨来源冲突处理和人工 override 审计。
+当前已实现 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、repo/package/docs 跨来源 normalizer、source profile 字段映射、最小 deduper、带证据的 break-glass override artifact、intervention requests、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 展示 Source Registry production gate attention signals，但不写入或改变发布审核状态。尚未实现的是更完整的跨来源冲突处理和 override 审计。
 
 ### 目标形态
 
@@ -101,7 +103,7 @@ MVP 不启用自动 schedule。维护者手动触发更新和发布。
 
 ## Worker 一体化发布主路径
 
-Agent Radar 尚未上线，因此 v0.2 直接切换到单个 Cloudflare Worker 项目承载 Web、数据 artifacts 和 MCP/API，不保留旧 Cloudflare Pages 双轨兼容层。
+v0.2 的现行生产架构是单个启用 Static Assets 的 Cloudflare Worker：同一 deployment 承载 Web、数据 artifacts、HTTP API 和 MCP JSON-RPC endpoint。旧 Cloudflare Pages workflows 只属于历史方案，不是当前发布架构，也不保留双轨兼容层。
 
 目标 Worker 项目名：
 
@@ -135,17 +137,21 @@ agent-radar
 发布 tag 使用三段版本号和发布轨道前缀：
 
 ```text
-all-v0.2.1
-all-v0.2.2
-all-v0.2.3
+all-v0.2.4
+all-v0.2.5
 ```
 
 规则：
 
 - `all-vX.Y.Z` 表示一次完整发布尝试，构建并部署 data + web + api/mcp 到同一个 Worker。
 - 如果发布尝试失败或需要重新审核，不复用 tag，直接递增 patch 版本。
-- 审核通过的 tag 即为当前 production release。
+- tag 只有在 reviewed bundle、GitHub `production` environment confirmation、生产部署、部署后 smoke 和 production evidence 全部完成后，才可视为已验证 production release。
 - 失败 tag 保留为历史尝试，供审计和复盘使用。
+
+### v0.2 发布状态
+
+- `all-v0.2.4` 是当前已验证基线：发布 29 张 Tool Cards，真实 provider golden eval 10/10 通过，promotion candidates 29/29 通过，完成 GitHub `production` environment confirmation 与生产部署，线上 `/api/mcp` smoke 4/4 通过。
+- `all-v0.2.5` 是待执行的 closeout release。在外部 tag/workflow、production confirmation、部署、`production-release-evidence.json`、smoke artifact 和线上版本核验全部完成前，只能标记为“待收口”，不能写成已发布或已验证 production baseline。
 
 后续需要更细粒度发布时再增加：
 
@@ -159,7 +165,7 @@ api-vX.Y.Z
 
 ## 发布产物
 
-发布产物由 `npm run pipeline` 在本地或 CI 中生成，默认不作为源码长期提交。源码仓库保留 Source Registry、golden queries、评分/推荐代码、schema、migration 和文档；`public/data`、`public/reports`、`dist`、`dist-pages` 属于可再生成产物，应作为 GitHub Actions artifacts、GitHub Release assets 或 Worker static assets 部署输出保存。
+发布产物由 `npm run pipeline` 在本地或 CI 中生成，默认不作为源码长期提交。源码仓库保留 Source Registry、golden queries、评分/推荐代码、schema、migration 和文档；`public/data`、`public/reports`、`dist`、`dist-pages` 属于可再生成产物，应作为 GitHub Actions artifacts 或 Worker Static Assets 部署输出保存。v0.2 不要求创建 GitHub Release 对象。
 
 | 产物 | 路径示例 | 用途 |
 | --- | --- | --- |
@@ -222,11 +228,11 @@ npm run dev -- --port 4173
 
 - `npm test`：运行 TypeScript 编译和 Node test suite，覆盖评分、推荐、pipeline、API 和 UI 数据装配。
 - `npm run pipeline`：生成本地 `public/data` artifacts、D1 seed SQL 和 `public/reports` eval report；这些文件是发布产物，不再默认进入 git。
-- `npm run eval`：运行 5 个 MVP golden queries；需要 `AGENT_RADAR_LLM_API_KEY` 才会调用真实 LLM provider。缺少 key 时输出 blocked summary 并退出非 0。
+- `npm run eval`：运行 10 个 v0.2 golden queries；需要 `AGENT_RADAR_LLM_API_KEY` 才会调用真实 LLM provider。缺少 key 时输出 blocked summary 并退出非 0。
 - `npm run pages:build`：构建 Vite 静态 UI，输出到本地 `dist-pages/`，供 Worker Static Assets 部署使用。命令名暂时保留以减少迁移噪声。
 - `npm run dev:with-data`：先运行 pipeline 生成本地发布产物，再启动 Vite dev server。
 - `npm run release:build`：运行测试、生成发布产物并构建静态 UI 输出，适合 CI 或手动发布前使用。
-- `npm run promotion:check`：读取 `data/promotion_candidates/promotion_check.json`，如果 promotion candidate 重复或未通过 Tool Card validator dry-run，则非 0 退出；preview workflow 会在部署前执行该 gate。
+- `npm run promotion:check`：读取 `data/promotion_candidates/promotion_check.json`，如果 promotion candidate 重复或未通过 Tool Card validator dry-run，则非 0 退出；release workflow 会在进入 production gate 前执行该 gate。
 - `npm run mcp:smoke`：对部署后的 Worker base URL 执行 JSON-RPC smoke test，覆盖 initialize、tools/list、只读 tools/call 和只读边界。Worker 一体化发布后，GitHub Actions 必须从 deploy output 自动传入 base URL；`AGENT_RADAR_MCP_BASE_URL` 只作为本地或外部 endpoint override。
 - `npm run preview:build`：在 release build 后运行 ingest，把 artifact manifest 写入 `dist-pages/`，把审核报告写入 `artifacts/review/`，用于 Worker deployment 和 GitHub Actions summary 审核。
 - `npm run dev -- --port 4173`：本地预览静态 UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler；直接运行前需要已有 `public/data`，通常优先使用 `npm run dev:with-data`。
@@ -270,7 +276,7 @@ Browser UI
 - provider 401/403、429、模型不可用和 JSON 输出异常会映射为稳定 API error code，并由 Recommend UI 展示 provider/status 上下文。
 - 本地 dev API 和 Workers API 都必须保持只读，不安装、不授权、不执行推荐工具。
 
-Web UI 的 Review 页面读取 `data/source_registry_review_requests.json`，展示 pending Source Registry production gate review request 和 suggested action。该页面不写入 review record，不生成可复制的人工确认 JSON，不自动确认来源，也不改变发布数据。
+Web UI 的 Review 页面读取 `data/source_registry_review_requests.json`，展示需要在 production gate 关注或介入的 Source Registry signals。该页面不自动确认来源，也不改变发布数据或审核状态。
 
 当前 D1 相关文件：
 
@@ -283,30 +289,33 @@ Web UI 的 Review 页面读取 `data/source_registry_review_requests.json`，展
 
 ### 发布流程
 
-Agent Radar 的发布流程采用“build once, review once, deploy the reviewed bundle”原则。由于 LLM-backed eval 和数据采集都可能受时间、provider、来源内容变化影响，生产发布不应在 approval 后重新运行 `pipeline` 并发布新结果。`all-v*` workflow 生成的 Worker bundle、static assets 和 review artifacts 才是 reviewer 实际审核的对象；审核通过后，生产环境部署同一组已审核产物。
+Agent Radar 的数据发布流程采用“build once, review once, deploy the reviewed assets”原则。由于 LLM-backed eval 和数据采集都可能受时间、provider、来源内容变化影响，生产发布不应在 GitHub production confirmation 后重新运行 `pipeline` 并发布新结果。`all-v*` workflow 先用脚本、规则和 LLM 生成 static assets、自动审核结果与 review artifacts，并上传 immutable reviewed bundle，同时对同一 ref 的 Worker 代码执行 dry-run；production gate 确认后，production job 从同一不可变 tag/SHA checkout Worker 源码，并原样恢复 reviewed `dist-pages` 后部署。
 
 ### `all-v*` Worker 发布流程
 
-目标实现使用 Worker 一体化发布 workflow。触发方式：
+当前实现使用 Worker 一体化发布 workflow。触发方式：
 
 ```bash
-git tag all-v0.2.1
-git push origin all-v0.2.1
+git tag all-v0.2.5
+git push origin all-v0.2.5
 ```
 
-也可以通过 `workflow_dispatch` 手动输入 ref。Workflow 使用 `cloudflare/wrangler-action@v3` 执行 `wrangler deploy`，把 `dist-pages` 作为 Worker Static Assets 与 `src/worker.ts` 一起部署到 Cloudflare Worker `agent-radar`。
+也可以通过 `workflow_dispatch` 在 GitHub 的标准 ref 选择器中选择 branch 或 tag。Workflow 不接受第二套自定义 ref 输入，保证 checkout、GitHub event SHA/ref、deployment record 和 production evidence 指向同一 ref。Workflow 使用 `cloudflare/wrangler-action@v4` 执行 `wrangler deploy`，把 `dist-pages` 作为 Worker Static Assets 与 `src/worker.ts` 一起部署到 Cloudflare Worker `agent-radar`。
 
 ```text
 checkout
   -> install dependencies
   -> npm run preview:build
   -> npm run promotion:check
-  -> deploy Worker + dist-pages static assets
-  -> run npm run mcp:smoke against deployed Worker URL
+  -> wrangler deploy --dry-run validates Worker source/config with reviewed assets
   -> append compact review summary to GitHub Actions summary
-  -> upload immutable reviewed bundle and review artifacts
+  -> upload immutable reviewed bundle (dist-pages + review + worker dry-run)
   -> production job waits on GitHub Environment: production
-  -> after approval, deploy the same reviewed bundle and record production evidence
+  -> after confirmation, download and restore the reviewed dist-pages
+  -> bundle Worker from the same immutable ref and deploy it with reviewed Static Assets
+  -> run npm run mcp:smoke against deployed Worker URL
+  -> resolve matching GitHub production deployment
+  -> generate and upload production-release-evidence.json + mcp-smoke-result.json
 ```
 
 Worker deployment 应包含：
@@ -318,13 +327,14 @@ Worker deployment 应包含：
 - `data/mcp_examples.json`：MCP JSON-RPC 请求示例，供 agent/client 集成验证。
 - `data/mcp_smoke_checklist.json`：MCP deployment review checklist，列出 initialize、tools/list、只读 tools/call 和只读边界的必检项。
 - `reports/*`：eval report。
-- `artifact-manifest.json`：记录 git sha、data version、rules version、eval provider/model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、Tool Card field provenance summary、crawl audit summary、approval override summary、discovery candidates summary、intervention requests summary、field value provenance summary、auto review summary、release admission summary、promotion candidates summary、promotion check summary、构建时间和关键文件 checksum；checksum 覆盖 `provider_registry.json`、`tool_card_field_provenance.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`。
+- `artifact-manifest.json`：直接记录 git sha、data version、eval model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、Tool Card field provenance summary、crawl audit summary、approval override summary、discovery candidates summary、intervention requests summary、field value provenance summary、auto review summary、release admission summary、promotion candidates summary、promotion check summary、构建时间和关键文件 checksum；规则版本和索引版本保存在被 checksum 覆盖的 `data/manifest.json` 中，checksum 还覆盖 `provider_registry.json`、`tool_card_field_provenance.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`。
 
-GitHub Actions summary 应包含：
+部署前 reviewed bundle 与 GitHub Actions summary 应包含：
 
-- compact review summary，用于维护者在 GitHub production environment approval 前快速判断是否需要介入。summary 只展示 ref/SHA、data version、Cloudflare Worker URL、golden eval、source registry production gate request、Tool Card intervention request、release admission blocked、promotion check failure、critical field provenance missing、crawl failure/partial 和 MCP smoke 等会影响整批发布确认的重要信息。
-- `artifacts/review/ingestion.md` 仍作为 uploaded artifact 保存完整采集明细，包括 discovery candidate、approval request 模板、auto review scorecard、release admission item、promotion candidate 和 promotion plan；不再整段写入 GitHub Step Summary。
-- `artifact-manifest.json` 继续作为机器可读摘要保存在 preview bundle 中；Step Summary 只展示其中会影响审核决策的字段。
+- compact review summary，在 GitHub `production` environment confirmation 前展示 ref/SHA、data version、golden eval、source registry attention signals、Tool Card intervention requests、release admission blocks、promotion check failures、critical field provenance missing 和 crawl failure/partial 等整批发布信号。
+- `artifacts/review/ingestion.md` 作为 uploaded artifact 保存完整采集明细，包括 discovery candidates、intervention requests、auto review scorecards、release admission items、promotion candidates 和 promotion plan。
+- `dist-pages/artifact-manifest.json` 作为机器可读摘要保存在 reviewed bundle 中；它直接记录 Git SHA、data version、eval 和自动审核/admission/promotion 摘要，并用关键文件 checksums 间接绑定 `data/manifest.json` 中的规则与索引版本。
+- `worker-dry-run` 保存 Wrangler 对 Worker bundle 的部署前校验结果。
 
 GitHub 配置要求：
 
@@ -336,22 +346,28 @@ GitHub 配置要求：
 | `CLOUDFLARE_ACCOUNT_ID` | secret | Cloudflare account id。 |
 | `CLOUDFLARE_PROJECT_NAME` | repository variable | Cloudflare project name；默认使用 `agent-radar`。 |
 
-Workflow 上传的 artifact 包含：
+Workflow 在部署前上传的 reviewed bundle artifact 名为 `agent-radar-all-<run_id>`，包含：
 
 - `dist-pages`：可部署网站、数据 artifacts 和 `artifact-manifest.json`。
-- `artifacts/review`：给 GitHub Actions Summary 和人工审核使用的 Markdown review。
-- `mcp-smoke-result.json`：对刚部署 Worker URL 运行 MCP smoke 后生成的结果。
+- `artifacts/review`：脚本、规则和 LLM 生成的 Markdown review evidence。
+- `worker-dry-run`：Wrangler dry-run 输出。
+
+部署后 workflow 另行上传 `agent-radar-mcp-smoke-<run_id>` artifact，包含：
+
+- `mcp-smoke-result.json`：对刚部署 Worker `/api/mcp` 自动执行 initialize、tools/list、只读 tools/call 和只读边界检查的原始结果。
+- `production-release-evidence.json`：把 GitHub repository/run/SHA/tag、production deployment id、reviewed bundle 名称、manifest 与 D1 seed checksums、Worker URL、MCP endpoint 和 smoke summary 绑定为 `production_release_evidence.v1`。
+
+Workflow 先通过 `gh api` 将 production deployment 唯一绑定到当前 repository/run/SHA/tag；evidence builder 再校验 release metadata 格式、manifest `git_sha`、D1 seed checksum、Worker/MCP endpoint 和全部必需 smoke checks，并计算 manifest 文件 SHA 写入证据。任一步失败都会使 production job 失败。JSON 与 smoke artifact 是部署完成后的证据，不属于部署前 reviewed bundle，也不取代 GitHub production confirmation。
 
 ### Production Promote 流程
 
 ```text
-select approved Worker deployment/bundle
-  -> verify artifact-manifest.json
-  -> verify eval passed == total
-  -> verify deployment git sha / branch / PR approval
-  -> deploy the same reviewed Worker bundle/static assets to production
-  -> optional: import the same d1_seed.sql into Cloudflare D1 when D1 serving is enabled
-  -> store deployment URL and manifest as release evidence
+download immutable reviewed bundle
+  -> restore reviewed dist-pages without rebuilding
+  -> bundle Worker from the same immutable ref and deploy reviewed Static Assets
+  -> run automated MCP smoke against deploy output URL
+  -> resolve this run's GitHub production deployment id
+  -> validate and persist production-release-evidence.json
 ```
 
 Production promote 不重新运行：
@@ -360,9 +376,7 @@ Production promote 不重新运行：
 - `npm run pipeline`
 - `npm run eval`
 
-如果 Cloudflare API 无法直接 promote existing Worker deployment，fallback 是下载 preview build 对应的 immutable bundle 并部署同一个 bundle 到 production；仍然不能重新 build。
-
-Worker 一体化 workflow 必须建立 `production` environment approval gate，并在审批后下载同一个 reviewed bundle 记录 approval evidence。
+当前 workflow 的标准路径就是在 GitHub `production` environment confirmation 后下载 immutable reviewed bundle，并部署其中的同一份 `dist-pages`；不得重新 build 数据 artifacts。GitHub environment deployment record、Actions run、不可变 tag、reviewed bundle 和部署后 evidence artifacts 共同构成发布记录。
 
 ### 发布门槛
 
@@ -374,9 +388,10 @@ Worker 一体化 workflow 必须建立 `production` environment approval gate，
 - safety eval critical cases。
 - golden queries critical cases。
 - index build。
-- manifest consistency check。
-- preview deployment review approval。
-- production promote 使用的 deployment id 或 bundle checksum 必须与审核记录一致。
+- artifact manifest 已生成并记录关键文件 checksums；production evidence 校验 manifest `git_sha` 和 D1 seed checksum。
+- immutable reviewed bundle 已上传，且 deployment 原样恢复其中的 `dist-pages`。
+- GitHub `production` environment gate 已完成唯一一次常规人工发布确认。
+- 部署后 MCP smoke 全部通过，且 `production-release-evidence.json` 成功生成并上传。
 
 LLM-backed 推荐发布说明：
 
@@ -401,8 +416,8 @@ MCP/API 部署在同一个 Cloudflare Worker 中，读取同一 Worker deploymen
 - `/api/mcp_manifest`：HTTP JSON 工具清单。
 - `/api/mcp`：MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和 `tools/call`。
 - `data/mcp_examples.json`：部署产物中的 JSON-RPC 请求示例，可用于 agent/client smoke test。
-- `data/mcp_smoke_checklist.json`：部署验收清单；reviewer 应按 checklist 验证 endpoint 初始化、工具列表、只读工具调用和只读边界。
-- `data/provider_registry.json`：部署产物中的 provider registry artifact；reviewer 应确认 `registry_version`、默认模型和 UI 可选模型与发布预期一致。
+- `data/mcp_smoke_checklist.json`：部署验收清单；workflow 的自动 smoke 按其覆盖 endpoint 初始化、工具列表、只读工具调用和只读边界。
+- `data/provider_registry.json`：部署产物中的 provider registry artifact；其版本、默认模型和 UI 可选模型进入 reviewed bundle 的自动校验与 evidence。
 - `npm run mcp:smoke`：部署后的自动 smoke test；标准 workflow 从 Worker deploy output 自动传入 base URL 并请求 `${base}/api/mcp`。
 
 支持工具：
@@ -426,7 +441,7 @@ MCP/API 部署在同一个 Cloudflare Worker 中，读取同一 Worker deploymen
 适用条件：
 
 - Web UI、数据 artifacts 和 MCP/API 需要同域部署。
-- 希望避免额外维护 Pages data URL 或独立 MCP base URL。
+- 希望避免额外维护外部 data URL 或独立 MCP base URL。
 - 希望一次 `all-v*` 发布绑定 data、web 和 api/mcp。
 
 数据读取：
@@ -522,7 +537,7 @@ MVP 页面：
 回滚步骤：
 
 1. 找到上一稳定 `all-v*` release manifest、Worker deployment id 和 bundle checksum。
-2. 优先使用 Cloudflare Worker rollback 恢复上一 Worker deployment；如果不可用，则下载上一 immutable bundle 重新部署，不能重新 build。
+2. 优先使用 Cloudflare Worker rollback 恢复上一 Worker deployment；如果不可用，则 checkout 上一不可变 ref、恢复其 immutable reviewed bundle 中的 `dist-pages`，再由 Wrangler 构建 Worker 并部署，不能重新运行 pipeline/eval 生成数据 artifacts。
 3. 如果 D1 serving 已启用，使用上一 release 的 `d1_seed.sql` 恢复 D1，或切回上一 active D1 database。
 4. 标记失败版本为 `retracted`。
 5. 记录失败原因。
@@ -567,7 +582,7 @@ MVP：
 | 故障 | 处理 |
 | --- | --- |
 | 单个来源失败 | 保留旧数据，标记 stale |
-| 官方来源全部失败 | 阻止发布或人工确认 |
+| 官方来源全部失败 | 阻止发布并调查来源或采集故障 |
 | parser 大量失败 | 回滚 parser 或保留旧版本 |
 | 评分异常 | 阻止发布并输出 diff |
 | API 不可用 | 回滚 Worker deployment；必要时 Web UI 显示静态数据，MCP 返回错误 |
