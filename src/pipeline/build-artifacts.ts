@@ -6,12 +6,18 @@ import { buildMcpToolManifest } from "../api/mcp-manifest.js";
 import { goldenQueries } from "../eval/golden-queries.js";
 import { createBlockedEvalSummary, runGoldenQueries, type EvalSummary } from "../eval/runner.js";
 import { runIngestion } from "../ingestion/run.js";
+import { buildToolCardConflictReport, type ToolCardConflictReport } from "../ingestion/field-conflicts.js";
+import {
+  buildToolCardFieldValueProvenanceV2,
+  type ToolCardFieldValueProvenanceV2,
+} from "../ingestion/field-provenance.js";
+import { normalizeToolCardDraftsWithEvidence } from "../ingestion/normalizer.js";
 import { buildSourceRegistryReviewArtifact, buildSourceRegistryReviewRequests } from "../ingestion/source-review.js";
 import { buildSourceRegistryArtifact, buildSourceRegistryDiff, sourceRegistry } from "../ingestion/source-registry.js";
 import { rateAllToolCards } from "../rating/engine.js";
 import { DEFAULT_RECOMMENDATION_MODEL, buildProviderRegistryArtifact } from "../recommendation/provider-registry.js";
 import { buildSearchIndex } from "../search/index-builder.js";
-import type { ToolCard } from "../schema.js";
+import type { SourceRecord, ToolCard } from "../schema.js";
 import { buildSkippedToolCardUrlValidation, buildToolCardFieldProvenance, checkToolCardUrls, validateToolCards } from "../validation/tool-card-validator.js";
 
 export interface BuildArtifactsOptions {
@@ -35,7 +41,11 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await mkdir(publicDataDir, { recursive: true });
   await mkdir(reportsDir, { recursive: true });
 
-  const toolCards = options.toolCards ?? (await buildReliableToolCardsFromIngestion(options));
+  const reliableInput = options.toolCards
+    ? buildProvidedToolCardInput(options.toolCards)
+    : await buildReliableToolCardsFromIngestion(options);
+  const toolCards = reliableInput.toolCards;
+  assertDataTrustArtifacts(reliableInput.fieldProvenanceV2, reliableInput.conflictReport);
   const toolCardValidation = validateToolCards(toolCards);
   if (!toolCardValidation.passed) {
     throw new Error(`Tool Card validation failed: ${toolCardValidation.errors.join("; ")}`);
@@ -72,6 +82,10 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await writeFile(join(publicDataDir, "source_registry_review_requests.json"), JSON.stringify(sourceRegistryReviewRequests, null, 2), "utf8");
   await writeFile(join(publicDataDir, "tool_card_validation.json"), JSON.stringify(toolCardValidation, null, 2), "utf8");
   await writeFile(join(publicDataDir, "tool_card_field_provenance.json"), JSON.stringify(toolCardFieldProvenance, null, 2), "utf8");
+  await mkdir(join(publicDataDir, "field_provenance"), { recursive: true });
+  await writeFile(join(publicDataDir, "field_provenance", "tool_card_fields.v2.json"), JSON.stringify(reliableInput.fieldProvenanceV2, null, 2), "utf8");
+  await mkdir(join(publicDataDir, "conflicts"), { recursive: true });
+  await writeFile(join(publicDataDir, "conflicts", "tool_card_conflicts.json"), JSON.stringify(reliableInput.conflictReport, null, 2), "utf8");
   await writeFile(join(publicDataDir, "tool_card_url_validation.json"), JSON.stringify(toolCardUrlValidation, null, 2), "utf8");
   await writeFile(join(publicDataDir, "provider_registry.json"), JSON.stringify(providerRegistry, null, 2), "utf8");
   await writeFile(join(publicDataDir, "mcp_tools.json"), JSON.stringify(mcpToolManifest, null, 2), "utf8");
@@ -103,6 +117,8 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         source_registry_review_requests: "data/source_registry_review_requests.json",
         tool_card_validation: "data/tool_card_validation.json",
         tool_card_field_provenance: "data/tool_card_field_provenance.json",
+        tool_card_field_value_provenance_v2: "data/field_provenance/tool_card_fields.v2.json",
+        tool_card_conflict_report: "data/conflicts/tool_card_conflicts.json",
         tool_card_url_validation: "data/tool_card_url_validation.json",
         provider_registry: "data/provider_registry.json",
         mcp_tools: "data/mcp_tools.json",
@@ -126,7 +142,13 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   };
 }
 
-async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOptions): Promise<ToolCard[]> {
+interface ReliableToolCardInput {
+  toolCards: ToolCard[];
+  fieldProvenanceV2: ToolCardFieldValueProvenanceV2;
+  conflictReport: ToolCardConflictReport;
+}
+
+async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOptions): Promise<ReliableToolCardInput> {
   const ingestion = await runIngestion({
     outputDir: options.outputDir,
     now: "2026-07-06T00:00:00Z",
@@ -138,7 +160,66 @@ async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOption
     throw new Error(`Promotion check failed: ${JSON.stringify(ingestion.promotionCheck.summary)}`);
   }
 
-  return ingestion.promotionCandidates.items.map((item) => item.draft);
+  const toolCards = ingestion.promotionCandidates.items.map((item) => item.draft);
+  return {
+    toolCards,
+    fieldProvenanceV2: buildToolCardFieldValueProvenanceV2(
+      toolCards,
+      ingestion.normalizationEvidence,
+      "2026-07-06T00:00:00Z",
+    ),
+    conflictReport: buildToolCardConflictReport(
+      toolCards,
+      ingestion.normalizationEvidence,
+      "2026-07-06T00:00:00Z",
+    ),
+  };
+}
+
+function buildProvidedToolCardInput(toolCards: ToolCard[]): ReliableToolCardInput {
+  const records: SourceRecord[] = toolCards.map((card) => ({
+    id: `provided-${card.id}`,
+    schema_version: "source_record.v1",
+    snapshot_id: `provided-snapshot-${card.id}`,
+    source_id: "provided-reviewed-tool-cards",
+    record_type: "manual",
+    name: card.name,
+    description: card.summary,
+    urls: card.source_urls,
+    raw_fields: card as unknown as Record<string, unknown>,
+    parsed_fields: { tool_id: card.id, type: card.type },
+    source_confidence: card.confidence,
+    parsed_at: card.updated_at,
+    parser_version: "provided_reviewed_tool_cards.v1",
+    warnings: [],
+  }));
+  const normalized = normalizeToolCardDraftsWithEvidence(records);
+  const generatedAt = "2026-07-06T00:00:00Z";
+  return {
+    toolCards,
+    fieldProvenanceV2: buildToolCardFieldValueProvenanceV2(
+      toolCards,
+      normalized.evidence,
+      generatedAt,
+    ),
+    conflictReport: buildToolCardConflictReport(toolCards, normalized.evidence, generatedAt),
+  };
+}
+
+export function assertDataTrustArtifacts(
+  fieldProvenanceV2: { summary: { critical_coverage: number } },
+  conflictReport: { summary: { unresolved_critical: number } },
+): void {
+  if (fieldProvenanceV2.summary.critical_coverage !== 1) {
+    throw new Error(
+      `critical_provenance_incomplete: coverage=${fieldProvenanceV2.summary.critical_coverage}`,
+    );
+  }
+  if (conflictReport.summary.unresolved_critical > 0) {
+    throw new Error(
+      `unresolved_critical_field_conflict: count=${conflictReport.summary.unresolved_critical}`,
+    );
+  }
 }
 
 function toJsonl(records: unknown[]): string {

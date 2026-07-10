@@ -1,5 +1,11 @@
 import type { SourceRecord, ToolCard } from "../schema.js";
 import type { OverrideRecord } from "./normalizer.js";
+import {
+  CRITICAL_TOOL_CARD_FIELDS,
+  type ToolCardFieldCandidate,
+  type ToolCardFieldSelection,
+  type ToolCardNormalizationEvidence,
+} from "./normalization-evidence.js";
 
 export interface ToolCardFieldValueProvenanceItem {
   tool_id: string;
@@ -20,6 +26,23 @@ export interface ToolCardFieldValueProvenance {
     field_values: number;
   };
   items: ToolCardFieldValueProvenanceItem[];
+}
+
+export interface ToolCardFieldValueProvenanceV2 {
+  schema_version: "tool_card_field_value_provenance.v2";
+  generated_at: string;
+  normalizer_version: "normalizer.v0.3";
+  critical_fields: string[];
+  items: Array<ToolCardFieldSelection & {
+    candidates: ToolCardFieldCandidate[];
+    evidence_refs: string[];
+  }>;
+  summary: {
+    published_tool_count: number;
+    required_selection_count: number;
+    covered_selection_count: number;
+    critical_coverage: number;
+  };
 }
 
 export function buildToolCardFieldValueProvenance(
@@ -79,6 +102,82 @@ export function buildToolCardFieldValueProvenance(
     },
     items
   };
+}
+
+export function buildToolCardFieldValueProvenanceV2(
+  drafts: ToolCard[],
+  normalizationEvidence: ToolCardNormalizationEvidence,
+  generatedAt: string,
+): ToolCardFieldValueProvenanceV2 {
+  const selectionsByKey = new Map(
+    normalizationEvidence.field_selections.map((selection) => [
+      `${selection.tool_id}:${selection.tool_card_field}`,
+      selection,
+    ]),
+  );
+  const candidatesByKey = groupCandidates(normalizationEvidence.field_candidates);
+  const draftsById = new Map(drafts.map((draft) => [draft.id, draft]));
+  const items = drafts.flatMap((draft) =>
+    CRITICAL_TOOL_CARD_FIELDS.flatMap((field) => {
+      const key = `${draft.id}:${field}`;
+      const selection = selectionsByKey.get(key);
+      if (!selection) return [];
+      return [{
+        ...selection,
+        normalized_value_preview: redactPreview(selection.normalized_value_preview),
+        candidates: (candidatesByKey.get(key) ?? []).map((candidate) => ({
+          ...candidate,
+          source_value_preview: redactPreview(candidate.source_value_preview),
+        })),
+        evidence_refs: draftsById.get(draft.id)?.evidence_refs ?? [],
+      }];
+    }),
+  );
+  const requiredSelectionCount = drafts.length * CRITICAL_TOOL_CARD_FIELDS.length;
+  const coveredSelectionCount = items.filter(
+    (item) => item.candidates.length > 0 || item.override_record_id,
+  ).length;
+
+  return {
+    schema_version: "tool_card_field_value_provenance.v2",
+    generated_at: generatedAt,
+    normalizer_version: "normalizer.v0.3",
+    critical_fields: [...CRITICAL_TOOL_CARD_FIELDS],
+    items,
+    summary: {
+      published_tool_count: drafts.length,
+      required_selection_count: requiredSelectionCount,
+      covered_selection_count: coveredSelectionCount,
+      critical_coverage: requiredSelectionCount === 0 ? 1 : coveredSelectionCount / requiredSelectionCount,
+    },
+  };
+}
+
+function groupCandidates(candidates: ToolCardFieldCandidate[]): Map<string, ToolCardFieldCandidate[]> {
+  const grouped = new Map<string, ToolCardFieldCandidate[]>();
+  for (const candidate of candidates) {
+    const key = `${candidate.tool_id}:${candidate.tool_card_field}`;
+    grouped.set(key, [...(grouped.get(key) ?? []), candidate]);
+  }
+  return grouped;
+}
+
+function redactPreview(value: unknown): unknown {
+  if (typeof value === "string") {
+    return value
+      .replace(/(authorization\s*:\s*(?:bearer\s+)?)[^\s,;]+/gi, "$1[REDACTED]")
+      .replace(/((?:api[_-]?key|token|cookie|password)\s*[=:]\s*)[^\s,;]+/gi, "$1[REDACTED]");
+  }
+  if (Array.isArray(value)) return value.map(redactPreview);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        /authorization|api[_-]?key|token|cookie|password/i.test(key) ? "[REDACTED]" : redactPreview(item),
+      ]),
+    );
+  }
+  return value;
 }
 
 function groupOverridesByToolId(overrideRecords: OverrideRecord[]): Map<string, OverrideRecord[]> {

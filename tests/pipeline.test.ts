@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
-import { buildArtifacts } from "../src/pipeline/build-artifacts.js";
+import { assertDataTrustArtifacts, buildArtifacts } from "../src/pipeline/build-artifacts.js";
 import { sourceRegistry as defaultSourceRegistry } from "../src/ingestion/source-registry.js";
 import type { ToolCard } from "../src/schema.js";
 
@@ -22,6 +22,8 @@ interface ManifestFile {
   source_registry_review_requests: string;
   tool_card_validation: string;
   tool_card_field_provenance: string;
+  tool_card_field_value_provenance_v2: string;
+  tool_card_conflict_report: string;
   tool_card_url_validation: string;
   provider_registry: string;
   mcp_tools: string;
@@ -128,6 +130,8 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.source_registry_review_requests, "data/source_registry_review_requests.json");
     assert.equal(manifest.tool_card_validation, "data/tool_card_validation.json");
     assert.equal(manifest.tool_card_field_provenance, "data/tool_card_field_provenance.json");
+    assert.equal(manifest.tool_card_field_value_provenance_v2, "data/field_provenance/tool_card_fields.v2.json");
+    assert.equal(manifest.tool_card_conflict_report, "data/conflicts/tool_card_conflicts.json");
     assert.equal(manifest.tool_card_url_validation, "data/tool_card_url_validation.json");
     assert.equal(manifest.provider_registry, "data/provider_registry.json");
     assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
@@ -168,6 +172,18 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(toolCardFieldProvenance.summary.covered >= 29, true);
     assert.equal(toolCardFieldProvenance.summary.covered_by_manual_review, 0);
     assert.equal(toolCardFieldProvenance.summary.missing <= 4, true);
+
+    const fieldValueProvenanceV2 = JSON.parse(
+      await readFile(join(outputDir, "data", "field_provenance", "tool_card_fields.v2.json"), "utf8"),
+    );
+    assert.equal(fieldValueProvenanceV2.schema_version, "tool_card_field_value_provenance.v2");
+    assert.equal(fieldValueProvenanceV2.summary.critical_coverage, 1);
+
+    const conflictReport = JSON.parse(
+      await readFile(join(outputDir, "data", "conflicts", "tool_card_conflicts.json"), "utf8"),
+    );
+    assert.equal(conflictReport.schema_version, "tool_card_conflict_report.v1");
+    assert.equal(conflictReport.summary.unresolved_critical, 0);
 
     const toolCardUrlValidation = JSON.parse(await readFile(join(outputDir, "data", "tool_card_url_validation.json"), "utf8"));
     assert.equal(toolCardUrlValidation.schema_version, "tool_card_url_validation.v1");
@@ -251,6 +267,23 @@ test("builds MVP data artifacts and an eval report", async () => {
     else process.env.AGENT_RADAR_LLM_MODEL = originalModel;
     await rm(outputDir, { recursive: true, force: true });
   }
+});
+
+test("data trust gate rejects incomplete provenance and unresolved critical conflicts", () => {
+  assert.throws(
+    () => assertDataTrustArtifacts(
+      { summary: { critical_coverage: 0.9 } },
+      { summary: { unresolved_critical: 0 } },
+    ),
+    /critical_provenance_incomplete/,
+  );
+  assert.throws(
+    () => assertDataTrustArtifacts(
+      { summary: { critical_coverage: 1 } },
+      { summary: { unresolved_critical: 1 } },
+    ),
+    /unresolved_critical_field_conflict/,
+  );
 });
 
 test("pipeline rejects invalid tool cards before publishing artifacts", async () => {

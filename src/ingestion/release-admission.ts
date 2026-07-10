@@ -1,5 +1,6 @@
 import type { ToolCardReviewQueue } from "./review-queue.js";
 import type { ToolCardAutoReview } from "./auto-review.js";
+import type { ToolCardConflictReport } from "./field-conflicts.js";
 
 export type ToolCardReleaseAdmissionStatus = "eligible_for_publish" | "blocked";
 export type ToolCardReleaseAdmissionGate = "approval_override" | "auto_review";
@@ -28,8 +29,18 @@ export interface ToolCardReleaseAdmission {
   items: ToolCardReleaseAdmissionItem[];
 }
 
-export function buildToolCardReleaseAdmission(reviewQueue: ToolCardReviewQueue, generatedAt: string, autoReview?: ToolCardAutoReview): ToolCardReleaseAdmission {
+export function buildToolCardReleaseAdmission(
+  reviewQueue: ToolCardReviewQueue,
+  generatedAt: string,
+  autoReview?: ToolCardAutoReview,
+  conflictReport?: ToolCardConflictReport,
+): ToolCardReleaseAdmission {
   const autoReviewByToolId = new Map((autoReview?.items ?? []).map((item) => [item.tool_id, item]));
+  const unresolvedCriticalToolIds = new Set(
+    (conflictReport?.items ?? [])
+      .filter((item) => item.critical && item.resolution_status === "unresolved")
+      .map((item) => item.tool_id),
+  );
   const items: ToolCardReleaseAdmissionItem[] = reviewQueue.items.map((item) => {
     const autoReviewItem = autoReviewByToolId.get(item.tool_id);
     const blockingReasons: string[] = [];
@@ -38,6 +49,7 @@ export function buildToolCardReleaseAdmission(reviewQueue: ToolCardReviewQueue, 
     const autoReviewPassed = autoReviewItem?.suggested_action === "promote" && autoReviewItem.human_review_reasons.length === 0;
     if (!approvalOverridePassed && !autoReviewPassed) blockingReasons.push("approval_override_or_auto_review_not_passed");
     if (item.duplicate_of_tool_ids.length > 0 || item.duplicate_of_draft_tool_ids.length > 0) blockingReasons.push("possible_duplicate");
+    if (unresolvedCriticalToolIds.has(item.tool_id)) blockingReasons.push("unresolved_critical_field_conflict");
 
     return {
       tool_id: item.tool_id,

@@ -189,6 +189,29 @@ export function buildNormalizationEvidence(
     });
   }
 
+  const fallbackRecord = orderSourceRecords(records, sourceDefinitions)[0];
+  if (fallbackRecord) {
+    for (const field of CRITICAL_TOOL_CARD_FIELDS) {
+      if (selections.some((selection) => selection.tool_card_field === field)) continue;
+      const candidate = toCandidate(draft.id, fallbackRecord, {
+        field,
+        path: `derived.${field}`,
+        value: readDraftField(draft, field) ?? "unknown",
+      });
+      candidate.selected = true;
+      candidates.push(candidate);
+      selections.push({
+        tool_id: draft.id,
+        tool_card_field: field,
+        normalized_value_preview: readDraftField(draft, field) ?? "unknown",
+        transformation_type: "derive",
+        normalizer_version: NORMALIZER_VERSION,
+        selected_source_record_ids: [fallbackRecord.id],
+        reason_code: "derived_from_selected_fields",
+      });
+    }
+  }
+
   return {
     schema_version: "tool_card_normalization_evidence.v1",
     field_candidates: candidates,

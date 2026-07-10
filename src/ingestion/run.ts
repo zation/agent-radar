@@ -7,7 +7,13 @@ import { buildSourceCrawlPlan, type SourceCrawlPlan } from "./crawl-plan.js";
 import { crawlEnabledSources } from "./crawler.js";
 import { buildToolCardDuplicateReport, type ToolCardDuplicateReport } from "./deduper.js";
 import { buildToolDiscoveryCandidates, type ToolDiscoveryCandidates } from "./discovery-candidates.js";
-import { buildToolCardFieldValueProvenance, type ToolCardFieldValueProvenance } from "./field-provenance.js";
+import { buildToolCardConflictReport, type ToolCardConflictReport } from "./field-conflicts.js";
+import {
+  buildToolCardFieldValueProvenance,
+  buildToolCardFieldValueProvenanceV2,
+  type ToolCardFieldValueProvenance,
+  type ToolCardFieldValueProvenanceV2,
+} from "./field-provenance.js";
 import { buildToolCardInterventionRequests, type ToolCardInterventionRequests } from "./intervention-requests.js";
 import { normalizeToolCardDraftsWithEvidence, type OverrideRecord } from "./normalizer.js";
 import type { ToolCardNormalizationEvidence } from "./normalization-evidence.js";
@@ -42,6 +48,8 @@ export interface RunIngestionResult {
   interventionRequests: ToolCardInterventionRequests;
   normalizationEvidence: ToolCardNormalizationEvidence;
   fieldProvenance: ToolCardFieldValueProvenance;
+  fieldProvenanceV2: ToolCardFieldValueProvenanceV2;
+  conflictReport: ToolCardConflictReport;
   duplicateReport: ToolCardDuplicateReport;
   reviewQueue: ToolCardReviewQueue;
   autoReview: ToolCardAutoReview;
@@ -89,7 +97,10 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeToolCardDrafts(options.outputDir, draftsBySource);
   const toolCardDrafts = [...draftsBySource.values()].flat();
   const fieldProvenance = buildToolCardFieldValueProvenance(toolCardDrafts, sourceRecords, now, overrideRecords);
-  await writeFieldProvenance(options.outputDir, fieldProvenance);
+  const fieldProvenanceV2 = buildToolCardFieldValueProvenanceV2(toolCardDrafts, normalizationEvidence, now);
+  const conflictReport = buildToolCardConflictReport(toolCardDrafts, normalizationEvidence, now);
+  await writeFieldProvenance(options.outputDir, fieldProvenance, fieldProvenanceV2);
+  await writeConflictReport(options.outputDir, conflictReport);
   const existingToolCards = options.existingToolCards ?? [];
   const duplicateReport = buildToolCardDuplicateReport(toolCardDrafts, existingToolCards, now);
   await writeDuplicateReport(options.outputDir, duplicateReport);
@@ -97,9 +108,9 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeReviewQueue(options.outputDir, reviewQueue);
   const autoReview = buildToolCardAutoReview(toolCardDrafts, sourceRecords, reviewQueue, now);
   await writeAutoReview(options.outputDir, autoReview);
-  const interventionRequests = buildToolCardInterventionRequests(reviewQueue, now);
+  const interventionRequests = buildToolCardInterventionRequests(reviewQueue, now, conflictReport);
   await writeInterventionRequests(options.outputDir, interventionRequests);
-  const releaseAdmission = buildToolCardReleaseAdmission(reviewQueue, now, autoReview);
+  const releaseAdmission = buildToolCardReleaseAdmission(reviewQueue, now, autoReview, conflictReport);
   await writeReleaseAdmission(options.outputDir, releaseAdmission);
   const promotionCandidates = buildToolCardPromotionCandidates(toolCardDrafts, releaseAdmission, approvalRecords, now, autoReview);
   await writePromotionCandidates(options.outputDir, promotionCandidates);
@@ -120,6 +131,8 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     interventionRequests,
     normalizationEvidence,
     fieldProvenance,
+    fieldProvenanceV2,
+    conflictReport,
     duplicateReport,
     reviewQueue,
     autoReview,
@@ -234,10 +247,21 @@ async function writeInterventionRequests(outputDir: string, interventionRequests
   await writeFile(join(interventionRequestsDir, "tool_card_drafts.jsonl"), lines ? `${lines}\n` : "", "utf8");
 }
 
-async function writeFieldProvenance(outputDir: string, fieldProvenance: ToolCardFieldValueProvenance): Promise<void> {
+async function writeFieldProvenance(
+  outputDir: string,
+  fieldProvenance: ToolCardFieldValueProvenance,
+  fieldProvenanceV2: ToolCardFieldValueProvenanceV2,
+): Promise<void> {
   const fieldProvenanceDir = join(outputDir, "data", "field_provenance");
   await mkdir(fieldProvenanceDir, { recursive: true });
   await writeFile(join(fieldProvenanceDir, "tool_card_fields.json"), JSON.stringify(fieldProvenance, null, 2), "utf8");
+  await writeFile(join(fieldProvenanceDir, "tool_card_fields.v2.json"), JSON.stringify(fieldProvenanceV2, null, 2), "utf8");
+}
+
+async function writeConflictReport(outputDir: string, conflictReport: ToolCardConflictReport): Promise<void> {
+  const conflictDir = join(outputDir, "data", "conflicts");
+  await mkdir(conflictDir, { recursive: true });
+  await writeFile(join(conflictDir, "tool_card_conflicts.json"), JSON.stringify(conflictReport, null, 2), "utf8");
 }
 
 async function writeReleaseAdmission(outputDir: string, releaseAdmission: ToolCardReleaseAdmission): Promise<void> {

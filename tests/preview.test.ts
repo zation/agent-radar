@@ -189,6 +189,29 @@ const ingestionResult: RunIngestionResult = {
       }
     ]
   },
+  fieldProvenanceV2: {
+    schema_version: "tool_card_field_value_provenance.v2",
+    generated_at: "2026-07-07T00:00:00Z",
+    normalizer_version: "normalizer.v0.3",
+    critical_fields: [],
+    items: [],
+    summary: {
+      published_tool_count: 0,
+      required_selection_count: 0,
+      covered_selection_count: 0,
+      critical_coverage: 1
+    }
+  },
+  conflictReport: {
+    schema_version: "tool_card_conflict_report.v1",
+    generated_at: "2026-07-07T00:00:00Z",
+    items: [],
+    summary: {
+      resolved: 0,
+      unresolved: 0,
+      unresolved_critical: 0
+    }
+  },
   duplicateReport: {
     schema_version: "tool_card_duplicate_report.v1",
     generated_at: "2026-07-07T00:00:00Z",

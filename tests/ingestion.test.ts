@@ -789,6 +789,9 @@ test("ingestion writes tool card drafts from complete manual source records", as
       result.normalizationEvidence.field_selections.find((item) => item.tool_card_field === "summary")?.tool_id,
       "agent-codex",
     );
+    assert.equal(result.fieldProvenanceV2.schema_version, "tool_card_field_value_provenance.v2");
+    assert.equal(result.fieldProvenanceV2.summary.critical_coverage, 1);
+    assert.equal(result.conflictReport.schema_version, "tool_card_conflict_report.v1");
     assert.deepEqual(
       result.fieldProvenance.items.find((item) => item.tool_card_field === "summary"),
       {
@@ -864,6 +867,18 @@ test("ingestion writes tool card drafts from complete manual source records", as
     assert.equal(fieldProvenance.summary.tool_cards, 1);
     assert.ok(fieldProvenance.summary.field_values >= 3);
     assert.equal(fieldProvenance.items.find((item) => item.tool_card_field === "summary")?.source_value_preview, "A coding agent that can inspect workspaces, edit files, and run tests.");
+
+    const fieldProvenanceV2 = JSON.parse(
+      await readFile(join(outputDir, "data", "field_provenance", "tool_card_fields.v2.json"), "utf8"),
+    );
+    assert.equal(fieldProvenanceV2.schema_version, "tool_card_field_value_provenance.v2");
+    assert.equal(fieldProvenanceV2.summary.critical_coverage, 1);
+
+    const conflictReport = JSON.parse(
+      await readFile(join(outputDir, "data", "conflicts", "tool_card_conflicts.json"), "utf8"),
+    );
+    assert.equal(conflictReport.schema_version, "tool_card_conflict_report.v1");
+    assert.equal(conflictReport.summary.unresolved_critical, 0);
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
