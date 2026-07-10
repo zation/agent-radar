@@ -60,7 +60,7 @@ AGENT_RADAR_LLM_BASE_URL=https://api.minimaxi.com
 
 `npm run preview:build` 在 `release:build` 后生成 `dist-pages/artifact-manifest.json`，并把完整审核材料写入 `artifacts/review/ingestion.md`。名称中的 `preview` 是历史命令名；当前产物是 `Release All` workflow 使用的 immutable reviewed bundle，不代表 Cloudflare Pages deployment。正常审核由脚本、规则、LLM eval、auto review、release admission 和 promotion check 生成证据，结果持久化在 reviewed bundle 中，不要求维护者逐条填写 approval record。
 
-推送 `all-v*` tag 会触发 `.github/workflows/release-all.yml`：构建并上传 reviewed bundle，等待 GitHub `production` environment 的一次人工发布确认，再部署同一 bundle 到 Cloudflare Worker。Workflow 从 Wrangler deploy output 取得 Worker URL，自动运行 MCP smoke，并把 GitHub run、SHA、tag、production deployment、manifest checksum、D1 seed checksum 和 smoke 结果写入 `production-release-evidence.json`。高风险工具执行、破坏性操作和安全边界变化仍必须取得人工确认。
+推送 `all-v*` tag 会触发 `.github/workflows/release-all.yml`：构建并上传 reviewed bundle，等待 GitHub `production` environment 的一次人工发布确认，再从同一不可变 SHA 构建 Worker 并原样部署 reviewed `dist-pages`。Workflow 从 Wrangler deploy output 取得 Worker URL，自动运行 MCP smoke，并把 GitHub run、SHA、tag、production deployment、manifest checksum、D1 seed checksum 和 smoke 结果写入 `production-release-evidence.json`。高风险工具执行、破坏性操作和安全边界变化仍必须取得人工确认。
 
 ## 文档入口
 

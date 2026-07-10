@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import type { RunIngestionResult } from "../ingestion/run.js";
 import { renderIngestionReviewMarkdown, type SourceRegistryReviewRequestSummary, type SourceRegistryReviewRequirementSummary } from "./ingestion-review.js";
 import { buildArtifactManifest } from "./manifest.js";
@@ -7,17 +8,17 @@ import { buildArtifactManifest } from "./manifest.js";
 export interface CreatePreviewBundleOptions {
   distDir: string;
   reviewDir: string;
-  ingestion: RunIngestionResult;
   gitSha: string;
   builtAt: string;
   providerModel: string;
 }
 
 export async function createPreviewBundle(options: CreatePreviewBundleOptions): Promise<void> {
+  const ingestion = await loadIngestionReviewEvidence(options.distDir);
   await mkdir(options.reviewDir, { recursive: true });
   const sourceRegistryReviewRequirements = await readSourceRegistryReviewRequirements(options.distDir);
   const sourceRegistryReviewRequests = await readSourceRegistryReviewRequests(options.distDir);
-  await writeFile(join(options.reviewDir, "ingestion.md"), renderIngestionReviewMarkdown(options.ingestion, sourceRegistryReviewRequirements, sourceRegistryReviewRequests), "utf8");
+  await writeFile(join(options.reviewDir, "ingestion.md"), renderIngestionReviewMarkdown(ingestion, sourceRegistryReviewRequirements, sourceRegistryReviewRequests), "utf8");
 
   const manifest = await buildArtifactManifest({
     distDir: options.distDir,
@@ -26,59 +27,91 @@ export async function createPreviewBundle(options: CreatePreviewBundleOptions): 
     providerModel: options.providerModel
   });
   manifest.crawl_audit = {
-    total: options.ingestion.crawlAudit.summary.total,
-    success: options.ingestion.crawlAudit.summary.success,
-    partial: options.ingestion.crawlAudit.summary.partial,
-    failed: options.ingestion.crawlAudit.summary.failed
+    total: ingestion.crawlAudit.summary.total,
+    success: ingestion.crawlAudit.summary.success,
+    partial: ingestion.crawlAudit.summary.partial,
+    failed: ingestion.crawlAudit.summary.failed
   };
   manifest.ingestion_review = {
     approvals: {
-      approved: options.ingestion.approvalArtifact.summary.approved,
-      rejected: options.ingestion.approvalArtifact.summary.rejected,
-      needs_changes: options.ingestion.approvalArtifact.summary.needs_changes
+      approved: ingestion.approvalArtifact.summary.approved,
+      rejected: ingestion.approvalArtifact.summary.rejected,
+      needs_changes: ingestion.approvalArtifact.summary.needs_changes
     }
   };
   manifest.intervention_requests = {
-    pending_intervention: options.ingestion.interventionRequests.summary.pending_intervention,
-    duplicate_review_required: options.ingestion.interventionRequests.summary.duplicate_review_required,
-    blocked_validation: options.ingestion.interventionRequests.summary.blocked_validation
+    pending_intervention: ingestion.interventionRequests.summary.pending_intervention,
+    duplicate_review_required: ingestion.interventionRequests.summary.duplicate_review_required,
+    blocked_validation: ingestion.interventionRequests.summary.blocked_validation
   };
   manifest.field_value_provenance = {
-    tool_cards: options.ingestion.fieldProvenance.summary.tool_cards,
-    field_values: options.ingestion.fieldProvenance.summary.field_values
+    tool_cards: ingestion.fieldProvenance.summary.tool_cards,
+    field_values: ingestion.fieldProvenance.summary.field_values
   };
   manifest.auto_review = {
-    promote: options.ingestion.autoReview.summary.promote,
-    keep_draft: options.ingestion.autoReview.summary.keep_draft,
-    needs_review: options.ingestion.autoReview.summary.needs_review,
-    reject: options.ingestion.autoReview.summary.reject,
-    retire: options.ingestion.autoReview.summary.retire
+    promote: ingestion.autoReview.summary.promote,
+    keep_draft: ingestion.autoReview.summary.keep_draft,
+    needs_review: ingestion.autoReview.summary.needs_review,
+    reject: ingestion.autoReview.summary.reject,
+    retire: ingestion.autoReview.summary.retire
   };
   manifest.release_admission = {
-    eligible_for_publish: options.ingestion.releaseAdmission.summary.eligible_for_publish,
-    blocked: options.ingestion.releaseAdmission.summary.blocked
+    eligible_for_publish: ingestion.releaseAdmission.summary.eligible_for_publish,
+    blocked: ingestion.releaseAdmission.summary.blocked
   };
   manifest.discovery_candidates = {
-    candidates: options.ingestion.discoveryCandidates.summary.candidates,
-    pending_production_gate: options.ingestion.discoveryCandidates.summary.pending_production_gate
+    candidates: ingestion.discoveryCandidates.summary.candidates,
+    pending_production_gate: ingestion.discoveryCandidates.summary.pending_production_gate
   };
   manifest.promotion_candidates = {
-    candidates: options.ingestion.promotionCandidates.summary.candidates
+    candidates: ingestion.promotionCandidates.summary.candidates
   };
   manifest.promotion_plan = {
-    candidates: options.ingestion.promotionPlan.summary.candidates,
-    reliable_publish_ready: options.ingestion.promotionPlan.summary.reliable_publish_ready
+    candidates: ingestion.promotionPlan.summary.candidates,
+    reliable_publish_ready: ingestion.promotionPlan.summary.reliable_publish_ready
   };
   manifest.promotion_check = {
-    candidates: options.ingestion.promotionCheck.summary.candidates,
-    ready_for_publish: options.ingestion.promotionCheck.summary.ready_for_publish,
-    blocked: options.ingestion.promotionCheck.summary.blocked,
-    duplicate_tool_ids: options.ingestion.promotionCheck.summary.duplicate_tool_ids,
-    validation_errors: options.ingestion.promotionCheck.summary.validation_errors,
-    validation_warnings: options.ingestion.promotionCheck.summary.validation_warnings,
-    passed: options.ingestion.promotionCheck.passed
+    candidates: ingestion.promotionCheck.summary.candidates,
+    ready_for_publish: ingestion.promotionCheck.summary.ready_for_publish,
+    blocked: ingestion.promotionCheck.summary.blocked,
+    duplicate_tool_ids: ingestion.promotionCheck.summary.duplicate_tool_ids,
+    validation_errors: ingestion.promotionCheck.summary.validation_errors,
+    validation_warnings: ingestion.promotionCheck.summary.validation_warnings,
+    passed: ingestion.promotionCheck.passed
   };
   await writeFile(join(options.distDir, "artifact-manifest.json"), JSON.stringify(manifest, null, 2), "utf8");
+}
+
+async function loadIngestionReviewEvidence(distDir: string): Promise<RunIngestionResult> {
+  const evidence = JSON.parse(await readFile(join(distDir, "data", "review", "ingestion.json"), "utf8")) as {
+    schema_version?: string;
+    result?: RunIngestionResult;
+  };
+  if (evidence.schema_version !== "ingestion_review_evidence.v1" || !evidence.result) {
+    throw new Error("ingestion review evidence must use ingestion_review_evidence.v1");
+  }
+
+  const comparisons: Array<[string, string, unknown]> = [
+    ["crawl audit", "data/crawl_audit/crawl_audit.json", evidence.result.crawlAudit],
+    ["approval overrides", "data/approvals/approval_records.json", evidence.result.approvalArtifact],
+    ["intervention requests", "data/intervention_requests/tool_card_drafts.json", evidence.result.interventionRequests],
+    ["field provenance", "data/field_provenance/tool_card_fields.json", evidence.result.fieldProvenance],
+    ["auto review", "data/auto_review/tool_card_drafts.json", evidence.result.autoReview],
+    ["release admission", "data/release_admission/tool_card_drafts.json", evidence.result.releaseAdmission],
+    ["discovery candidates", "data/discovery_candidates/tool_repositories.json", evidence.result.discoveryCandidates],
+    ["promotion candidates", "data/promotion_candidates/tool_cards.json", evidence.result.promotionCandidates],
+    ["promotion plan", "data/promotion_candidates/promotion_plan.json", evidence.result.promotionPlan],
+    ["promotion check", "data/promotion_candidates/promotion_check.json", evidence.result.promotionCheck]
+  ];
+
+  for (const [label, relativePath, expected] of comparisons) {
+    const actual = JSON.parse(await readFile(join(distDir, relativePath), "utf8")) as unknown;
+    if (!isDeepStrictEqual(actual, expected)) {
+      throw new Error(`${label} does not match ingestion review evidence`);
+    }
+  }
+
+  return evidence.result;
 }
 
 async function readSourceRegistryReviewRequests(distDir: string): Promise<SourceRegistryReviewRequestSummary[]> {

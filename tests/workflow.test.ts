@@ -10,7 +10,7 @@ test("all release workflow gates promotion candidates before Worker validation",
   assert.notEqual(promotionCheckStepIndex, -1);
   assert.notEqual(dryRunStepIndex, -1);
   assert.equal(promotionCheckStepIndex < dryRunStepIndex, true);
-  assert.match(workflow, /run:\s*npm run promotion:check/);
+  assert.match(workflow, /run:\s*npm run promotion:check -- dist-pages\/data\/promotion_candidates\/promotion_check\.json/);
   assert.match(workflow, /tags:\s*\n\s+- "all-v\*"/);
 });
 
@@ -47,7 +47,10 @@ test("all release workflow uniquely binds evidence to the current Actions deploy
 
   assert.doesNotMatch(workflow, /inputs\.ref/);
   assert.doesNotMatch(workflow, /workflow_dispatch:\s*\n\s+inputs:/);
-  assert.equal(workflow.match(/ref: \$\{\{ github\.ref \}\}/g)?.length, 2);
+  assert.equal(workflow.match(/ref: \$\{\{ github\.sha \}\}/g)?.length, 2);
+  assert.doesNotMatch(workflow, /ref: \$\{\{ github\.ref \}\}/);
+  assert.match(workflow, /Validate immutable release tag/);
+  assert.match(workflow, /\[\[ "\$GITHUB_REF" != refs\/tags\/all-v\* \]\]/);
   assert.match(workflow, /permissions:\s*\n(?:\s+.*\n)*?\s+deployments:\s*write/);
   assert.match(workflow, /repos\/\$\{GITHUB_REPOSITORY\}\/deployments/);
   assert.match(workflow, /-f environment=production/);

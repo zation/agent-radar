@@ -7,13 +7,6 @@ import { defineConfig, type Plugin } from "vite";
 import { createArtifactRepositoryFromText } from "./src/api/artifact-repository.js";
 import { createApiHandler } from "./src/api/handler.js";
 
-const repository = createArtifactRepositoryFromText({
-  toolCardsJsonl: readArtifact("tool_cards.jsonl"),
-  ratingsJsonl: readArtifact("ratings.jsonl"),
-  searchIndexJson: readArtifact("search_index.json")
-});
-const handleApiRequest = createApiHandler(repository);
-
 export default defineConfig({
   plugins: [react(), tailwindcss(), agentRadarApiDevPlugin()],
   resolve: {
@@ -35,6 +28,13 @@ function agentRadarApiDevPlugin(): Plugin {
   return {
     name: "agent-radar-api-dev",
     configureServer(server) {
+      const repository = createArtifactRepositoryFromText({
+        toolCardsJsonl: readArtifact("tool_cards.jsonl"),
+        ratingsJsonl: readArtifact("ratings.jsonl"),
+        searchIndexJson: readArtifact("search_index.json")
+      });
+      const handleApiRequest = createApiHandler(repository);
+
       server.middlewares.use((request, response, next) => {
         if (!request.url?.startsWith("/api/")) {
           next();

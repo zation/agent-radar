@@ -104,7 +104,7 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   const promotionCheck = buildToolCardPromotionCheck(promotionCandidates, existingToolCards, now);
   await writePromotionCheck(options.outputDir, promotionCheck);
 
-  return {
+  const result: RunIngestionResult = {
     crawlPlan,
     crawlAudit,
     snapshots,
@@ -123,6 +123,18 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
     promotionPlan,
     promotionCheck
   };
+  await writeIngestionReviewEvidence(options.outputDir, result);
+  return result;
+}
+
+async function writeIngestionReviewEvidence(outputDir: string, result: RunIngestionResult): Promise<void> {
+  const reviewDir = join(outputDir, "data", "review");
+  await mkdir(reviewDir, { recursive: true });
+  await writeFile(
+    join(reviewDir, "ingestion.json"),
+    JSON.stringify({ schema_version: "ingestion_review_evidence.v1", result }, null, 2),
+    "utf8"
+  );
 }
 
 async function writeDiscoveryCandidates(outputDir: string, discoveryCandidates: ToolDiscoveryCandidates): Promise<void> {

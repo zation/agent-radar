@@ -18,7 +18,7 @@ export function formatPromotionCheckMessage(promotionCheck: PromotionCheckForCli
 }
 
 async function main(): Promise<void> {
-  const promotionCheckPath = process.argv[2] ?? "data/promotion_candidates/promotion_check.json";
+  const promotionCheckPath = process.argv[2] ?? "dist-pages/data/promotion_candidates/promotion_check.json";
   const promotionCheck = JSON.parse(await readFile(promotionCheckPath, "utf8")) as PromotionCheckForCli;
   const message = formatPromotionCheckMessage(promotionCheck);
 

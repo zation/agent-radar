@@ -18,10 +18,17 @@ jobs:
       AGENT_RADAR_LLM_API_KEY: ${{ secrets.AGENT_RADAR_LLM_API_KEY }}
       AGENT_RADAR_LLM_MODEL: ${{ vars.AGENT_RADAR_LLM_MODEL || 'deepseek-v4-flash' }}
     steps:
+      - name: Validate immutable release tag
+        run: |
+          if [[ "$GITHUB_REF" != refs/tags/all-v* ]]; then
+            echo "Release All only accepts immutable all-v* tags." >&2
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ github.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -36,7 +43,7 @@ jobs:
         run: npm run preview:build
 
       - name: Check promotion candidates
-        run: npm run promotion:check
+        run: npm run promotion:check -- dist-pages/data/promotion_candidates/promotion_check.json
 
       - name: Validate Worker bundle
         run: npx --yes wrangler@latest deploy --dry-run --outdir worker-dry-run
@@ -64,7 +71,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ github.sha }}
 
       - name: Setup Node
         uses: actions/setup-node@v6

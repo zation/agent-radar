@@ -58,7 +58,7 @@ npm run ingest
 
 当前默认 enabled sources 包括受控的 GitHub topic discovery、npm package metadata、精确 GitHub repository metadata 和官方 docs 页面。受控的 `github-topic-mcp` 和 npm metadata sources 已接入发布主链路，并已依次经过 parser、validation、dedup、auto review、release admission 和 promotion check。`github-topic-mcp` 使用 GitHub 公共 Search API 抓取 topic repository metadata，不发送 Authorization header、cookie 或私人 token；`github_topic_parser` 会把 API payload 解析为 repository Source Records，并记录 rate-limit response metadata。`github_repo_parser` 用于绑定到具体公开 repo 的来源，避免只依赖 topic 搜索的偶然覆盖。`npm_package_parser` 会解析 package name、package URL、repository URL、homepage、license、latest version 和 last release time。`official_docs_parser` 只抽取固定官方页面的标题/description，并把 SourceDefinition `profile` 写入 Source Record；它不把页面正文猜测成权限事实。`manual_seed_parser` 仍保留为测试和人工 fixture 能力，但不再作为默认发布来源。
 
-repository/package Source Records 会进入 `tool_discovery_candidates.v1`，也会生成保守的 Tool Card drafts：这些 draft 只基于公开 repo/package metadata 填充 repo、package、license、stars、last commit/release、topic/keyword、维护状态和中等风险安全说明，不把社区仓库或包自动升级为官方或高信任工具。GitHub topic、star、repository 或 package 的存在都只是发现信号，不单独构成可信证据；结果仍必须经过 parser、validation、dedup、auto review、release admission 和 promotion check。最小跨来源 normalizer 会按 canonical repo/package key 合并同一工具的多来源 evidence refs、source URLs 和 package URLs；review queue 会标注与已发布 Tool Cards 以及同批 incoming drafts 的重复信号。intervention requests 会为自动审核无法闭合的 draft 输出 `resolve_before_release` 异常提示、重复信号和 validation 背景，并在 reviewed bundle review markdown 中区分 `published_duplicates` 和 `draft_duplicates`。
+repository/package Source Records 会进入 `tool_discovery_candidates.v2`，也会生成保守的 Tool Card drafts：这些 draft 只基于公开 repo/package metadata 填充 repo、package、license、stars、last commit/release、topic/keyword、维护状态和中等风险安全说明，不把社区仓库或包自动升级为官方或高信任工具。GitHub topic、star、repository 或 package 的存在都只是发现信号，不单独构成可信证据；结果仍必须经过 parser、validation、dedup、auto review、release admission 和 promotion check。最小跨来源 normalizer 会按 canonical repo/package key 合并同一工具的多来源 evidence refs、source URLs 和 package URLs；review queue 会标注与已发布 Tool Cards 以及同批 incoming drafts 的重复信号。intervention requests 会为自动审核无法闭合的 draft 输出 `resolve_before_release` 异常提示、重复信号和 validation 背景，并在 reviewed bundle review markdown 中区分 `published_duplicates` 和 `draft_duplicates`。
 
 自动审核会输出 `tool_card_auto_review.v1`，为每个 draft 生成建议动作、证据 URL、主要风险、缺失字段、人工复核原因和发布准入评分卡。release admission 的默认 gate 是自动审核建议 `promote` 且无重复、parser warning、缺字段等数据质量复核原因；`approval_record.v1` 仅作为 break-glass `approval_override`，不属于常规审核流程。discovery candidates 使用 `pending_production_gate` 和 `review_in_production_gate` 表达发布审核关注项，而不是逐条等待人工审核。高风险并不自动阻断 profile-backed Tool Card 进入 catalog；高风险工具实际执行时仍由 Tool Card `security.requires_human_approval` 和 recommendation engine 的 `ask_human`/`no_reliable_match` 要求人工确认。promotion candidates 会把 eligible drafts 连同 `auto_review` 或 `approval_override` evidence 复制到独立候选 artifact；promotion plan 会为这些候选输出目标 artifact、候选 artifact 路径、推荐发布动作和发布前检查项；promotion check 会 dry-run 校验候选是否与当前发布候选重复、是否仍通过 Tool Card validator。`npm run pipeline` 会消费通过 promotion check 的候选并生成可靠发布 artifacts。
 
@@ -72,7 +72,7 @@ repository/package Source Records 会进入 `tool_discovery_candidates.v1`，也
 
 `npm run ingest` 的终端 JSON summary 会包含 snapshots、source records、source ids、discovery candidates、intervention requests、field value provenance、auto review、release admission、promotion candidates 和 promotion plan 摘要，便于本地或 CI 快速判断采集审核状态。reviewed bundle 会把 discovery candidates、intervention requests 和 auto review summary 同步进 artifact manifest 与 review markdown，供单 Worker release workflow 审核。
 
-`npm run ingest` 会输出 `data/promotion_candidates/promotion_check.json`，记录 promotion candidates 的重复 id 检查和 Tool Card validator dry-run。`npm run promotion:check` 会读取该 artifact；如果存在 blocked candidate，会以非零退出码失败。该命令只检查，不修改任何发布数据。
+`npm run ingest` 会输出 `<outputDir>/data/promotion_candidates/promotion_check.json`，记录 promotion candidates 的重复 id 检查和 Tool Card validator dry-run。release workflow 的 `npm run promotion:check -- dist-pages/data/promotion_candidates/promotion_check.json` 会显式检查 immutable reviewed bundle 内的同一 artifact；如果存在 blocked candidate，会以非零退出码失败。该命令只检查，不修改任何发布数据。
 
 发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 reviewed bundle 审核来源配置；同时输出 `data/source_registry_diff.json`，记录来源配置 added、removed 和 changed 摘要。changed source 会附带字段级 `review_requirements`，标出启用状态、访问边界、parser、频率、可信度等变更为何需要维护者在 production gate 中关注。发布流水线也会输出 `data/source_registry_review.json`，记录这些 requirements 的 pending summary；`data/source_registry_review_requests.json` 会为 pending requirement 输出 `suggested_action`，例如 `review_in_production_gate`。上述 artifacts 是 reviewed bundle 的审核证据，不会自动启用来源或提升可信度，也不要求维护者逐条生成 confirmation record。
 
@@ -508,7 +508,7 @@ steps:
 要求：
 
 - MVP 不配置自动 schedule。
-- 维护者通过手动命令或 `workflow_dispatch` 触发。
+- 维护者通过推送不可变 `all-v*` tag 触发；`workflow_dispatch` 也只能选择已有的 `all-v*` tag，branch 或其他 ref 会被拒绝。
 - 不引入付费 runner、付费数据库或闭源数据源。
 - `npm run promotion:check` 失败时必须在 fail-closed 状态阻断 reviewed bundle 上传和部署。
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import test from "node:test";
 import { createPreviewBundle } from "../src/preview/bundle.js";
 import { renderArtifactManifestSummaryMarkdown, renderCompactReviewSummaryMarkdown } from "../src/preview/github-summary.js";
@@ -688,6 +688,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
 
   try {
     await mkdir(join(outputDir, "data"), { recursive: true });
+    await writeIngestionReviewEvidenceFixture(outputDir, ingestionResult);
     await writeFile(join(outputDir, "index.html"), "<html></html>", "utf8");
     await writeFile(join(outputDir, "data", "manifest.json"), JSON.stringify({ data_version: "data-test" }), "utf8");
     await writeFile(join(outputDir, "data", "eval_summary.json"), JSON.stringify({ passed: 5, total: 5, results: [] }), "utf8");
@@ -754,7 +755,6 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     await createPreviewBundle({
       distDir: outputDir,
       reviewDir: artifactsDir,
-      ingestion: ingestionResult,
       gitSha: "abc123",
       builtAt: "2026-07-07T00:00:00Z",
       providerModel: "deepseek-v4-flash"
@@ -815,3 +815,53 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     await rm(artifactsDir, { recursive: true, force: true });
   }
 });
+
+test("rejects preview evidence that differs from the reviewed bundle artifacts", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-preview-mismatch-"));
+  const artifactsDir = await mkdtemp(join(tmpdir(), "agent-radar-review-mismatch-"));
+
+  try {
+    await writeIngestionReviewEvidenceFixture(outputDir, ingestionResult);
+    await writeFile(
+      join(outputDir, "data", "promotion_candidates", "promotion_check.json"),
+      JSON.stringify({ ...ingestionResult.promotionCheck, passed: false }),
+      "utf8"
+    );
+
+    await assert.rejects(
+      createPreviewBundle({
+        distDir: outputDir,
+        reviewDir: artifactsDir,
+        gitSha: "abc123",
+        builtAt: "2026-07-07T00:00:00Z",
+        providerModel: "deepseek-v4-flash"
+      }),
+      /promotion check does not match ingestion review evidence/
+    );
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+    await rm(artifactsDir, { recursive: true, force: true });
+  }
+});
+
+async function writeIngestionReviewEvidenceFixture(outputDir: string, result: RunIngestionResult): Promise<void> {
+  const artifacts: Array<[string, unknown]> = [
+    ["data/review/ingestion.json", { schema_version: "ingestion_review_evidence.v1", result }],
+    ["data/crawl_audit/crawl_audit.json", result.crawlAudit],
+    ["data/approvals/approval_records.json", result.approvalArtifact],
+    ["data/intervention_requests/tool_card_drafts.json", result.interventionRequests],
+    ["data/field_provenance/tool_card_fields.json", result.fieldProvenance],
+    ["data/auto_review/tool_card_drafts.json", result.autoReview],
+    ["data/release_admission/tool_card_drafts.json", result.releaseAdmission],
+    ["data/discovery_candidates/tool_repositories.json", result.discoveryCandidates],
+    ["data/promotion_candidates/tool_cards.json", result.promotionCandidates],
+    ["data/promotion_candidates/promotion_plan.json", result.promotionPlan],
+    ["data/promotion_candidates/promotion_check.json", result.promotionCheck]
+  ];
+
+  for (const [relativePath, value] of artifacts) {
+    const path = join(outputDir, relativePath);
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, JSON.stringify(value, null, 2), "utf8");
+  }
+}

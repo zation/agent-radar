@@ -45,7 +45,7 @@
 
 组件：
 
-- 手动触发构建或 `workflow_dispatch`。
+- 推送不可变 `all-v*` tag，或用 `workflow_dispatch` 选择已有的 `all-v*` tag。
 - Cloudflare Workers Static Assets。
 - Worker 内的只读 `/api/*` 和 `/api/mcp`。
 - 同一 Worker deployment 内的静态 JSON/JSONL artifacts。
@@ -232,9 +232,9 @@ npm run dev -- --port 4173
 - `npm run pages:build`：构建 Vite 静态 UI，输出到本地 `dist-pages/`，供 Worker Static Assets 部署使用。命令名暂时保留以减少迁移噪声。
 - `npm run dev:with-data`：先运行 pipeline 生成本地发布产物，再启动 Vite dev server。
 - `npm run release:build`：运行测试、生成发布产物并构建静态 UI 输出，适合 CI 或手动发布前使用。
-- `npm run promotion:check`：读取 `data/promotion_candidates/promotion_check.json`，如果 promotion candidate 重复或未通过 Tool Card validator dry-run，则非 0 退出；release workflow 会在进入 production gate 前执行该 gate。
+- `npm run promotion:check`：默认读取 `dist-pages/data/promotion_candidates/promotion_check.json`；release workflow 也显式传入该 reviewed bundle 路径。如果 promotion candidate 重复或未通过 Tool Card validator dry-run，则非 0 退出，并在进入 production gate 前阻断发布。
 - `npm run mcp:smoke`：对部署后的 Worker base URL 执行 JSON-RPC smoke test，覆盖 initialize、tools/list、只读 tools/call 和只读边界。Worker 一体化发布后，GitHub Actions 必须从 deploy output 自动传入 base URL；`AGENT_RADAR_MCP_BASE_URL` 只作为本地或外部 endpoint override。
-- `npm run preview:build`：在 release build 后运行 ingest，把 artifact manifest 写入 `dist-pages/`，把审核报告写入 `artifacts/review/`，用于 Worker deployment 和 GitHub Actions summary 审核。
+- `npm run preview:build`：release build 只运行一次 ingestion/pipeline，并把版本化 review evidence 随静态数据复制到 `dist-pages/`；finalize 只从同一 `dist-pages` 校验和渲染 artifact manifest 与 `artifacts/review/ingestion.md`，不会再次联网采集。
 - `npm run dev -- --port 4173`：本地预览静态 UI，并通过 Vite dev middleware 挂载 `/api/*` 到同一套 API handler；直接运行前需要已有 `public/data`，通常优先使用 `npm run dev:with-data`。
 
 LLM 推荐相关环境变量：
@@ -300,7 +300,7 @@ git tag all-v0.2.5
 git push origin all-v0.2.5
 ```
 
-也可以通过 `workflow_dispatch` 在 GitHub 的标准 ref 选择器中选择 branch 或 tag。Workflow 不接受第二套自定义 ref 输入，保证 checkout、GitHub event SHA/ref、deployment record 和 production evidence 指向同一 ref。Workflow 使用 `cloudflare/wrangler-action@v4` 执行 `wrangler deploy`，把 `dist-pages` 作为 Worker Static Assets 与 `src/worker.ts` 一起部署到 Cloudflare Worker `agent-radar`。
+也可以通过 `workflow_dispatch` 在 GitHub 的标准 ref 选择器中选择已有的 `all-v*` tag；workflow 会拒绝 branch 或其他 ref。Workflow 不接受第二套自定义 ref 输入，并将 build 与 production 两次 checkout 都固定到事件 `${{ github.sha }}`，保证实际代码、GitHub event、deployment record 和 production evidence 指向同一不可变提交。Workflow 使用 `cloudflare/wrangler-action@v4` 执行 `wrangler deploy`，把 `dist-pages` 作为 Worker Static Assets 与 `src/worker.ts` 一起部署到 Cloudflare Worker `agent-radar`。
 
 ```text
 checkout

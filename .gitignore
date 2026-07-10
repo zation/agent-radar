@@ -16,8 +16,10 @@ data/crawl_plan/
 data/dedup/
 data/discovery_candidates/
 data/field_provenance/
+data/intervention_requests/
 data/overrides/
 data/promotion_candidates/
+data/review/
 data/release_admission/
 artifacts/
 .env

@@ -375,7 +375,7 @@ test("npm package parser creates package source records from registry payloads",
   }
 });
 
-test("discovery candidates summarize repository source records for manual review", () => {
+test("discovery candidates summarize repository source records for the production gate", () => {
   const candidates = buildToolDiscoveryCandidates(
     [
       {
