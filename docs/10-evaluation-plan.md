@@ -405,7 +405,7 @@ Feedback Eval 将 Web UI、MCP/API 和 agent runtime 的反馈转化为可操作
 
 发布审核应从“逐条批准所有 draft”转为“自动审核结果持久化 + GitHub `production` gate 整批确认”。默认链路由脚本、规则和 LLM-backed eval 生成评测证据，并依次完成 auto review、release admission 和 promotion check；正常路径不要求逐字段 confirmation record 或逐条 approval JSON。
 
-单 Worker release workflow 将结果持久化到 reviewed bundle、artifact manifest 和 checksums，并将 GitHub run、SHA、tag、GitHub `production` approval、deployment evidence 与部署后 MCP smoke evidence 关联起来。这些不可变材料共同用于 release admission 和发布判定；正常流程中唯一的人工发布确认是 GitHub `production` gate。
+单 Worker release workflow 使用两阶段证据链。部署前，reviewed bundle 必须持久化 artifact manifest、checksums、auto review、release admission、promotion check 及其 reviewed evidence 完整性结果；只有该 bundle 通过门禁后，才可进入 GitHub `production` environment。部署后，workflow 生成 `production-release-evidence.json`，记录 repository、GitHub run、SHA、tag、deployment id、reviewed bundle 名称、manifest SHA、D1 artifact checksum、Worker/MCP endpoint 和 smoke 结果，并与 smoke report 一起上传为 GitHub Actions artifact。证据构建器必须校验这些字段、checksums、部署归属和 smoke 完整性，构建失败即发布失败。正常流程中唯一的人工发布确认是 GitHub `production` gate。
 
 这里的人工边界必须区分：
 
@@ -473,6 +473,9 @@ Feedback Eval 将 Web UI、MCP/API 和 agent runtime 的反馈转化为可操作
 - safety eval critical cases。
 - golden queries critical cases。
 - index build。
+- auto review、release admission 和 promotion check。
+- reviewed bundle 中 artifact manifest、checksums、auto-review evidence、release-admission evidence、promotion evidence 均完整且相互一致。
+- 部署后的 `production-release-evidence.json` 构建与校验通过，并与 smoke report 一起成功上传为 GitHub Actions artifact。
 
 允许带警告发布：
 
