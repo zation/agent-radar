@@ -25,6 +25,22 @@ Agent Radar 是 AI Agent、Skill、MCP、CLI、Framework 和 Prompt/Rules 的评
 - 安全相关变更：`docs/11-security-and-trust.md`
 - 自迭代逻辑变更：`docs/13-agent-self-improvement.md`
 
+## 文档职责与优先级
+
+- `README.md` 和 `docs/00-14` 是产品、需求、架构及各领域当前实现事实的权威文档；技术事实应更新到对应领域文档，不依赖 Roadmap、Spec 或 Plan 反向定义。
+- `docs/15-roadmap.md` 是当前开发阶段、优先级、里程碑和完成状态的唯一事实源。Roadmap 应链接相关 Spec 和 Plan，但不复制完整设计或实施步骤。
+- `docs/superpowers/specs/**` 是单项变更的设计决策记录，回答“为什么做、做什么、不做什么”。Spec 获批后用于约束实现，完成后补充状态、实现提交和 Roadmap 链接并冻结。
+- `docs/superpowers/plans/**` 是单项 Spec 的执行记录，回答“改哪些文件、按什么步骤实现、如何验证”。Plan 执行完成后补充状态和实现提交并冻结，不继续维护项目当前进度。
+- 当文档冲突时，领域事实以 `README.md` 或对应 `docs/00-14` 为准，当前阶段和进度以 `docs/15-roadmap.md` 为准；已完成的 Spec/Plan 只作为决策与执行历史，不得覆盖当前事实。
+
+每个 Spec 和 Plan 必须在开头声明：
+
+- `状态`：`草稿`、`已批准`、`已完成` 或 `已取代`。
+- `实现提交`：未完成时写“无”，完成后写实际 commit SHA。
+- `当前状态来源`：指向 `docs/15-roadmap.md` 或对应领域权威文档。
+
+功能完成时必须在同一变更中更新对应领域权威文档和 Roadmap。除修正错误的状态、提交号或链接外，已完成的 Spec/Plan 不再修改；后续迭代创建范围更小的新 Spec/Plan。
+
 ## 允许自动执行的动作
 
 - 新增或更新文档草稿。
