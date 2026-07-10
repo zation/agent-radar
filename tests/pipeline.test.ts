@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -101,7 +101,18 @@ test("builds MVP data artifacts and an eval report", async () => {
     delete process.env.AGENT_RADAR_LLM_API_KEY;
     delete process.env.AGENT_RADAR_LLM_MODEL;
 
+    await mkdir(join(outputDir, "data", "approval_requests"), { recursive: true });
+    await writeFile(join(outputDir, "data", "approval_requests", "legacy.json"), "{}", "utf8");
+
     const summary = await buildArtifacts({ outputDir, fetchImpl });
+
+    await assert.rejects(access(join(outputDir, "data", "approval_requests")), { code: "ENOENT" });
+    assert.equal(
+      (await readFile(join(outputDir, "data", "intervention_requests", "tool_card_drafts.json"), "utf8")).includes(
+        "tool_card_intervention_requests.v1"
+      ),
+      true
+    );
 
     assert.equal(summary.toolCount >= 10, true);
     assert.equal(summary.goldenQueriesPassed, 0);

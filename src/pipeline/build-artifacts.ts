@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { buildMcpExamplesArtifact } from "../api/mcp-examples.js";
 import { buildMcpSmokeChecklistArtifact } from "../api/mcp-smoke-checklist.js";
@@ -31,6 +31,7 @@ export interface BuildArtifactsSummary {
 export async function buildArtifacts(options: BuildArtifactsOptions): Promise<BuildArtifactsSummary> {
   const publicDataDir = join(options.outputDir, "data");
   const reportsDir = join(options.outputDir, "reports");
+  await rm(join(publicDataDir, "approval_requests"), { recursive: true, force: true });
   await mkdir(publicDataDir, { recursive: true });
   await mkdir(reportsDir, { recursive: true });
 
