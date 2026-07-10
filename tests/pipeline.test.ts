@@ -106,7 +106,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     await mkdir(join(outputDir, "data", "approval_requests"), { recursive: true });
     await writeFile(join(outputDir, "data", "approval_requests", "legacy.json"), "{}", "utf8");
 
-    const summary = await buildArtifacts({ outputDir, fetchImpl });
+    const summary = await buildArtifacts({ outputDir, fetchImpl, checkUrlReachability: false });
 
     await assert.rejects(access(join(outputDir, "data", "approval_requests")), { code: "ENOENT" });
     assert.equal(
