@@ -140,6 +140,39 @@ test("normalizer merges cross-source repository and package records into one dra
   assert.equal(drafts[0]?.maintenance.last_release_at, "2026-07-07T12:00:00.000Z");
 });
 
+test("normalizer preserves sparse parsed-field array iterator order", () => {
+  const sparseTopics = new Array<string>(2);
+  sparseTopics[1] = "mcp";
+  sparseTopics[Symbol.iterator] = () => ["sparse-hole", "mcp"].values();
+  const record: SourceRecord = {
+    id: "github-repo-example-sparse-topics-20260708",
+    schema_version: "source_record.v1",
+    snapshot_id: "snapshot-sparse-topics",
+    source_id: "github-repo-example-sparse-topics",
+    record_type: "repository",
+    name: "example/sparse-topics",
+    description: "Repository with sparse parsed topics.",
+    urls: ["https://github.com/example/sparse-topics"],
+    raw_fields: {},
+    parsed_fields: {
+      repo_url: "https://github.com/example/sparse-topics",
+      topics: sparseTopics,
+      source_profile: {
+        tool_id: "agent-sparse-topics",
+        type: "agent"
+      }
+    },
+    source_confidence: "medium",
+    parsed_at: "2026-07-08T00:00:00Z",
+    parser_version: "github_repo_parser.v1",
+    warnings: []
+  };
+
+  const drafts = normalizeToolCardDrafts([record]);
+
+  assert.deepEqual(drafts[0]?.tags, ["agent", "sparse-hole", "mcp"]);
+});
+
 test("normalizer enriches source-backed repository drafts from source profiles", () => {
   const records: SourceRecord[] = [
     {

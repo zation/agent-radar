@@ -177,17 +177,9 @@ function mergeParsedFields(records: SourceRecord[]): Record<string, unknown> {
     for (const [key, value] of Object.entries(record.parsed_fields)) {
       if (value === undefined) continue;
       if (Array.isArray(value)) {
-        const incoming = value.reduce<unknown[]>((items: unknown[], item: unknown) => {
-          items.push(item);
-          return items;
-        }, []);
+        const incoming = copyArrayValues(value);
         const existingValue = merged[key];
-        const existing = Array.isArray(existingValue)
-          ? existingValue.reduce<unknown[]>((items: unknown[], item: unknown) => {
-              items.push(item);
-              return items;
-            }, [])
-          : [];
+        const existing = Array.isArray(existingValue) ? copyArrayValues(existingValue) : [];
         merged[key] = [...new Set<unknown>([...existing, ...incoming])];
       } else if (merged[key] === undefined) {
         merged[key] = value;
@@ -195,6 +187,10 @@ function mergeParsedFields(records: SourceRecord[]): Record<string, unknown> {
     }
   }
   return merged;
+}
+
+function copyArrayValues(value: unknown[]): unknown[] {
+  return Array.from(value, (item: unknown) => item);
 }
 
 function buildInstallMethods(repoUrl: string | undefined, packageUrl: string | undefined, packageName: string | undefined, confidence: SourceRecord["source_confidence"]): ToolCard["install_methods"] {
