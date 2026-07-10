@@ -319,7 +319,7 @@ MVP 使用人工复核和手动触发更新，不做自动定时采集。
 - `npm run ingest` 已落地最小采集草稿链路；`npm run pipeline` 默认消费通过 release admission 和 promotion check 的采集候选，生成可靠 Tool Card artifacts。
 - 没有 `AGENT_RADAR_LLM_API_KEY` 时，推荐 eval 输出 blocked summary；这不是推荐质量通过，只表示缺少真实 provider 运行条件。
 - `all-v0.2.4` 已验证 29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 和部署后 MCP 4/4 smoke checks。
-- `all-v0.2.5` 仍是待执行的 closeout release；只有本地门禁、GitHub `production` approval、部署和线上核验全部通过后才能声明发布成功。
+- `all-v0.2.5` 已完成本地门禁、GitHub `production` approval、Cloudflare Worker 部署和线上核验；29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 29/29 和 MCP smoke 4/4 均通过。
 
 ## 维护规则
 

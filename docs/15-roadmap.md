@@ -81,7 +81,7 @@
 - `Release All` production workflow 已实现静态 assets/data build once、reviewed bundle 上传、GitHub `production` environment 人工确认、从同一不可变 tag/SHA 构建 Worker 并原样恢复 reviewed `dist-pages`、从 Wrangler deploy output 提取 Worker URL，以及部署后 MCP smoke。
 - Production evidence builder 已实现：workflow 在 smoke 后解析匹配的 GitHub production deployment，生成并上传 `production-release-evidence.json`，关联 run、SHA、tag、reviewed bundle、manifest checksum、D1 seed checksum、Worker/MCP endpoint 和 smoke 结果。
 - `all-v0.2.4` 是当前已验证 production baseline：29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 通过、已部署 MCP smoke 4/4。
-- `all-v0.2.5` 仍是待执行的 closeout release；只有本地质量门禁、GitHub `production` approval、部署、production evidence 和线上核验全部通过后，才能称为发布成功。
+- `all-v0.2.5` 已完成本地质量门禁、GitHub `production` approval、部署、production evidence 和线上核验；29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 29/29 和 MCP smoke 4/4 均通过。
 - `npm run ingest` 已输出最小 crawl plan artifact，记录 Source Registry sources 的抓取方法、频率、parser 和 ready/disabled/blocked 状态。
 - `npm run ingest` 已输出最小 crawl audit artifact，记录本轮 Raw Snapshot 的来源、抓取状态、HTTP 状态、内容 hash、保存路径和 request metadata。
 - 已实现基础 `github_topic_parser` fixture、GitHub topic crawler 映射、基础 `npm_package_parser` 和 discovery candidates artifact，可把 GitHub topic/Search API repository payload 与 npm package metadata 解析成 Source Records，并记录 rate-limit/package metadata；`github-topic-mcp` 与 `npm-modelcontextprotocol-sdk` 已作为默认受控公共 metadata sources 启用，repository/package 记录会生成保守 Tool Card drafts 并进入 auto review、release admission、promotion candidates 和可靠发布 artifacts；discovery candidates 与 auto review summary 已同步到 preview/Actions review 材料。
@@ -92,7 +92,7 @@
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 已从 enabled Source Registry 生成可靠发布 artifacts；下一步重点是扩展更多高质量来源、完善跨来源冲突处理，并继续增强 reviewed bundle 中审核结果的持久化摘要。
 - 更细的 Tool Card 字段 provenance 已绑定具体 Source Record 字段和值，并会为已应用的 Override Record 输出 `override_record` 字段值 provenance；最小 incoming draft duplicate gates 已接入 dedup report、review queue、intervention requests、auto review 和 release admission；GitHub topic 与 npm package sources 已启用为受控公共 metadata 来源，repo/package drafts 会经过最小跨来源 normalizer、preview 审核材料和 promotion candidate gate；仍缺更完整的字段冲突合并策略和跨生态 package parser。
-- v0.2 剩余工作是执行 `all-v0.2.5` closeout release，并用 workflow、production evidence artifact 和线上 endpoint 完成发布核验；这是一项待完成的发布事件，不是已验证成功状态。
+- v0.2 收口发布已经完成；后续工作进入 v0.3 数据可信度与 Provider 能力规划。
 - BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；更完整的 Provider 配置 UI、浏览器运行时读取 `provider_registry.json`，以及 direct-to-provider/proxy 模式决策已移到 v0.3/P2，不阻塞 v0.2。
 
 ## MVP
@@ -370,12 +370,11 @@ v0.2 建议拆成 5 条并行但有优先级的工作线：
 
 ## 下一步计划
 
-### P0：v0.2 收口发布
+### v0.2 收口发布（已完成）
 
-- 运行全部本地质量门禁，确认 closeout 代码、文档和 reviewed bundle 一致。
-- 创建并推送 `all-v0.2.5` tag，等待 GitHub `production` environment 人工批准；`Release All` workflow 从该不可变 ref 构建 Worker，并部署 reviewed bundle 中原样恢复的 `dist-pages`。
-- 核验 `production-release-evidence.json`、GitHub deployment record、线上 `/api/version`、线上 data manifest 和 `/api/mcp`；确认 20-50 张 Tool Cards、真实 provider golden eval 至少 10/10、promotion gate 和 MCP smoke 全部通过。
-- 在上述证据全部成立前，保持 `all-v0.2.5` 为 closeout pending；若失败，`all-v0.2.4` 仍是最后一个已验证 production 版本。
+- `all-v0.2.5` 已通过全部本地质量门禁，并由 GitHub `production` environment 完成人工发布确认。
+- `Release All` run `29070758091` 从不可变 commit `ca9fb35c4ede1e533f2ce785cc16f11fcefdfdbd` 构建 Worker，并部署 reviewed bundle 中原样恢复的 `dist-pages`。
+- `production-release-evidence.json`、GitHub deployment `5386890737`、线上 `/api/version`、data manifest 和 `/api/mcp` 均已核验；结果为 29 张 Tool Cards、真实 provider golden eval 10/10、promotion 29/29、MCP smoke 4/4。
 
 ### P1：v0.3 数据与可信度
 

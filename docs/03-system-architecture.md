@@ -506,7 +506,7 @@ checkout
 
 正常审核不生成逐条 approval request。脚本、规则、LLM eval、auto review、release admission 和 promotion check 的结果保存在 reviewed bundle 中，GitHub `production` environment gate 是唯一常规人工发布确认。`Approval Record` 只作为有证据的 break-glass override；高风险工具执行、破坏性操作和安全边界变化仍需人工确认。
 
-`all-v0.2.4` 已验证 29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 和已部署 `/api/mcp` 的 4/4 smoke checks。`all-v0.2.5` 仍是待执行 closeout release，不能在 production workflow 与线上证据完成前视为已发布。
+`all-v0.2.5` 是当前已验证 production baseline：29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 29/29 和已部署 `/api/mcp` 的 4/4 smoke checks 均通过。Production evidence 将 GitHub run `29070758091`、commit `ca9fb35c4ede1e533f2ce785cc16f11fcefdfdbd`、deployment `5386890737`、reviewed bundle checksums 和线上 endpoint 绑定在一起。
 
 ## 扩展点
 
