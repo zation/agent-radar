@@ -94,6 +94,8 @@ changed:
 
 审核持久化（review persistence）不采用逐字段确认 JSON，而是由 reviewed bundle artifacts、对应 checksums 以及 GitHub `production` environment approval 构成。reviewed bundle 和 GitHub Actions Summary 展示高影响变更及审核材料；production approval 不会自动信任新来源，也不会绕过来源准入或 promotion check。
 
+为保证可追溯性，reviewed bundle id 或 artifact name、commit SHA、manifest 及其 checksum、GitHub workflow run URL 和 deployment URL 共同构成稳定关联键；这些键必须随 production evidence 和 approval summary 持久化，使 production approval 可定位到唯一的 evidence bundle。
+
 ## 来源类型
 
 ### 官方 Registry
