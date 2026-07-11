@@ -24,6 +24,7 @@
 | v0.2 | 扩展数据和基础体验 | 更多来源、Web UI、MCP 查询、golden queries |
 | v0.3 | 提升数据可信度与推荐安全 | P1 数据与可信度、P2 推荐安全与评测 |
 | v0.4 | 优化界面并建立反馈闭环 | P1 界面与反馈采集、P2 反馈处理与评级接入 |
+| v0.5 | 完成公开产品与评测数据英文化 | Golden Query 源数据、README 和对外文档统一使用英文 |
 | v1.0 | 稳定公开数据和接口 | 稳定 API/MCP、可复现评测、插件化扩展 |
 
 ## 当前进度快照
@@ -351,6 +352,34 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 - 根据一次投票实时改分。
 - 自动关闭 `needs-human-review` Issue。
 
+## v0.5
+
+### 目标
+
+把 Agent Radar 面向公开用户、外部维护者和 coding agent 的产品说明与评测数据统一为英文，消除 UI chrome 已英文化但 Golden Query 源数据和仓库入口文档仍为中文的割裂。
+
+### 交付物
+
+- 将 24 条 Golden Queries 的 `query.task` 和 `review_notes` 源数据改为英文，不在 UI 层维护临时翻译副本。
+- 更新对应 eval fixtures、快照、报告和文档示例，保证 case ID、期望动作、安全断言和 release gate 语义不变。
+- 将 `README.md` 改为英文，并保留准确的产品定位、快速开始、数据可信度、推荐安全和部署说明。
+- 将面向外部用户与贡献者的公开文档改为英文；内部历史 Spec/Plan 和项目级 coding-agent 指令不做机械翻译。
+- 建立公开文档语言检查，避免 README、UI chrome 和公开接口示例重新混入未审查的中文文案。
+
+### 验收标准
+
+- Golden Query 的 `query.task` 与 `review_notes` 全部为英文，24/24 case 数量、4/4 critical safety gate 和稳定 case ID 不变。
+- 真实 provider golden eval 继续全部通过；翻译不能改变推荐安全下限或期望动作。
+- `README.md`、公开使用说明和公开 API/MCP 示例均为英文。
+- UI 不再为了展示 Evaluation 而翻译或改写 Golden Query 源数据。
+- 内部历史记录保持可追溯，不因英文化批量改写已冻结 Spec/Plan。
+
+### 不做
+
+- 不在 v0.4 UI 重构中提前修改 Golden Query 源数据。
+- 不改变 Tool Card、Rating Result、Recommendation Result 或 EvalCase schema。
+- 不把英文化扩展为多语言系统或运行时 i18n 框架。
+
 ## v1.0
 
 ### 目标
@@ -426,6 +455,7 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 - v0.2：Workers HTTP API + MCP tool manifest 只读查询。
 - v0.3：推荐安全解释和 eval diff。
 - v0.4：GitHub 身份投票、Issue 反馈和反馈评级信号。
+- v0.5：公开 UI、Golden Query 源数据、README 和对外文档统一使用英文。
 - v1.0：稳定 agent 决策上下文。
 
 ## 下一步计划
@@ -467,6 +497,12 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 - Web UI 实施 Plan：[`v0.4 P1 Web UI 视觉与交互重构`](superpowers/plans/2026-07-11-v0.4-p1-web-ui-视觉与交互重构.md)（已完成）。
 - P1 UI 重构已完成；下一步实现 GitHub OAuth、D1 投票和结构化 Issue Form 跳转。
 - P2 将三态 Issue 处理、投票快照和 `feedback_rules.v0.1` 接入 `Release All` 的 reviewed bundle 构建。
+
+### v0.5：公开内容与评测数据英文化
+
+- 独立设计 Golden Query 英文化迁移，保持 24 条 case ID、期望动作和 critical safety 断言稳定。
+- 将 `README.md` 与面向外部用户、贡献者和 API/MCP 消费者的文档改为英文。
+- 明确公开文档与内部历史文档边界，避免批量重写已冻结 Spec/Plan。
 
 ### Backlog
 
