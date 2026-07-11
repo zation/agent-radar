@@ -496,6 +496,7 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 - Web UI 视觉与交互 Spec：[`v0.4 P1：Web UI 视觉与交互重构`](superpowers/specs/2026-07-11-v0.4-p1-web-ui-视觉与交互重构-设计.md)（已批准；UI 重构已交付，反馈写链路待独立 Plan）。
 - Web UI 实施 Plan：[`v0.4 P1 Web UI 视觉与交互重构`](superpowers/plans/2026-07-11-v0.4-p1-web-ui-视觉与交互重构.md)（已完成）。
 - UI 可维护性 Spec：[`v0.4 UI：shadcn + Tailwind 可维护性重构`](superpowers/specs/2026-07-11-v0.4-ui-shadcn-tailwind-maintainability-设计.md)（已批准，待实施 Plan）。
+- UI 可维护性 Plan：[`v0.4 UI shadcn + Tailwind 可维护性重构`](superpowers/plans/2026-07-11-v0.4-ui-shadcn-tailwind-maintainability.md)（草稿，待执行）。
 - P1 UI 重构已完成；下一步实现 GitHub OAuth、D1 投票和结构化 Issue Form 跳转。
 - P2 将三态 Issue 处理、投票快照和 `feedback_rules.v0.1` 接入 `Release All` 的 reviewed bundle 构建。
 
