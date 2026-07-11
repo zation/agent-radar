@@ -30,7 +30,7 @@
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP、v0.2 和 v0.3 均已完成；`all-v0.3.3` 已通过生产发布与线上核验。v0.4 尚未开始设计，后续开发应先完成独立的视觉与产品设计。
+实际情况：MVP、v0.2 和 v0.3 均已完成；`all-v0.3.3` 已通过生产发布与线上核验。v0.4 P1 的 Web UI 视觉与交互设计已批准，下一步应先完成实施 Plan，再开始界面与反馈采集实现。
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
@@ -463,6 +463,7 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 ### v0.4：界面与用户反馈
 
+- Web UI 视觉与交互 Spec：[`v0.4 P1：Web UI 视觉与交互重构`](superpowers/specs/2026-07-11-v0.4-p1-web-ui-视觉与交互重构-设计.md)（已批准，待实施 Plan）。
 - P1 完成 UI 重构、GitHub OAuth、D1 投票和结构化 Issue Form 跳转。
 - P2 将三态 Issue 处理、投票快照和 `feedback_rules.v0.1` 接入 `Release All` 的 reviewed bundle 构建。
 
