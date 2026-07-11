@@ -1,5 +1,8 @@
 import { ArrowLeft, CheckCircle2, Clock3, Tag, TriangleAlert } from "lucide-react";
 import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { EvalSummary } from "../eval/runner.js";
 import type { EvalCase } from "../schema.js";
 import { createEvaluationView, filterEvaluationRows, type EvaluationFilter } from "./evaluation-view.js";
@@ -19,37 +22,12 @@ export function EvaluationPage({ cases, summary }: { cases: EvalCase[]; summary:
   const selected = rows.find((row) => row.id === selectedId) ?? rows[0] ?? view.rows[0];
   const failed = view.health.kind === "failed";
 
-  return (
-    <section className="evaluation-page page-frame">
-      <div className="evaluation-intro">
-        <div><span className="system-label">Recommendation quality</span><h1>Recommendation Evaluation</h1><p>24 fixed, replayable golden queries protect recommendation quality, safety boundaries, and reliable no-match behavior across releases.</p></div>
-        <div className="evaluation-health" aria-label="Evaluation health">
-          <Metric label="Pass rate" value={`${view.passed} / ${view.total}`} status={failed ? `${view.health.failed} FAILED` : "ALL PASSED"} failed={failed} />
-          <Metric label="Critical cases" value={`${view.critical.passed} / ${view.critical.total}`} status={view.critical.failed ? `${view.critical.failed} FAILED` : "ALL PASSED"} failed={view.critical.failed > 0} />
-          <div className="health-metric"><span>Evaluated release</span><strong>{view.releaseLabel}</strong><small><Tag />{view.commitSha.slice(0, 7)}</small></div>
-        </div>
-      </div>
-      <div className="evaluation-filters" aria-label="Evaluation filters">
-        {filters.map((item) => <button className={filter === item.value ? "is-active" : ""} key={item.value} onClick={() => setFilter(item.value)} type="button">{item.label}</button>)}
-      </div>
-      {selected ? <div className={`evaluation-workspace ${mobile.detailOpen ? "show-mobile-detail" : ""}`}>
-        <aside className="evaluation-list" aria-label="Golden queries">
-          {rows.map((row) => <button aria-current={row.id === selected.id ? "true" : undefined} className={row.id === selected.id ? "is-selected" : ""} key={row.id} onClick={(event) => { setSelectedId(row.id); mobile.openDetail(row.id, event.currentTarget); }} type="button"><span><strong>{row.id.replace(/^gq-/, "")}</strong><small>{row.task}</small></span><em className={row.passed ? "is-pass" : "is-fail"}>{row.severity}</em></button>)}
-        </aside>
-        <article className="evaluation-detail">
-          <button className="mobile-back" onClick={mobile.closeDetail} type="button"><ArrowLeft />Back to queries</button>
-          <header><div><span className="system-label">{selected.severity} evaluation case</span><h2>{selected.id.replace(/^gq-/, "")}</h2><p>{selected.task}</p></div><span className={`evaluation-result ${selected.passed ? "is-pass" : "is-fail"}`}>{selected.passed ? <CheckCircle2 /> : <TriangleAlert />}{selected.passed ? "Pass" : "Failed"}</span></header>
-          <section className="evaluation-why"><strong>为什么需要这条 Query？</strong><p>{selected.why}</p></section>
-          <div className="evaluation-facts"><Fact label="Expected action" value={selected.expectedAction ?? "not fixed"} /><Fact label="Observed action" value={selected.observedAction} /><Fact label="Risk" value={selected.riskLevel} /><Fact label="Top candidate" value={selected.topToolIds[0] ?? "none"} /><Fact label="Release" value={view.releaseLabel} /><Fact label="Updated" value={selected.updatedAt.slice(0, 10)} /></div>
-          <section className="evaluation-boundary"><h3>What this protects</h3><p>{selected.failures.length ? selected.failures.join(" ") : "The observed action and safety result match the release expectation."}</p><div><Clock3 />A failure in this fixed suite blocks a releasable evaluation summary.</div></section>
-        </article>
-      </div> : <p className="empty-state">No evaluation cases match this filter.</p>}
-    </section>
-  );
+  return <section className="mx-auto max-w-[1480px] px-5 py-7 md:px-8 md:py-10">
+    <div className="grid gap-7 xl:grid-cols-[1fr_auto] xl:items-end"><div><span className="font-mono text-xs font-semibold tracking-[.13em] text-primary uppercase">Recommendation quality</span><h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">Recommendation Evaluation</h1><p className="mt-3 max-w-3xl text-base leading-7 text-muted-foreground">24 fixed, replayable golden queries protect recommendation quality, safety boundaries, and reliable no-match behavior across releases.</p></div><div className="grid overflow-hidden rounded-xl border border-border bg-border shadow-sm sm:grid-cols-3"><Metric label="Pass rate" value={`${view.passed} / ${view.total}`} status={failed ? `${view.health.failed} FAILED` : "ALL PASSED"} failed={failed} /><Metric label="Critical cases" value={`${view.critical.passed} / ${view.critical.total}`} status={view.critical.failed ? `${view.critical.failed} FAILED` : "ALL PASSED"} failed={view.critical.failed > 0} /><div className="min-w-48 bg-card p-4"><span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Evaluated release</span><strong className="mt-2 block text-xl">{view.releaseLabel}</strong><small className="mt-2 flex items-center gap-1.5 font-mono text-sm text-muted-foreground"><Tag className="size-4" />{view.commitSha.slice(0, 7)}</small></div></div></div>
+    <ToggleGroup aria-label="Evaluation filters" className="mt-8" onValueChange={(value) => value[0] && setFilter(value[0] as EvaluationFilter)} value={[filter]} variant="outline">{filters.map((item) => <ToggleGroupItem className="h-10 px-4 text-sm" key={item.value} value={item.value}>{item.label}</ToggleGroupItem>)}</ToggleGroup>
+    {selected ? <div className={`mt-5 grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)] ${mobile.detailOpen ? "[&_.evaluation-index]:hidden lg:[&_.evaluation-index]:grid" : "[&_.evaluation-mobile-detail]:hidden lg:[&_.evaluation-mobile-detail]:block"}`}><aside className="evaluation-index content-start gap-1 rounded-xl border border-border bg-card p-2 shadow-sm" aria-label="Golden queries">{rows.map((row) => <Button aria-current={row.id === selected.id ? "true" : undefined} key={row.id} onClick={(event) => { setSelectedId(row.id); mobile.openDetail(row.id, event.currentTarget); }} variant="row"><span className="min-w-0 flex-1"><strong className="block text-[15px]">{row.id.replace(/^gq-/, "")}</strong><small className="mt-1 line-clamp-2 block text-left text-sm font-normal leading-5 text-muted-foreground">{row.task}</small></span><Badge className={row.passed ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800"} variant="secondary">{row.severity}</Badge></Button>)}</aside><article className="evaluation-mobile-detail rounded-xl border border-border bg-card p-5 shadow-sm md:p-7"><Button className="mb-4 lg:hidden" onClick={mobile.closeDetail} variant="ghost"><ArrowLeft />Back to queries</Button><header className="flex flex-col gap-5 border-b border-border pb-6 sm:flex-row sm:items-start sm:justify-between"><div><span className="font-mono text-xs font-semibold tracking-[.12em] text-primary uppercase">{selected.severity} evaluation case</span><h2 className="mt-2 text-3xl font-semibold tracking-tight">{selected.id.replace(/^gq-/, "")}</h2><p className="mt-2 max-w-3xl text-base leading-7 text-muted-foreground">{selected.task}</p></div><Badge className={selected.passed ? "h-8 bg-emerald-100 px-3 text-emerald-800" : "h-8 bg-red-100 px-3 text-red-800"} variant="secondary">{selected.passed ? <CheckCircle2 /> : <TriangleAlert />}{selected.passed ? "Pass" : "Failed"}</Badge></header><section className="mt-5 rounded-lg border border-primary/20 bg-primary/6 p-4"><strong className="text-base">Why this query exists</strong><p className="mt-1 text-[15px] leading-6 text-muted-foreground">{selected.why}</p></section><div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-border lg:grid-cols-3"><Fact label="Expected action" value={selected.expectedAction ?? "not fixed"} /><Fact label="Observed action" value={selected.observedAction} /><Fact label="Risk" value={selected.riskLevel} /><Fact label="Top candidate" value={selected.topToolIds[0] ?? "none"} /><Fact label="Release" value={view.releaseLabel} /><Fact label="Updated" value={selected.updatedAt.slice(0, 10)} /></div><section className="mt-5 rounded-lg bg-muted/60 p-4"><h3 className="text-lg font-semibold">What this protects</h3><p className="mt-2 text-[15px] leading-6 text-muted-foreground">{selected.failures.length ? selected.failures.join(" ") : "The observed action and safety result match the release expectation."}</p><div className="mt-4 flex items-center gap-2 border-t border-border pt-4 text-sm text-muted-foreground"><Clock3 className="size-4" />A failure in this fixed suite blocks a releasable evaluation summary.</div></section></article></div> : <p className="mt-5 rounded-xl border border-dashed border-border p-10 text-center text-muted-foreground">No evaluation cases match this filter.</p>}
+  </section>;
 }
 
-function Metric({ label, value, status, failed }: { label: string; value: string; status: string; failed: boolean }) {
-  return <div className="health-metric"><span>{label}</span><strong>{value}</strong><small className={failed ? "is-fail" : "is-pass"}>{failed ? <TriangleAlert /> : <CheckCircle2 />}{status}</small></div>;
-}
-
-function Fact({ label, value }: { label: string; value: string }) { return <div><span>{label}</span><strong>{value}</strong></div>; }
+function Metric({ label, value, status, failed }: { label: string; value: string; status: string; failed: boolean }) { return <div className="min-w-48 bg-card p-4"><span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</span><strong className="mt-2 block text-2xl">{value}</strong><small className={`mt-2 flex items-center gap-1.5 text-sm font-semibold ${failed ? "text-red-600" : "text-emerald-700"}`}>{failed ? <TriangleAlert className="size-4" /> : <CheckCircle2 className="size-4" />}{status}</small></div>; }
+function Fact({ label, value }: { label: string; value: string }) { return <div className="bg-card p-4"><span className="block text-xs font-semibold tracking-wide text-muted-foreground uppercase">{label}</span><strong className="mt-1 block text-base break-words">{value}</strong></div>; }
