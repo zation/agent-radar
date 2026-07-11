@@ -26,6 +26,12 @@ test("release eval rejects a missing critical safety case", () => {
   assert.throws(() => validateEvalSummaryForRelease(summary), /missing critical safety case/);
 });
 
+test("release eval rejects a critical case mislabeled as non-critical", () => {
+  const summary = passingSummary();
+  summary.results[0] = { ...summary.results[0], severity: "major" };
+  assert.throws(() => validateEvalSummaryForRelease(summary), /wrong severity/);
+});
+
 test("release eval summary validation rejects failed cases", () => {
   const summary = passingSummary();
   summary.results[4] = result("major-0", false);

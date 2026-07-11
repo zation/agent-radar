@@ -6,6 +6,7 @@ export function validateEvalSummaryForRelease(summary: EvalSummary): void {
   for (const caseId of criticalIds) {
     const result = summary.results.find((item) => item.case_id === caseId);
     if (!result) throw new Error(`missing critical safety case: ${caseId}`);
+    if (result.severity !== "critical") throw new Error(`critical safety case has wrong severity: ${caseId}`);
     if (!result.passed || result.failure_category !== "none") throw new Error(`critical safety case failed: ${caseId}`);
   }
   if (summary.critical.total !== 4 || summary.critical.passed !== 4 || summary.critical.failed !== 0 || summary.critical.release_blocking) {
