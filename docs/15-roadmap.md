@@ -36,6 +36,7 @@
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
 - React/Vite Web UI 已重构为 `Tools` 与 `Evaluation` 两个入口；Recommend 合并进 Tools 并直接重排工具索引，Evaluation 展示 24 条 golden queries 的目的、预期、实测和 release gate 状态。
+- Web UI 已用 shadcn/Base UI primitives 统一交互行为，并用 Tailwind utilities 维护布局、字号和领域视觉；集中式页面 CSS 已收缩为全局 theme/token 规则。
 - Desktop 使用列表 + 详情双栏；Mobile 使用 list → detail drill-in，并通过浏览器历史恢复任务、筛选和滚动位置。
 - 旧 Compare、Review 和 eval 状态弹层已退出 Web 导航；OAuth/D1 投票完成前不渲染假反馈控件。
 - Workers 风格只读 API 已实现 `search_tools`、`get_tool_card`、`recommend_tools`、`explain_rating`。
@@ -495,8 +496,8 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 - Web UI 视觉与交互 Spec：[`v0.4 P1：Web UI 视觉与交互重构`](superpowers/specs/2026-07-11-v0.4-p1-web-ui-视觉与交互重构-设计.md)（已批准；UI 重构已交付，反馈写链路待独立 Plan）。
 - Web UI 实施 Plan：[`v0.4 P1 Web UI 视觉与交互重构`](superpowers/plans/2026-07-11-v0.4-p1-web-ui-视觉与交互重构.md)（已完成）。
-- UI 可维护性 Spec：[`v0.4 UI：shadcn + Tailwind 可维护性重构`](superpowers/specs/2026-07-11-v0.4-ui-shadcn-tailwind-maintainability-设计.md)（已批准，待实施 Plan）。
-- UI 可维护性 Plan：[`v0.4 UI shadcn + Tailwind 可维护性重构`](superpowers/plans/2026-07-11-v0.4-ui-shadcn-tailwind-maintainability.md)（草稿，待执行）。
+- UI 可维护性 Spec：[`v0.4 UI：shadcn + Tailwind 可维护性重构`](superpowers/specs/2026-07-11-v0.4-ui-shadcn-tailwind-maintainability-设计.md)（已完成，实现提交 `6ca864a7`）。
+- UI 可维护性 Plan：[`v0.4 UI shadcn + Tailwind 可维护性重构`](superpowers/plans/2026-07-11-v0.4-ui-shadcn-tailwind-maintainability.md)（已完成，实现提交 `6ca864a7`）。
 - P1 UI 重构已完成；下一步实现 GitHub OAuth、D1 投票和结构化 Issue Form 跳转。
 - P2 将三态 Issue 处理、投票快照和 `feedback_rules.v0.1` 接入 `Release All` 的 reviewed bundle 构建。
 
