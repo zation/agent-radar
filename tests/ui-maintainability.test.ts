@@ -30,3 +30,25 @@ test("feature surfaces keep static interface chrome in English", async () => {
     assert.doesNotMatch(source, /[\u3400-\u9fff]/u, path);
   }
 });
+
+test("desktop indexes scroll within a bounded viewport height", async () => {
+  for (const path of ["src/ui/tools-workspace.tsx", "src/ui/evaluation-page.tsx"]) {
+    const source = await readSource(path);
+    assert.match(source, /lg:max-h-\[min\(60vh,640px\)\]/, path);
+    assert.match(source, /lg:overflow-y-auto/, path);
+  }
+});
+
+test("dense index rows preserve readable separation and clipping", async () => {
+  const toolRow = await readSource("src/ui/tool-row.tsx");
+  const evaluation = await readSource("src/ui/evaluation-page.tsx");
+  assert.match(toolRow, /overflow-hidden/, "src/ui/tool-row.tsx");
+  assert.match(evaluation, /evaluation-index[^\"]*gap-2/, "src/ui/evaluation-page.tsx");
+});
+
+test("shared navigation and filters expose visible hover treatment", async () => {
+  const button = await readSource("src/components/ui/button.tsx");
+  const toggle = await readSource("src/components/ui/toggle.tsx");
+  assert.match(button, /nav: \"[^\"]*my-2/, "src/components/ui/button.tsx");
+  assert.match(toggle, /outline: \"[^\"]*hover:bg-accent/, "src/components/ui/toggle.tsx");
+});
