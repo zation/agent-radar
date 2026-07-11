@@ -69,12 +69,12 @@ test("filters rows by severity and expected action", () => {
 });
 
 test("reports a passing health state only for a complete releasable suite", () => {
-  const passing = createEvaluationView([cases[0]!], {
+  const passing = createEvaluationView([cases[0]], {
     ...summary,
     passed: 1,
     total: 1,
     critical: { total: 4, passed: 4, failed: 0, release_blocking: false },
-    results: [summary.results[0]!]
+    results: [summary.results[0]]
   });
   assert.equal(passing.health.kind, "passed");
 });

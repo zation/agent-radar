@@ -5,8 +5,8 @@ export const DEV_DATA_FILES = [
   "tool_cards.jsonl",
   "ratings.jsonl",
   "search_index.json",
+  "golden_queries.json",
   "eval_summary.json",
-  "source_registry_review_requests.json"
 ] as const;
 
 export interface EnsureDevDataOptions {

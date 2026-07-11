@@ -13,6 +13,12 @@ function validArtifact(path: string): string {
   return JSON.stringify({ schema_version: "source_registry_review_requests.v1", items: [] });
 }
 
+test("prepares the artifacts required by Tools and Evaluation pages", () => {
+  const files: readonly string[] = DEV_DATA_FILES;
+  assert.ok(files.includes("golden_queries.json"));
+  assert.equal(files.includes("source_registry_review_requests.json"), false);
+});
+
 test("keeps complete local UI data without making production requests", async () => {
   const root = await mkdtemp(join(tmpdir(), "agent-radar-dev-data-"));
   try {

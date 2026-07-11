@@ -1,6 +1,5 @@
 import type { EvalCase, RatingResult, ToolCard } from "../schema.js";
 import type { EvalSummary } from "../eval/runner.js";
-import type { SourceRegistryReviewRequests } from "../ingestion/source-review.js";
 
 export interface ToolViewModel {
   card: ToolCard;
@@ -11,7 +10,6 @@ export interface UiArtifacts {
   tools: ToolViewModel[];
   goldenQueries: EvalCase[];
   evalSummary: EvalSummary;
-  sourceReviewRequests: SourceRegistryReviewRequests;
 }
 
 export function parseJsonl<T>(text: string): T[] {
@@ -44,13 +42,7 @@ export async function loadUiArtifacts(): Promise<UiArtifacts> {
   return {
     tools: createToolViewModels(cards, ratings),
     goldenQueries,
-    evalSummary,
-    sourceReviewRequests: {
-      schema_version: "source_registry_review_requests.v1",
-      generated_at: "",
-      summary: { pending_review: 0, confirmation_required: 0 },
-      items: []
-    }
+    evalSummary
   };
 }
 

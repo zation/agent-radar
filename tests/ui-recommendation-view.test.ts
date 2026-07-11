@@ -59,7 +59,7 @@ test("creates selectable recommendation items with tool details", () => {
 
 test("creates ranked tool rows with task-specific reasons", () => {
   const tools = createToolViewModels(reviewedToolCardFixtures, rateAllToolCards(reviewedToolCardFixtures));
-  const tool = tools[0]!;
+  const tool = tools[0];
   const result: RecommendationResult = {
     id: "rec-ranked", schema_version: "recommendation_result.v2",
     release: { release_id: "dev", commit_sha: "dev" },
