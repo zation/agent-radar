@@ -30,7 +30,7 @@
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP 和 v0.2 已完成，`all-v0.2.5` 已通过生产发布与线上核验；当前开发阶段为 v0.3 P1 数据与可信度，完成后进入 P2 推荐安全与评测。
+实际情况：MVP、v0.2 和 v0.3 均已完成；`all-v0.3.3` 已通过生产发布与线上核验。v0.4 尚未开始设计，后续开发应先完成独立的视觉与产品设计。
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
@@ -97,7 +97,7 @@ v0.3 kickoff 基线与后续缺口：
 - Golden queries 已达到 v0.2 下限 10 条，并已用 DeepSeek provider key 跑通 10/10；后续仍需持续审查新增 case 的推荐质量。
 - 当前 `npm run pipeline` 已从 enabled Source Registry 生成可靠发布 artifacts；下一步重点是扩展更多高质量来源、完善跨来源冲突处理，并继续增强 reviewed bundle 中审核结果的持久化摘要。
 - 更细的 Tool Card 字段 provenance 已绑定具体 Source Record 字段和值，并会为已应用的 Override Record 输出 `override_record` 字段值 provenance；最小 incoming draft duplicate gates 已接入 dedup report、review queue、intervention requests、auto review 和 release admission；GitHub topic 与 npm package sources 已启用为受控公共 metadata 来源，repo/package drafts 会经过最小跨来源 normalizer、preview 审核材料和 promotion candidate gate；仍缺更完整的字段冲突合并策略和跨生态 package parser。
-- v0.2 收口发布已经完成；后续工作进入 v0.3 P1 数据与可信度。
+- v0.3 P1、P2 和生产收口均已完成；后续工作只在单独完成 v0.4 视觉与产品设计后启动。
 - ~~BYOK 模式已经可用，provider registry 已版本化并输出 runtime config artifact；更完整的 Provider 配置 UI、浏览器运行时读取 `provider_registry.json`，以及 direct-to-provider/proxy 模式决策已移到 v0.3/P2，不阻塞 v0.2。~~ 实际情况：现有 BYOK proxy 已满足近期需求，更完整的 Provider 能力移入 Backlog，不占用 v0.3 或 v0.4 交付范围。
 
 ## MVP
