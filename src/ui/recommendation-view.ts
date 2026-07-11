@@ -6,6 +6,14 @@ export interface RecommendationItem {
   tool: ToolViewModel;
 }
 
+export interface RankedToolRow {
+  tool: ToolViewModel;
+  rank: number;
+  recommendationLevel: RecommendationCandidate["recommendation_level"];
+  fitScore: number;
+  taskReason?: string;
+}
+
 export interface RecommendationSafetyView {
   releaseLabel: string;
   riskLevel: RecommendationResult["safety_assessment"]["risk_level"];
@@ -41,6 +49,27 @@ export function createRecommendationItems(result: RecommendationResult, tools: T
       return tool ? { candidate, tool } : undefined;
     })
     .filter((item): item is RecommendationItem => Boolean(item));
+}
+
+export function createRankedToolRows(result: RecommendationResult, tools: ToolViewModel[]): RankedToolRow[] {
+  const toolsById = new Map(tools.map((tool) => [tool.card.id, tool]));
+  return result.candidates.flatMap((candidate) => {
+    const tool = toolsById.get(candidate.tool_id);
+    if (!tool) return [];
+    const taskReason = candidate.why.join(" ").trim() || undefined;
+    return [{
+      tool,
+      rank: candidate.rank,
+      recommendationLevel: candidate.recommendation_level,
+      fitScore: candidate.fit_score,
+      taskReason
+    }];
+  });
+}
+
+export function getTaskReason(toolId: string, result: RecommendationResult): string | undefined {
+  const reason = result.candidates.find((candidate) => candidate.tool_id === toolId)?.why.join(" ").trim();
+  return reason || undefined;
 }
 
 export function formatRecommendationApiError(body: RecommendationApiErrorBody): string {

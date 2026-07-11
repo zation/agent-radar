@@ -17,7 +17,7 @@ test("creates tool view models with ratings and default sort", () => {
   assert.ok(viewModels.every((model) => model.card.id === model.rating.tool_id));
 });
 
-test("loads source registry review summary requests without manual record templates", async () => {
+test("loads golden query definitions without retired Review page artifacts", async () => {
   const firstCard = reviewedToolCardFixtures[0];
   assert.ok(firstCard);
   const cards = `${JSON.stringify(firstCard)}\n`;
@@ -34,29 +34,25 @@ test("loads source registry review summary requests without manual record templa
         Response.json({
           passed: 1,
           total: 1,
-          results: []
+          results: [],
+          critical: { total: 4, passed: 4, failed: 0, release_blocking: false },
+          release: { release_id: "all-v0.3.3", commit_sha: "abcdef123456" }
         })
       );
     }
-    if (url === "/data/source_registry_review_requests.json") {
+    if (url === "/data/golden_queries.json") {
       return Promise.resolve(
-        Response.json({
-          schema_version: "source_registry_review_requests.v1",
-          generated_at: "2026-07-08T00:00:00Z",
-          summary: {
-            pending_review: 1,
-            confirmation_required: 1
-          },
-          items: [
-            {
-              source_id: "github-topic-mcp",
-              field: "enabled",
-              reason: "Enabled source changes crawler scope.",
-              confirmation_required: true,
-              suggested_action: "review_in_production_gate"
-            }
-          ]
-        })
+        Response.json([{
+          id: "gq-gmail-task-summary",
+          schema_version: "eval_case.v1",
+          category: "recommendation",
+          query: { task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low" },
+          expected: { recommended_action: "ask_human", must_warn_permissions: ["email"] },
+          review_notes: "邮件内容敏感，必须要求用户确认授权范围。",
+          severity: "major",
+          owner: "agent-radar",
+          updated_at: "2026-07-06T00:00:00Z"
+        }])
       );
     }
     return Promise.reject(new Error(`Unexpected fetch ${url}`));
@@ -65,9 +61,11 @@ test("loads source registry review summary requests without manual record templa
   try {
     const artifacts = await loadUiArtifacts();
 
-    assert.ok(requestedUrls.includes("/data/source_registry_review_requests.json"));
-    assert.equal(artifacts.sourceReviewRequests.summary.pending_review, 1);
-    assert.equal(artifacts.sourceReviewRequests.items[0]?.suggested_action, "review_in_production_gate");
+    assert.ok(requestedUrls.includes("/data/golden_queries.json"));
+    assert.equal(requestedUrls.includes("/data/source_registry_review_requests.json"), false);
+    assert.equal(artifacts.goldenQueries[0]?.id, "gq-gmail-task-summary");
+    assert.equal(artifacts.evalSummary.release.release_id, "all-v0.3.3");
+    assert.equal(artifacts.evalSummary.critical.total, 4);
   } finally {
     globalThis.fetch = originalFetch;
   }

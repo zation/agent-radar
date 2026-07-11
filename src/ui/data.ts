@@ -1,5 +1,5 @@
-import type { RatingResult, ToolCard } from "../schema.js";
-import type { SourceRegistryReviewRequests } from "../ingestion/source-review.js";
+import type { EvalCase, RatingResult, ToolCard } from "../schema.js";
+import type { EvalSummary } from "../eval/runner.js";
 
 export interface ToolViewModel {
   card: ToolCard;
@@ -8,12 +8,8 @@ export interface ToolViewModel {
 
 export interface UiArtifacts {
   tools: ToolViewModel[];
-  evalSummary: {
-    passed: number;
-    total: number;
-    results: Array<{ case_id: string; passed: boolean; failure_category?: string; recommended_action: string; top_tool_ids: string[] }>;
-  };
-  sourceReviewRequests: SourceRegistryReviewRequests;
+  goldenQueries: EvalCase[];
+  evalSummary: EvalSummary;
 }
 
 export function parseJsonl<T>(text: string): T[] {
@@ -36,17 +32,17 @@ export function createToolViewModels(cards: ToolCard[], ratings: RatingResult[])
 }
 
 export async function loadUiArtifacts(): Promise<UiArtifacts> {
-  const [cards, ratings, evalSummary, sourceReviewRequests] = await Promise.all([
+  const [cards, ratings, goldenQueries, evalSummary] = await Promise.all([
     fetchArtifactJsonl<ToolCard>("/data/tool_cards.jsonl"),
     fetchArtifactJsonl<RatingResult>("/data/ratings.jsonl"),
-    fetchArtifactJson<UiArtifacts["evalSummary"]>("/data/eval_summary.json"),
-    fetchArtifactJson<SourceRegistryReviewRequests>("/data/source_registry_review_requests.json")
+    fetchArtifactJson<EvalCase[]>("/data/golden_queries.json"),
+    fetchArtifactJson<EvalSummary>("/data/eval_summary.json")
   ]);
 
   return {
     tools: createToolViewModels(cards, ratings),
-    evalSummary,
-    sourceReviewRequests
+    goldenQueries,
+    evalSummary
   };
 }
 
