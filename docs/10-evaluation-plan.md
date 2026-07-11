@@ -445,7 +445,7 @@ Feedback Eval 将 Web UI、MCP/API 和 agent runtime 的反馈转化为可操作
 
 - MCP JSON-RPC endpoint 和部署后 smoke 已实现；release workflow 会对刚部署的 Worker 运行 `initialize`、`tools/list`、只读 `tools/call` 和只读边界检查，并将结果写入 deployment evidence。
 - `all-v0.2.4` 是上一版已验证 production 基线：真实 provider golden eval 为 10/10、production promotion 通过，部署后 MCP smoke 为 4/4。
-- `all-v0.2.5` 已完成本地门禁、GitHub `production` gate、部署和线上 evidence 核验：真实 provider golden eval 10/10、promotion 29/29、MCP smoke 4/4，现为当前已验证 production baseline。
+- `all-v0.3.3` 已完成本地门禁、GitHub `production` gate、部署和线上 evidence 核验：真实 provider golden eval 24/24、critical safety 4/4、MCP smoke 4/4，现为当前已验证 production baseline。
 
 ## 评测报告格式
 

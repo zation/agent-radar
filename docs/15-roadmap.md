@@ -250,7 +250,7 @@ MVP baseline 已完成。当前完成标准为：
 
 ### Kickoff 状态
 
-v0.3 P1 与 P2 均已完成本地阶段验收。P2 已统一 Recommendation Result v2、安全门禁和 24 条真实 provider golden eval；下一阶段按 Roadmap 进入 v0.4。
+v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deployment、24/24 真实 provider golden eval、critical safety 4/4 和部署后 MCP smoke 4/4；下一阶段按 Roadmap 进入 v0.4。
 
 ### 目标
 

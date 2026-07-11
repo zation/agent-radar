@@ -152,7 +152,7 @@ v0.2 使用单个启用 Static Assets 的 Cloudflare Worker 承载 Web、数据 
 
 正常发布审核由脚本、规则、LLM eval、auto review 和 promotion check 生成证据，并持久化到 immutable reviewed bundle；唯一的常规人工发布确认位于 GitHub `production` environment gate。逐条 approval form 或 review record generator 不属于 v0.2，`Approval Record` 只保留为有证据的 break-glass override。高风险工具执行、破坏性操作和安全边界变化仍要求人工确认。
 
-`all-v0.2.5` 是当前已验证 production baseline：29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 29/29 和部署后 MCP 4/4 smoke checks 均通过；GitHub Actions run `29070758091` 已生成 `production-release-evidence.json`，并绑定 production deployment `5386890737`。
+`all-v0.3.3` 是当前已验证 production baseline：53 张可靠 Tool Cards、真实 provider golden eval 24/24、critical safety 4/4 和部署后 MCP 4/4 smoke checks 均通过；GitHub Actions run `29136141415` 已生成 `production-release-evidence.json`，并绑定 production deployment `5400068926` 与 commit `6dcd9c5f`。
 
 v0.3 聚焦 P1 数据与可信度和 P2 推荐安全与评测；v0.4 聚焦界面重构、GitHub OAuth、D1 投票、GitHub Issue Form 反馈和构建期反馈评级接入。更完整的 Provider 运行时配置 UI、浏览器读取 `provider_registry.json`，以及 direct-to-provider 与 proxy 模式决策移入 Backlog，不占用 v0.3 或 v0.4 交付范围。
 
