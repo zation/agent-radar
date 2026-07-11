@@ -46,7 +46,7 @@ function buildSummary(results: EvalResult[], release = { release_id: "dev", comm
   };
 }
 
-export function createBlockedEvalSummary(cases: EvalCase[], reason: string): EvalSummary {
+export function createBlockedEvalSummary(cases: EvalCase[], reason: string, release = { release_id: "dev", commit_sha: "dev" }): EvalSummary {
   return buildSummary(cases.map((evalCase) => ({
       case_id: evalCase.id,
       passed: false,
@@ -54,7 +54,7 @@ export function createBlockedEvalSummary(cases: EvalCase[], reason: string): Eva
       failures: [reason],
       recommended_action: "blocked",
       top_tool_ids: [], severity: evalCase.severity, risk_level: "blocked", requires_human_approval: null, reason_codes: [], release_blocking: evalCase.severity === "critical"
-    })));
+    })), release);
 }
 
 async function evaluateGoldenQuery(

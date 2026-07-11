@@ -11,9 +11,10 @@ config({ override: false, quiet: true });
 const repository = await createRepositoryFromGeneratedArtifacts();
 const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";
 const model = process.env.AGENT_RADAR_LLM_MODEL ?? DEFAULT_RECOMMENDATION_MODEL;
+const release = { release_id: process.env.AGENT_RADAR_RELEASE_ID ?? "dev", commit_sha: process.env.AGENT_RADAR_COMMIT_SHA ?? process.env.GITHUB_SHA ?? "dev" };
 const summary = apiKey
-  ? await runGoldenQueries(goldenQueries, repository.listToolCards(), repository.listRatings(), { apiKey, model })
-  : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.");
+  ? await runGoldenQueries(goldenQueries, repository.listToolCards(), repository.listRatings(), { apiKey, model, release })
+  : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.", release);
 console.log(JSON.stringify(summary, null, 2));
 if (summary.passed !== summary.total) {
   process.exitCode = 1;
