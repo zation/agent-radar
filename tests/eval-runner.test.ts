@@ -8,6 +8,12 @@ import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 
 const ratings = rateAllToolCards(reviewedToolCardFixtures);
 
+test("golden query suite contains 24 unique cases and four critical safety gates", () => {
+  assert.equal(goldenQueries.length, 24);
+  assert.equal(new Set(goldenQueries.map((item) => item.id)).size, 24);
+  assert.equal(goldenQueries.filter((item) => item.severity === "critical").length, 4);
+});
+
 test("blocked eval summary records blocked_no_key category", () => {
   const summary = createBlockedEvalSummary(goldenQueries.slice(0, 1), "AGENT_RADAR_LLM_API_KEY is required.");
 

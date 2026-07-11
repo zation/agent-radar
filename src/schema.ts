@@ -209,6 +209,11 @@ export interface EvalCase {
     must_include_tags?: string[];
     must_warn_permissions?: string[];
     recommended_action?: RecommendedAction;
+    minimum_risk_level?: RiskLevel;
+    requires_human_approval?: boolean;
+    must_include_reason_codes?: SafetyReasonCode[];
+    must_include_confirmation_questions?: boolean;
+    must_include_safe_defaults?: boolean;
     should_not_recommend?: string[];
   };
   review_notes: string;
