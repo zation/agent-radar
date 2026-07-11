@@ -4,6 +4,12 @@ export type RiskLevel = "low" | "medium" | "high" | "critical" | "unknown";
 export type TrustLevel = "official" | "well_known_org" | "active_open_source" | "individual" | "commercial" | "unknown";
 export type RecommendationLevel = "recommended" | "consider" | "situational" | "avoid" | "insufficient_evidence";
 export type RecommendedAction = "use" | "compare" | "ask_human" | "avoid" | "no_reliable_match";
+export type SafetyReasonCode =
+  | "permission_unknown" | "trust_unknown" | "filesystem_read" | "filesystem_write"
+  | "network_access" | "browser_control" | "email_access" | "database_read"
+  | "database_write" | "cloud_access" | "cloud_admin" | "payment_access"
+  | "shell_execution" | "code_execution" | "secrets_access"
+  | "permission_not_allowed" | "risk_tolerance_exceeded" | "unknown_trust_code_execution";
 export type SourceType = "official_registry" | "official_docs" | "github" | "package_registry" | "community_list" | "news" | "manual";
 export type CollectionMethod = "api" | "http" | "git_clone" | "manual" | "rss";
 
@@ -147,6 +153,16 @@ export interface RecommendationCandidate {
   not_for: string[];
   next_steps: string[];
   evidence_refs: string[];
+}
+
+export interface RecommendationSafetyAssessment {
+  risk_level: RiskLevel;
+  reason_codes: SafetyReasonCode[];
+  requires_human_approval: boolean;
+  approval_reason?: string;
+  confirmation_questions: string[];
+  safe_defaults: string[];
+  maximum_allowed_action: RecommendedAction;
 }
 
 export interface RejectedCandidate {
