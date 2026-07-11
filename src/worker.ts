@@ -8,6 +8,7 @@ interface AssetsBinding {
 interface Env {
   ASSETS: AssetsBinding;
   AGENT_RADAR_RELEASE_ID?: string;
+  AGENT_RADAR_COMMIT_SHA?: string;
   AGENT_RADAR_API_VERSION?: string;
   AGENT_RADAR_WEB_VERSION?: string;
 }
@@ -32,6 +33,7 @@ export default {
     const handleRequest = createApiHandler(repository, {
       versionInfo: {
         release_id: env.AGENT_RADAR_RELEASE_ID ?? "unknown",
+        commit_sha: env.AGENT_RADAR_COMMIT_SHA ?? "unknown",
         data_version: manifest.data_version ?? "unknown",
         api_version: env.AGENT_RADAR_API_VERSION ?? "unknown",
         web_version: env.AGENT_RADAR_WEB_VERSION ?? "unknown"
