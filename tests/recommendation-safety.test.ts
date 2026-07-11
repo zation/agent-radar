@@ -66,3 +66,10 @@ test("recommendation safety requires approval for permissions outside the allowl
   assert.equal(result.requires_human_approval, true);
   assert.ok(result.reason_codes.includes("permission_not_allowed"));
 });
+
+test("recommendation safety treats an explicitly unknown permission scope conservatively", () => {
+  const result = assessRecommendationSafety({ query: { task: "使用权限范围未知的新工具" }, candidates: [], cards: [], ratings: [] });
+  assert.equal(result.risk_level, "unknown");
+  assert.equal(result.maximum_allowed_action, "ask_human");
+  assert.ok(result.reason_codes.includes("permission_unknown"));
+});

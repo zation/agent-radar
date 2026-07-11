@@ -18,6 +18,10 @@ export function assessRecommendationSafety(input: RecommendationSafetyInput): Re
   const reasons = new Set<SafetyReasonCode>();
   let risk: RiskLevel = "low";
   const task = input.query.task.toLowerCase();
+  if (/(权限范围未知|权限未知|unknown permission)/i.test(task)) {
+    reasons.add("permission_unknown");
+    risk = "unknown";
+  }
   if (/(来源不明|unknown source|untrusted)/i.test(task) && /(运行.*代码|远程代码|code execution|execute code)/i.test(task)) {
     reasons.add("unknown_trust_code_execution");
     reasons.add("code_execution");
