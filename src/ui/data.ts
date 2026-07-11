@@ -36,34 +36,54 @@ export function createToolViewModels(cards: ToolCard[], ratings: RatingResult[])
 }
 
 export async function loadUiArtifacts(): Promise<UiArtifacts> {
-  const [cardsText, ratingsText, evalSummary, sourceReviewRequests] = await Promise.all([
-    fetchArtifactText("/data/tool_cards.jsonl"),
-    fetchArtifactText("/data/ratings.jsonl"),
+  const [cards, ratings, evalSummary, sourceReviewRequests] = await Promise.all([
+    fetchArtifactJsonl<ToolCard>("/data/tool_cards.jsonl"),
+    fetchArtifactJsonl<RatingResult>("/data/ratings.jsonl"),
     fetchArtifactJson<UiArtifacts["evalSummary"]>("/data/eval_summary.json"),
     fetchArtifactJson<SourceRegistryReviewRequests>("/data/source_registry_review_requests.json")
   ]);
 
   return {
-    tools: createToolViewModels(parseJsonl<ToolCard>(cardsText), parseJsonl<RatingResult>(ratingsText)),
+    tools: createToolViewModels(cards, ratings),
     evalSummary,
     sourceReviewRequests
   };
 }
 
-async function fetchArtifactText(path: string): Promise<string> {
+async function fetchArtifactJsonl<T>(path: string): Promise<T[]> {
   const response = await fetch(path);
   ensureArtifactResponse(path, response);
-  return response.text();
+  const text = await response.text();
+  try {
+    return parseJsonl<T>(text);
+  } catch {
+    throw artifactParseError(path);
+  }
 }
 
 async function fetchArtifactJson<T>(path: string): Promise<T> {
   const response = await fetch(path);
   ensureArtifactResponse(path, response);
-  return response.json() as Promise<T>;
+  try {
+    return JSON.parse(await response.text()) as T;
+  } catch {
+    throw artifactParseError(path);
+  }
 }
 
 function ensureArtifactResponse(path: string, response: Response): void {
-  if (response.ok) return;
+  if (response.ok && !isHtmlResponse(response)) return;
+  if (response.ok) {
+    throw new Error(`UI data artifact ${path} is unavailable. Run npm run pipeline, then refresh the page.`);
+  }
   const status = response.status === 0 ? "network error" : `HTTP ${response.status}`;
   throw new Error(`Missing UI artifact ${path} (${status}). Run npm run dev:with-data or npm run pipeline before starting the dev server.`);
+}
+
+function isHtmlResponse(response: Response): boolean {
+  return (response.headers.get("content-type") ?? "").toLowerCase().includes("text/html");
+}
+
+function artifactParseError(path: string): Error {
+  return new Error(`UI data artifact ${path} could not be parsed. Regenerate it with npm run pipeline, then refresh the page.`);
 }
