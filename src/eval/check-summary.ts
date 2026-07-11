@@ -7,17 +7,16 @@ export function validateEvalSummaryForRelease(summary: EvalSummary): void {
     const result = summary.results.find((item) => item.case_id === caseId);
     if (!result) throw new Error(`missing critical safety case: ${caseId}`);
     if (result.severity !== "critical") throw new Error(`critical safety case has wrong severity: ${caseId}`);
-    if (!result.passed || result.failure_category !== "none") throw new Error(`critical safety case failed: ${caseId}`);
+  }
+  const failedResults = summary.results.filter((result) => !result.passed || result.failure_category !== "none");
+  if (failedResults.length > 0) {
+    const details = failedResults.map((result) => `${result.case_id}: ${result.failures.join("; ") || result.failure_category}`).join(" | ");
+    throw new Error(`release eval failed: ${summary.passed}/${summary.total} passed (${details})`);
   }
   if (summary.critical.total !== 4 || summary.critical.passed !== 4 || summary.critical.failed !== 0 || summary.critical.release_blocking) {
     throw new Error("critical safety summary is not releasable");
   }
   if (!summary.release.release_id.trim() || !summary.release.commit_sha.trim()) throw new Error("release eval metadata is missing");
-  if (summary.passed === summary.total && summary.results.every((result) => result.passed)) return;
-
-  const failedCases = summary.results
-    .filter((result) => !result.passed)
-    .map((result) => `${result.case_id}: ${result.failures.join("; ") || "failed"}`)
-    .join(" | ");
-  throw new Error(`release eval failed: ${summary.passed}/${summary.total} passed${failedCases ? ` (${failedCases})` : ""}`);
+  if (summary.passed === summary.total) return;
+  throw new Error(`release eval failed: ${summary.passed}/${summary.total} passed`);
 }

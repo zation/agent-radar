@@ -272,7 +272,7 @@ v0.3 P1 与 P2 均已完成本地阶段验收。P2 已统一 Recommendation Resu
 
 阶段 Plan：[`v0.3 P2：推荐安全与评测实施计划`](superpowers/plans/2026-07-11-v0.3-p2-推荐安全与评测-计划.md)（已完成并冻结）。
 
-阶段验收：246 tests、lint、stylelint、production build 通过；真实 MiniMax provider golden queries 24/24、critical safety 4/4，release check 通过。
+阶段验收：247 tests、lint、stylelint、production build 通过；真实 MiniMax provider golden queries 24/24、critical safety 4/4，release check 通过。
 
 - Recommendation Result v2 统一 Web、HTTP API、MCP 和 golden eval 的动态推荐 contract。
 - 两层确定性安全评估结合 Tool Card/Rating 基础风险与任务上下文，并拥有不可被 LLM 解除的最终否决权。

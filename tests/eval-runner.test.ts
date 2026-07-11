@@ -104,3 +104,18 @@ test("eval retries one transient provider schema error", async () => {
   assert.equal(attempts, 2);
   assert.equal(summary.passed, 1);
 });
+
+test("eval accepts an action more conservative than ask_human", async () => {
+  const evalCase = {
+    ...goldenQueries[0],
+    id: "gq-conservative-action",
+    query: { task: "操作生产数据库", risk_tolerance: "low" as const },
+    expected: { recommended_action: "ask_human" as const }
+  };
+  const summary = await runGoldenQueries([evalCase], [], [], {
+    apiKey: "sk-test-secret", model: "gpt-4.1",
+    client: { recommend() { return Promise.resolve({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] }); } }
+  });
+  assert.equal(summary.results[0]?.recommended_action, "no_reliable_match");
+  assert.equal(summary.passed, 1);
+});

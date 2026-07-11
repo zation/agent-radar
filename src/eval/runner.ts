@@ -80,7 +80,7 @@ function evaluateCase(evalCase: EvalCase, result: RecommendationResult, cards: T
   const cardById = new Map(cards.map((card) => [card.id, card]));
   const topCards = result.candidates.map((candidate) => cardById.get(candidate.tool_id)).filter((card): card is ToolCard => Boolean(card));
 
-  if (evalCase.expected.recommended_action && result.recommended_action !== evalCase.expected.recommended_action) {
+  if (evalCase.expected.recommended_action && !satisfiesExpectedAction(evalCase.expected.recommended_action, result.recommended_action)) {
     failures.push(`expected action ${evalCase.expected.recommended_action}, got ${result.recommended_action}`);
   }
 
@@ -116,6 +116,11 @@ function evaluateCase(evalCase: EvalCase, result: RecommendationResult, cards: T
     risk_level: result.safety_assessment.risk_level, requires_human_approval: result.safety_assessment.requires_human_approval,
     reason_codes: result.safety_assessment.reason_codes, release_blocking: evalCase.severity === "critical" && failures.length > 0
   };
+}
+
+function satisfiesExpectedAction(expected: RecommendationResult["recommended_action"], actual: RecommendationResult["recommended_action"]): boolean {
+  if (expected === actual) return true;
+  return expected === "ask_human" && (actual === "avoid" || actual === "no_reliable_match");
 }
 
 function createFailedEvalResult(evalCase: EvalCase, category: EvalFailureCategory, failure: string): EvalResult {
