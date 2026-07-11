@@ -1,22 +1,23 @@
 import { Bot, Tag } from "lucide-react";
 import type { ReactNode } from "react";
+import { Button } from "@/components/ui/button";
 
 export type Page = "tools" | "evaluation";
 
 export function AppShell({ activePage, releaseId, onPageChange, children }: { activePage: Page; releaseId: string; onPageChange: (page: Page) => void; children: ReactNode }) {
   return (
-    <main className="radar-shell">
-      <header className="radar-topbar">
-        <div className="radar-topbar-inner">
-          <div className="radar-brand"><span className="radar-mark"><Bot /></span><strong>Agent / Radar</strong></div>
-          <nav aria-label="Primary navigation" className="radar-nav">
+    <main className="min-h-screen bg-[#edf2f0] text-foreground">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur-md">
+        <div className="mx-auto grid h-16 max-w-[1480px] grid-cols-[1fr_auto_1fr] items-center px-5 md:px-8">
+          <div className="flex items-center gap-3 text-base font-semibold tracking-tight uppercase"><span className="grid size-9 place-items-center rounded-lg bg-primary text-primary-foreground"><Bot className="size-5" /></span><strong>Agent / Radar</strong></div>
+          <nav aria-label="Primary navigation" className="flex h-full items-stretch gap-2">
             {(["tools", "evaluation"] as const).map((page) => (
-              <button aria-current={activePage === page ? "page" : undefined} className={activePage === page ? "is-active" : ""} key={page} onClick={() => onPageChange(page)} type="button">
+              <Button aria-current={activePage === page ? "page" : undefined} key={page} onClick={() => onPageChange(page)} variant="nav">
                 {page === "tools" ? "Tools" : "Evaluation"}
-              </button>
+              </Button>
             ))}
           </nav>
-          <div className="radar-release"><Tag />{releaseId}</div>
+          <div className="flex items-center justify-self-end gap-2 font-mono text-sm font-semibold text-muted-foreground"><Tag className="size-4" />{releaseId}</div>
         </div>
       </header>
       {children}
