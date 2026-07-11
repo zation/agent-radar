@@ -956,17 +956,24 @@ color: #637870;
 }
 
 @media (width <= 899px) {
-.radar-topbar-inner {
-grid-template-columns: 1fr auto;
-height: 56px;
-padding: 0 14px;
-}
+  .radar-topbar-inner {
+  grid-template-columns: 1fr auto;
+  height: auto;
+  padding: 0 14px;
+  }
 
-.radar-nav {
-order: 3;
-grid-column: 1 / -1;
-display: none;
-}
+  .radar-brand,
+  .radar-release {
+  min-height: 52px;
+  }
+
+  .radar-nav {
+  order: 3;
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: center;
+  height: 38px;
+  }
 
 .radar-release {
 font-size: 8px;
@@ -1022,17 +1029,30 @@ min-width: 220px;
 min-height: 36px;
 }
 
-.tools-workspace {
-grid-template-columns: 1fr;
-}
+  .tools-workspace {
+  grid-template-columns: 1fr;
+  }
 
 .tool-index {
 border-right: 0;
 }
 
-.tool-detail {
-display: none;
-}
+  .tool-detail {
+  display: none;
+  }
+
+  .tools-workspace.show-mobile-detail .tool-index {
+  display: none;
+  }
+
+  .tools-workspace.show-mobile-detail .tool-detail {
+  display: block;
+  }
+
+  .tools-page:has(.tools-workspace.show-mobile-detail) .recommend-command,
+  .tools-page:has(.tools-workspace.show-mobile-detail) .tools-heading {
+  display: none;
+  }
 
   .evaluation-intro {
 align-items: stretch;

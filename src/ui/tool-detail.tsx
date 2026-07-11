@@ -1,10 +1,14 @@
-import { ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
+import { useEffect, useRef } from "react";
 import type { ToolViewModel } from "./data.js";
 
-export function ToolDetail({ tool, taskReason }: { tool: ToolViewModel; taskReason?: string }) {
+export function ToolDetail({ tool, taskReason, mobileOpen = false, onMobileBack }: { tool: ToolViewModel; taskReason?: string; mobileOpen?: boolean; onMobileBack?: () => void }) {
   const dimensions = Object.entries(tool.rating.dimension_scores);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { if (mobileOpen) headingRef.current?.focus(); }, [mobileOpen, tool.card.id]);
   return <article className="tool-detail">
-    <header className="tool-detail-header"><div><span className="system-label">Verified decision record · {tool.card.type}</span><h2>{tool.card.name}</h2><p>{tool.card.summary}</p></div><div className="tool-score"><strong>{tool.rating.overall_score}</strong><span>{tool.rating.risk_level} risk</span></div></header>
+    {onMobileBack ? <button className="mobile-back" onClick={onMobileBack} type="button"><ArrowLeft />Back to tools</button> : null}
+    <header className="tool-detail-header"><div><span className="system-label">Verified decision record · {tool.card.type}</span><h2 ref={headingRef} tabIndex={-1}>{tool.card.name}</h2><p>{tool.card.summary}</p></div><div className="tool-score"><strong>{tool.rating.overall_score}</strong><span>{tool.rating.risk_level} risk</span></div></header>
     <section className="decision-reason"><strong>{taskReason ? "Why Radar recommends this" : "Why this rating"}</strong><p>{taskReason ?? tool.rating.explanations[0]?.reason ?? "Evidence-backed rating for this reviewed tool record."}</p></section>
     <div className="tool-facts"><Fact label="Decision" value={tool.rating.recommendation_level} /><Fact label="Evidence" value={tool.rating.evidence_quality} /><Fact label="Maintenance" value={String(tool.rating.dimension_scores.maintenance_health ?? "unknown")} /><Fact label="Integration" value={String(tool.rating.dimension_scores.integration_cost ?? "unknown")} /></div>
     <div className="tool-boundaries"><div><strong>Good for</strong><p>{tool.card.use_cases.join(" · ") || "No reviewed use cases."}</p></div><div><strong>Not for</strong><p>{tool.card.not_for.join(" · ") || "No reviewed exclusions."}</p></div></div>

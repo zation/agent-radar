@@ -3,6 +3,7 @@ import { useMemo, useState } from "react";
 import type { EvalSummary } from "../eval/runner.js";
 import type { EvalCase } from "../schema.js";
 import { createEvaluationView, filterEvaluationRows, type EvaluationFilter } from "./evaluation-view.js";
+import { useMobileDrillIn } from "./mobile-drill-in.js";
 
 const filters: Array<{ value: EvaluationFilter; label: string }> = [
   { value: "all", label: "All" }, { value: "critical", label: "Critical" },
@@ -14,7 +15,7 @@ export function EvaluationPage({ cases, summary }: { cases: EvalCase[]; summary:
   const [filter, setFilter] = useState<EvaluationFilter>("all");
   const rows = useMemo(() => filterEvaluationRows(view.rows, filter), [filter, view.rows]);
   const [selectedId, setSelectedId] = useState(view.rows[0]?.id ?? "");
-  const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
+  const mobile = useMobileDrillIn("evaluation");
   const selected = rows.find((row) => row.id === selectedId) ?? rows[0] ?? view.rows[0];
   const failed = view.health.kind === "failed";
 
@@ -29,14 +30,14 @@ export function EvaluationPage({ cases, summary }: { cases: EvalCase[]; summary:
         </div>
       </div>
       <div className="evaluation-filters" aria-label="Evaluation filters">
-        {filters.map((item) => <button className={filter === item.value ? "is-active" : ""} key={item.value} onClick={() => { setFilter(item.value); setMobileDetailOpen(false); }} type="button">{item.label}</button>)}
+        {filters.map((item) => <button className={filter === item.value ? "is-active" : ""} key={item.value} onClick={() => setFilter(item.value)} type="button">{item.label}</button>)}
       </div>
-      {selected ? <div className={`evaluation-workspace ${mobileDetailOpen ? "show-mobile-detail" : ""}`}>
+      {selected ? <div className={`evaluation-workspace ${mobile.detailOpen ? "show-mobile-detail" : ""}`}>
         <aside className="evaluation-list" aria-label="Golden queries">
-          {rows.map((row) => <button aria-current={row.id === selected.id ? "true" : undefined} className={row.id === selected.id ? "is-selected" : ""} key={row.id} onClick={() => { setSelectedId(row.id); setMobileDetailOpen(true); }} type="button"><span><strong>{row.id.replace(/^gq-/, "")}</strong><small>{row.task}</small></span><em className={row.passed ? "is-pass" : "is-fail"}>{row.severity}</em></button>)}
+          {rows.map((row) => <button aria-current={row.id === selected.id ? "true" : undefined} className={row.id === selected.id ? "is-selected" : ""} key={row.id} onClick={(event) => { setSelectedId(row.id); mobile.openDetail(row.id, event.currentTarget); }} type="button"><span><strong>{row.id.replace(/^gq-/, "")}</strong><small>{row.task}</small></span><em className={row.passed ? "is-pass" : "is-fail"}>{row.severity}</em></button>)}
         </aside>
         <article className="evaluation-detail">
-          <button className="mobile-back" onClick={() => setMobileDetailOpen(false)} type="button"><ArrowLeft />Back to queries</button>
+          <button className="mobile-back" onClick={mobile.closeDetail} type="button"><ArrowLeft />Back to queries</button>
           <header><div><span className="system-label">{selected.severity} evaluation case</span><h2>{selected.id.replace(/^gq-/, "")}</h2><p>{selected.task}</p></div><span className={`evaluation-result ${selected.passed ? "is-pass" : "is-fail"}`}>{selected.passed ? <CheckCircle2 /> : <TriangleAlert />}{selected.passed ? "Pass" : "Failed"}</span></header>
           <section className="evaluation-why"><strong>为什么需要这条 Query？</strong><p>{selected.why}</p></section>
           <div className="evaluation-facts"><Fact label="Expected action" value={selected.expectedAction ?? "not fixed"} /><Fact label="Observed action" value={selected.observedAction} /><Fact label="Risk" value={selected.riskLevel} /><Fact label="Top candidate" value={selected.topToolIds[0] ?? "none"} /><Fact label="Release" value={view.releaseLabel} /><Fact label="Updated" value={selected.updatedAt.slice(0, 10)} /></div>
