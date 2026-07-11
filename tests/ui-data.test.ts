@@ -81,7 +81,7 @@ test("reports missing UI artifacts with the local data generation command", asyn
   };
 
   try {
-    await assert.rejects(loadUiArtifacts(), /Missing UI artifact \/data\/tool_cards\.jsonl.*npm run dev:with-data/s);
+    await assert.rejects(loadUiArtifacts(), /Missing UI artifact \/data\/tool_cards\.jsonl.*npm run dev:data/s);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -100,7 +100,7 @@ test("reports Vite HTML fallback as an unavailable UI artifact", async () => {
   try {
     await assert.rejects(
       loadUiArtifacts(),
-      /UI data artifact \/data\/tool_cards\.jsonl is unavailable.*npm run pipeline/s
+      /UI data artifact \/data\/tool_cards\.jsonl is unavailable.*npm run dev:data/s
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -126,7 +126,7 @@ test("wraps malformed JSON artifact errors with regeneration guidance", async ()
   try {
     await assert.rejects(
       loadUiArtifacts(),
-      /UI data artifact \/data\/eval_summary\.json could not be parsed.*npm run pipeline/s
+      /UI data artifact \/data\/eval_summary\.json could not be parsed.*npm run dev:data/s
     );
   } finally {
     globalThis.fetch = originalFetch;
@@ -146,7 +146,7 @@ test("wraps malformed JSONL artifact errors with regeneration guidance", async (
   try {
     await assert.rejects(
       loadUiArtifacts(),
-      /UI data artifact \/data\/tool_cards\.jsonl could not be parsed.*npm run pipeline/s
+      /UI data artifact \/data\/tool_cards\.jsonl could not be parsed.*npm run dev:data/s
     );
   } finally {
     globalThis.fetch = originalFetch;

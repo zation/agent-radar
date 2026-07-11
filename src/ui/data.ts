@@ -74,10 +74,10 @@ async function fetchArtifactJson<T>(path: string): Promise<T> {
 function ensureArtifactResponse(path: string, response: Response): void {
   if (response.ok && !isHtmlResponse(response)) return;
   if (response.ok) {
-    throw new Error(`UI data artifact ${path} is unavailable. Run npm run pipeline, then refresh the page.`);
+    throw new Error(`UI data artifact ${path} is unavailable. Run npm run dev:data, then refresh the page.`);
   }
   const status = response.status === 0 ? "network error" : `HTTP ${response.status}`;
-  throw new Error(`Missing UI artifact ${path} (${status}). Run npm run dev:with-data or npm run pipeline before starting the dev server.`);
+  throw new Error(`Missing UI artifact ${path} (${status}). Run npm run dev:data, then refresh the page.`);
 }
 
 function isHtmlResponse(response: Response): boolean {
@@ -85,5 +85,5 @@ function isHtmlResponse(response: Response): boolean {
 }
 
 function artifactParseError(path: string): Error {
-  return new Error(`UI data artifact ${path} could not be parsed. Regenerate it with npm run pipeline, then refresh the page.`);
+  return new Error(`UI data artifact ${path} could not be parsed. Run npm run dev:data, then refresh the page.`);
 }

@@ -30,9 +30,11 @@ npm run ingest
 npm run pipeline
 npm run eval
 npm run pages:build
+npm run dev
+npm run dev:data
 npm run dev:with-data
 npm run preview:build
-npm run dev -- --port 4173
+npm run dev:server -- --port 4173
 ```
 
 核心发布产物由 `npm run pipeline` 生成，不再作为源码长期提交：
@@ -44,7 +46,7 @@ npm run dev -- --port 4173
 - `public/data/manifest.json`
 - `public/reports/eval-data-2026-07-06.md`
 
-开发环境通过 `npm run dev:with-data` 先生成本地 `public/data` 和 `public/reports`，再启动 Vite。发布环境通过 `npm run release:build` 在 CI 或发布机上重新生成同一批产物并构建 `dist-pages`。Cloudflare D1 初始化使用 `migrations/0001_mvp_read_model.sql`，数据导入使用生成的 `public/data/d1_seed.sql`；v0.2 线上查询仍以同一 deployment 的静态 artifacts 为事实源，D1 serving cache 尚未启用。Worker 入口在 `src/worker.ts`，UI 入口在 `index.html` 和 `src/ui/App.tsx`。
+开发环境通过 `npm run dev` 检查 UI 和本地 API 必需的五个 artifacts；本地缺失或损坏时，`npm run dev:data` 从已验证 production origin `https://agent-radar.zation1.workers.dev` 下载并校验后启动 Vite。`npm run dev:with-data` 保留为使用 4173 端口的兼容入口，`npm run dev:empty` 用于专门验证缺数据错误界面。该 bootstrap 不运行或放宽生产数据门禁。发布环境仍通过 `npm run release:build` 在 CI 或发布机上执行严格 pipeline 并构建 `dist-pages`。Cloudflare D1 初始化使用 `migrations/0001_mvp_read_model.sql`，数据导入使用生成的 `public/data/d1_seed.sql`；v0.2 线上查询仍以同一 deployment 的静态 artifacts 为事实源，D1 serving cache 尚未启用。Worker 入口在 `src/worker.ts`，UI 入口在 `index.html` 和 `src/ui/App.tsx`。
 
 `npm run ingest` 运行 v0.2 数据采集 MVP 的本地链路：读取 enabled Source Registry、保存 Raw Snapshot 到 `data/raw/`，输出 Source Records、Tool Card drafts、release admission、promotion candidates 和 promotion check artifact。`npm run pipeline` 默认消费通过 gate 的采集候选并生成可靠推荐发布数据。这些中间文件是可再生成的采集产物，不进入 git。
 
