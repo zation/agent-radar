@@ -63,11 +63,16 @@ async function evaluateGoldenQuery(
   ratings: RatingResult[],
   runtime: RecommendToolsRuntime
 ): Promise<EvalResult> {
-  try {
-    return evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards);
-  } catch (error) {
-    return createFailedEvalResult(evalCase, classifyEvalError(error), describeEvalError(error));
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards);
+    } catch (error) {
+      const category = classifyEvalError(error);
+      if (category === "schema_error" && attempt === 1) continue;
+      return createFailedEvalResult(evalCase, category, describeEvalError(error));
+    }
   }
+  return createFailedEvalResult(evalCase, "schema_error", "provider_schema_error: retry exhausted");
 }
 
 function evaluateCase(evalCase: EvalCase, result: RecommendationResult, cards: ToolCard[]): EvalResult {
