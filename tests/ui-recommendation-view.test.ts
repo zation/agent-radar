@@ -4,7 +4,7 @@ import type { RecommendationResult } from "../src/schema.js";
 import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { createToolViewModels } from "../src/ui/data.js";
-import { createRecommendationItems, createRecommendationSafetyView, formatRecommendationApiError, parseRecommendationApiResponse } from "../src/ui/recommendation-view.js";
+import { createRankedToolRows, createRecommendationItems, createRecommendationSafetyView, formatRecommendationApiError, getTaskReason, parseRecommendationApiResponse } from "../src/ui/recommendation-view.js";
 
 test("creates selectable recommendation items with tool details", () => {
   const tools = createToolViewModels(reviewedToolCardFixtures, rateAllToolCards(reviewedToolCardFixtures));
@@ -55,6 +55,29 @@ test("creates selectable recommendation items with tool details", () => {
   assert.equal(items.length, 1);
   assert.equal(items[0].candidate.tool_id, "mcp-browser-automation");
   assert.equal(items[0].tool.card.name, "Browser Automation MCP");
+});
+
+test("creates ranked tool rows with task-specific reasons", () => {
+  const tools = createToolViewModels(reviewedToolCardFixtures, rateAllToolCards(reviewedToolCardFixtures));
+  const tool = tools[0]!;
+  const result: RecommendationResult = {
+    id: "rec-ranked", schema_version: "recommendation_result.v2",
+    release: { release_id: "dev", commit_sha: "dev" },
+    query: { task: "official guidance" },
+    query_understanding: { intent: "docs", task_domains: [], required_capabilities: [], likely_permissions: [], tool_type_hints: [], risk_flags: [], confidence: "high" },
+    recommended_action: "use",
+    safety_assessment: { risk_level: "low", reason_codes: [], requires_human_approval: false, confirmation_questions: [], safe_defaults: [], maximum_allowed_action: "use" },
+    candidates: [{ tool_id: tool.card.id, name: tool.card.name, rank: 1, recommendation_level: "recommended", fit_score: 91, risk_level: "low", tags: [], why: ["Matches official guidance."], risks: [], not_for: [], next_steps: [], evidence_refs: [] }, { tool_id: "unknown-tool", name: "Unknown", rank: 2, recommendation_level: "consider", fit_score: 50, risk_level: "unknown", tags: [], why: [], risks: [], not_for: [], next_steps: [], evidence_refs: [] }],
+    rejected_candidates: []
+  };
+
+  const rows = createRankedToolRows(result, tools);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0]?.rank, 1);
+  assert.equal(rows[0]?.tool.card.id, tool.card.id);
+  assert.equal(rows[0]?.taskReason, "Matches official guidance.");
+  assert.equal(getTaskReason(tool.card.id, result), "Matches official guidance.");
+  assert.equal(getTaskReason("unknown-tool", { ...result, candidates: [] }), undefined);
 });
 
 test("creates a read-only recommendation safety view", () => {
