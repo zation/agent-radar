@@ -10,7 +10,8 @@ test("creates selectable recommendation items with tool details", () => {
   const tools = createToolViewModels(reviewedToolCardFixtures, rateAllToolCards(reviewedToolCardFixtures));
   const result: RecommendationResult = {
     id: "rec-test",
-    schema_version: "recommendation_result.v1",
+    schema_version: "recommendation_result.v2",
+    release: { release_id: "dev", commit_sha: "dev" },
     query: { task: "browser screenshot" },
     query_understanding: {
       intent: "browser_automation",
@@ -22,6 +23,14 @@ test("creates selectable recommendation items with tool details", () => {
       confidence: "medium"
     },
     recommended_action: "use",
+    safety_assessment: {
+      risk_level: "medium",
+      reason_codes: ["browser_control"],
+      requires_human_approval: false,
+      confirmation_questions: [],
+      safe_defaults: ["仅授予完成本次任务所需的最小权限"],
+      maximum_allowed_action: "use"
+    },
     candidates: [
       {
         tool_id: "mcp-browser-automation",

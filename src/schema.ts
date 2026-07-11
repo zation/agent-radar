@@ -172,10 +172,12 @@ export interface RejectedCandidate {
 
 export interface RecommendationResult {
   id: string;
-  schema_version: "recommendation_result.v1";
+  schema_version: "recommendation_result.v2";
+  release: { release_id: string; commit_sha: string };
   query: RecommendationQuery;
   query_understanding: QueryUnderstanding;
   recommended_action: RecommendedAction;
+  safety_assessment: RecommendationSafetyAssessment;
   candidates: RecommendationCandidate[];
   rejected_candidates: RejectedCandidate[];
   no_match_reason?: string;

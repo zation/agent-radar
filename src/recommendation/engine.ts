@@ -12,6 +12,7 @@ import type {
   ToolType
 } from "../schema.js";
 import { resolveRecommendationProviderModel, type RecommendationProvider } from "./provider-registry.js";
+import { assessRecommendationSafety } from "./safety.js";
 
 export interface RecommendationLlmInput {
   apiKey: string;
@@ -70,16 +71,9 @@ export class RecommendationProviderError extends Error {
 export interface RecommendToolsRuntime {
   apiKey: string;
   model: string;
+  release?: { release_id: string; commit_sha: string };
   client?: RecommendationLlmClient;
 }
-
-const riskRank: Record<RiskLevel, number> = {
-  low: 1,
-  medium: 2,
-  high: 3,
-  critical: 4,
-  unknown: 5
-};
 
 const allowedActions: RecommendedAction[] = ["use", "compare", "ask_human", "avoid", "no_reliable_match"];
 const allowedConfidences: Confidence[] = ["high", "medium", "low", "unknown"];
@@ -111,18 +105,25 @@ export async function recommendTools(
 
   let queryUnderstanding = normalizeQueryUnderstanding(llmOutput.query_understanding, query, candidates);
   const forcedNoMatchReason = getForcedNoMatchReason(query, queryUnderstanding);
+  let recoveredCatalogCandidates = false;
   if (!forcedNoMatchReason && shouldRecoverCatalogCandidates(llmOutput.recommended_action, candidates, queryUnderstanding)) {
     candidates = recoverCatalogCandidates(query, cards, ratingByTool, queryUnderstanding, rejectedCandidates);
+    recoveredCatalogCandidates = candidates.length > 0;
     queryUnderstanding = normalizeQueryUnderstanding(llmOutput.query_understanding, query, candidates);
   }
-  const recommendedAction = forcedNoMatchReason ? "no_reliable_match" : chooseSafeAction(llmOutput.recommended_action, candidates);
+  const safetyAssessment = assessRecommendationSafety({ query, candidates, cards, ratings });
+  const recommendedAction = forcedNoMatchReason
+    ? "no_reliable_match"
+    : chooseSafeAction(llmOutput.recommended_action, candidates, safetyAssessment.maximum_allowed_action, recoveredCatalogCandidates);
 
   return {
     id: `rec-${Date.now().toString(36)}`,
-    schema_version: "recommendation_result.v1",
+    schema_version: "recommendation_result.v2",
+    release: runtime.release ?? { release_id: "dev", commit_sha: "dev" },
     query,
     query_understanding: queryUnderstanding,
     recommended_action: recommendedAction,
+    safety_assessment: safetyAssessment,
     candidates: recommendedAction === "no_reliable_match" ? [] : candidates,
     rejected_candidates: rejectedCandidates,
     no_match_reason:
@@ -491,13 +492,13 @@ function normalizeQueryUnderstanding(
   };
 }
 
-function chooseSafeAction(action: RecommendedAction, candidates: RecommendationCandidate[]): RecommendedAction {
+function chooseSafeAction(action: RecommendedAction, candidates: RecommendationCandidate[], maximumAllowedAction: RecommendedAction, recoveredCatalogCandidates: boolean): RecommendedAction {
   if (candidates.length === 0) return "no_reliable_match";
   const normalizedAction = allowedActions.includes(action) ? action : "compare";
-  const highestRisk = Math.max(...candidates.map((candidate) => riskRank[candidate.risk_level]));
-  if (highestRisk >= riskRank.high) return "ask_human";
-  if (normalizedAction === "no_reliable_match" || normalizedAction === "avoid") return candidates.length === 1 ? "use" : "compare";
-  return normalizedAction;
+  const actionRank: Record<RecommendedAction, number> = { use: 1, compare: 2, ask_human: 3, avoid: 4, no_reliable_match: 5 };
+  if (recoveredCatalogCandidates) return maximumAllowedAction === "use" ? (candidates.length === 1 ? "use" : "compare") : maximumAllowedAction;
+  if (normalizedAction === "no_reliable_match" && candidates.length > 0) return maximumAllowedAction === "use" ? (candidates.length === 1 ? "use" : "compare") : maximumAllowedAction;
+  return actionRank[normalizedAction] >= actionRank[maximumAllowedAction] ? normalizedAction : maximumAllowedAction;
 }
 
 function getForcedNoMatchReason(query: RecommendationQuery, understanding: QueryUnderstanding): string | undefined {
