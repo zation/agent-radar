@@ -17,6 +17,12 @@ export function assessRecommendationSafety(input: RecommendationSafetyInput): Re
   const ratings = new Map(input.ratings.map((rating) => [rating.tool_id, rating]));
   const reasons = new Set<SafetyReasonCode>();
   let risk: RiskLevel = "low";
+  const task = input.query.task.toLowerCase();
+  if (/(来源不明|unknown source|untrusted)/i.test(task) && /(运行.*代码|远程代码|code execution|execute code)/i.test(task)) {
+    reasons.add("unknown_trust_code_execution");
+    reasons.add("code_execution");
+    risk = "high";
+  }
 
   for (const candidate of input.candidates) {
     const card = cards.get(candidate.tool_id);

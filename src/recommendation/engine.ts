@@ -535,10 +535,10 @@ function inferQueryPermissions(query: RecommendationQuery): string[] {
   if (/(browser|screenshot|网页|浏览器|截图|本地网页)/i.test(text)) permissions.push("browser", "network");
   if (/(gmail|mail|email|邮件|邮箱)/i.test(text)) permissions.push("email");
   if (/(database|db|数据库|生产库)/i.test(text)) permissions.push("database", "secrets");
-  if (/(github|pull request|\\bpr\\b|issue|code review|monitoring|sentry|production|线上|cloud|postgres|neon)/i.test(text)) permissions.push("cloud");
+  if (/(github|pull request|\\bpr\\b|issue|code review|monitoring|sentry|production|线上|cloud|云平台|云资源|postgres|neon)/i.test(text)) permissions.push("cloud");
   if (/(stripe|payment|refund|checkout|支付|退款|收款)/i.test(text)) permissions.push("payment", "network", "secrets");
   if (/(api key|apikey|token|secret|密钥|凭证|生产|线上)/i.test(text)) permissions.push("secrets");
-  if (/(shell|command|命令|执行脚本|代码执行)/i.test(text)) permissions.push("shell", "code_execution");
+  if (/(shell|command|命令|执行脚本|代码执行|运行.*代码|远程代码)/i.test(text)) permissions.push("shell", "code_execution");
   return mergeStrings(permissions);
 }
 
