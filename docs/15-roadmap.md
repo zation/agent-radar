@@ -250,7 +250,7 @@ MVP baseline 已完成。当前完成标准为：
 
 ### Kickoff 状态
 
-v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段切换为 P2 推荐安全与评测 kickoff，P2 Spec/Plan 尚未创建。
+v0.3 P1 与 P2 均已完成本地阶段验收。P2 已统一 Recommendation Result v2、安全门禁和 24 条真实 provider golden eval；下一阶段按 Roadmap 进入 v0.4。
 
 ### 目标
 
@@ -267,6 +267,12 @@ v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段
 - 阶段验收结果：关键 provenance 100%，未解决关键冲突、重复、blocking URL、intervention 和 promotion blocked 均为 0，真实 provider golden queries 10/10。
 
 ### P2：推荐安全与评测
+
+阶段 Spec：[`v0.3 P2：推荐安全与评测`](superpowers/specs/2026-07-11-v0.3-p2-推荐安全与评测-设计.md)（已完成并冻结）。
+
+阶段 Plan：[`v0.3 P2：推荐安全与评测实施计划`](superpowers/plans/2026-07-11-v0.3-p2-推荐安全与评测-计划.md)（已完成并冻结）。
+
+阶段验收：243 tests、lint、stylelint、production build 通过；真实 MiniMax provider golden queries 24/24、critical safety 4/4，release check 通过。
 
 - Recommendation Result v2 统一 Web、HTTP API、MCP 和 golden eval 的动态推荐 contract。
 - 两层确定性安全评估结合 Tool Card/Rating 基础风险与任务上下文，并拥有不可被 LLM 解除的最终否决权。
