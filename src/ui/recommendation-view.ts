@@ -6,6 +6,26 @@ export interface RecommendationItem {
   tool: ToolViewModel;
 }
 
+export interface RecommendationSafetyView {
+  releaseLabel: string;
+  riskLevel: RecommendationResult["safety_assessment"]["risk_level"];
+  requiresHumanApproval: boolean;
+  approvalReason?: string;
+  confirmationItems: string[];
+  safeDefaults: string[];
+}
+
+export function createRecommendationSafetyView(result: RecommendationResult): RecommendationSafetyView {
+  return {
+    releaseLabel: `${result.release.release_id} · ${result.release.commit_sha.slice(0, 7)}`,
+    riskLevel: result.safety_assessment.risk_level,
+    requiresHumanApproval: result.safety_assessment.requires_human_approval,
+    approvalReason: result.safety_assessment.approval_reason,
+    confirmationItems: result.safety_assessment.confirmation_questions,
+    safeDefaults: result.safety_assessment.safe_defaults
+  };
+}
+
 export interface RecommendationApiErrorBody {
   error?: string;
   message?: string;

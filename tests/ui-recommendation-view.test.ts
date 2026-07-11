@@ -4,7 +4,7 @@ import type { RecommendationResult } from "../src/schema.js";
 import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { createToolViewModels } from "../src/ui/data.js";
-import { createRecommendationItems, formatRecommendationApiError, parseRecommendationApiResponse } from "../src/ui/recommendation-view.js";
+import { createRecommendationItems, createRecommendationSafetyView, formatRecommendationApiError, parseRecommendationApiResponse } from "../src/ui/recommendation-view.js";
 
 test("creates selectable recommendation items with tool details", () => {
   const tools = createToolViewModels(reviewedToolCardFixtures, rateAllToolCards(reviewedToolCardFixtures));
@@ -55,6 +55,20 @@ test("creates selectable recommendation items with tool details", () => {
   assert.equal(items.length, 1);
   assert.equal(items[0].candidate.tool_id, "mcp-browser-automation");
   assert.equal(items[0].tool.card.name, "Browser Automation MCP");
+});
+
+test("creates a read-only recommendation safety view", () => {
+  const result: RecommendationResult = {
+    id: "rec-safety", schema_version: "recommendation_result.v2",
+    release: { release_id: "all-v0.3.2-test", commit_sha: "0123456789abcdef" },
+    query: { task: "read Gmail" }, query_understanding: { intent: "email", task_domains: [], required_capabilities: [], likely_permissions: ["email"], tool_type_hints: [], risk_flags: [], confidence: "medium" },
+    recommended_action: "ask_human", candidates: [], rejected_candidates: [],
+    safety_assessment: { risk_level: "high", reason_codes: ["email_access"], requires_human_approval: true, approval_reason: "需要读取邮件。", confirmation_questions: ["是否只读取指定标签？"], safe_defaults: ["只读权限"], maximum_allowed_action: "ask_human" }
+  };
+  assert.deepEqual(createRecommendationSafetyView(result), {
+    releaseLabel: "all-v0.3.2-test · 0123456", riskLevel: "high", requiresHumanApproval: true,
+    approvalReason: "需要读取邮件。", confirmationItems: ["是否只读取指定标签？"], safeDefaults: ["只读权限"]
+  });
 });
 
 test("formats provider API errors with actionable context", () => {
