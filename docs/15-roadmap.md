@@ -30,13 +30,13 @@
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP、v0.2 和 v0.3 均已完成；`all-v0.3.3` 已通过生产发布与线上核验。v0.4 P1 的 Web UI 视觉与交互设计已批准，下一步应先完成实施 Plan，再开始界面与反馈采集实现。
+实际情况：MVP、v0.2 和 v0.3 均已完成；`all-v0.3.3` 已通过生产发布与线上核验。v0.4 P1 的 Web UI 视觉与交互重构已完成；GitHub OAuth、D1 投票和 Issue Form 反馈写链路仍待独立 Plan 与实现。
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
-- React/Vite Web UI 已包含 `Tools` 和 `Recommend` 两个主页面，支持工具浏览、详情、评分解释、风险展示、推荐结果列表和 eval 状态弹层。
-- Web UI 已增加 `Compare` 页面，支持最多 4 个 Tool Cards 横向比较评分、风险、证据、权限和适用/不适用场景。
-- Web UI 已增加 `Review` 页面，读取 `source_registry_review_requests.json`，展示 Source Registry production gate review request 的审核原因和 suggested action。
+- React/Vite Web UI 已重构为 `Tools` 与 `Evaluation` 两个入口；Recommend 合并进 Tools 并直接重排工具索引，Evaluation 展示 24 条 golden queries 的目的、预期、实测和 release gate 状态。
+- Desktop 使用列表 + 详情双栏；Mobile 使用 list → detail drill-in，并通过浏览器历史恢复任务、筛选和滚动位置。
+- 旧 Compare、Review 和 eval 状态弹层已退出 Web 导航；OAuth/D1 投票完成前不渲染假反馈控件。
 - Workers 风格只读 API 已实现 `search_tools`、`get_tool_card`、`recommend_tools`、`explain_rating`。
 - 本地 Vite dev server 已挂载 `/api/*`，避免本地开发时前端请求 API 404。
 - 推荐路径已从本地关键词/规则排序改为 BYOK LLM-backed 推荐；本地代码负责组装 Tool Card/Rating 上下文、调用 provider、校验已知 `tool_id`、保留风险边界并归一化输出。
@@ -463,9 +463,9 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 ### v0.4：界面与用户反馈
 
-- Web UI 视觉与交互 Spec：[`v0.4 P1：Web UI 视觉与交互重构`](superpowers/specs/2026-07-11-v0.4-p1-web-ui-视觉与交互重构-设计.md)（已批准，待实施 Plan）。
-- Web UI 实施 Plan：[`v0.4 P1 Web UI 视觉与交互重构`](superpowers/plans/2026-07-11-v0.4-p1-web-ui-视觉与交互重构.md)（草稿，待执行）。
-- P1 完成 UI 重构、GitHub OAuth、D1 投票和结构化 Issue Form 跳转。
+- Web UI 视觉与交互 Spec：[`v0.4 P1：Web UI 视觉与交互重构`](superpowers/specs/2026-07-11-v0.4-p1-web-ui-视觉与交互重构-设计.md)（已批准；UI 重构已交付，反馈写链路待独立 Plan）。
+- Web UI 实施 Plan：[`v0.4 P1 Web UI 视觉与交互重构`](superpowers/plans/2026-07-11-v0.4-p1-web-ui-视觉与交互重构.md)（已完成）。
+- P1 UI 重构已完成；下一步实现 GitHub OAuth、D1 投票和结构化 Issue Form 跳转。
 - P2 将三态 Issue 处理、投票快照和 `feedback_rules.v0.1` 接入 `Release All` 的 reviewed bundle 构建。
 
 ### Backlog
