@@ -1,5 +1,9 @@
 # 09 推荐引擎
 
+## v0.3 P2 确定性安全层
+
+动态推荐在 LLM 完成任务理解和候选选择后，统一调用确定性安全层。该层结合 Tool Card 权限与信任、Rating 基础风险、用户允许权限和风险偏好，生成 Recommendation Result v2 的结构化安全评估并收紧最终动作；LLM 可以更保守，但不能解除 `ask_human`、`avoid` 或 `no_reliable_match`。Web、HTTP API、MCP 和 golden eval 共用此路径，响应通过 release ID 与 commit SHA 溯源。
+
 ## 文档用途
 
 本文件定义 Agent Radar 如何根据用户需求或 coding agent 任务推荐工具。推荐必须可解释、可审计，并能说明不推荐的理由。
@@ -148,7 +152,7 @@ Top 结果应避免全是同一类型，除非任务明确要求。
 
 ```json
 {
-  "schema_version": "recommendation_result.v1",
+  "schema_version": "recommendation_result.v2",
   "recommended_action": "compare",
   "query_understanding": {
     "intent": "payment_integration",

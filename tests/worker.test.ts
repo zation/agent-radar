@@ -28,6 +28,7 @@ test("Worker version endpoint reports release and data versions", async () => {
   const response = await worker.fetch(new Request("https://agent-radar.test/api/version"), {
     ASSETS: assets,
     AGENT_RADAR_RELEASE_ID: "all-v0.2.1",
+    AGENT_RADAR_COMMIT_SHA: "0123456789abcdef",
     AGENT_RADAR_API_VERSION: "api-v0.2.1",
     AGENT_RADAR_WEB_VERSION: "web-v0.2.1"
   });

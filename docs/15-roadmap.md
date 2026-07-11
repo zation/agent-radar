@@ -250,7 +250,7 @@ MVP baseline 已完成。当前完成标准为：
 
 ### Kickoff 状态
 
-v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段切换为 P2 推荐安全与评测 kickoff，P2 Spec/Plan 尚未创建。
+v0.3 P1 与 P2 均已完成本地阶段验收。P2 已统一 Recommendation Result v2、安全门禁和 24 条真实 provider golden eval；下一阶段按 Roadmap 进入 v0.4。
 
 ### 目标
 
@@ -268,12 +268,19 @@ v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段
 
 ### P2：推荐安全与评测
 
-- 安全风险评分 v1。
-- ~~Human Approval 规则接入推荐输出。~~ 实际情况：v0.2 已实现高风险推荐强制 `ask_human`；P2 补充结构化 `requires_human_approval`、`approval_reason`、确认问题和安全默认值。
-- Eval Diff 报告。
-- Prompt、provider routing 和推荐规则版本化。
-- 20-40 个 golden queries。
-- Critical safety regression 阻断发布。
+阶段 Spec：[`v0.3 P2：推荐安全与评测`](superpowers/specs/2026-07-11-v0.3-p2-推荐安全与评测-设计.md)（已完成并冻结）。
+
+阶段 Plan：[`v0.3 P2：推荐安全与评测实施计划`](superpowers/plans/2026-07-11-v0.3-p2-推荐安全与评测-计划.md)（已完成并冻结）。
+
+阶段验收：246 tests、lint、stylelint、production build 通过；真实 MiniMax provider golden queries 24/24、critical safety 4/4，release check 通过。
+
+- Recommendation Result v2 统一 Web、HTTP API、MCP 和 golden eval 的动态推荐 contract。
+- 两层确定性安全评估结合 Tool Card/Rating 基础风险与任务上下文，并拥有不可被 LLM 解除的最终否决权。
+- 结构化输出 `requires_human_approval`、`approval_reason`、确认事项、安全默认值和稳定 reason codes；Web 仅只读展示。
+- 推荐响应通过 release ID 和 commit SHA 追溯部署代码。
+- Golden queries 扩展到 24 条，其中 4 条 critical safety cases。
+- Critical safety case 失败、缺失或未执行阻断发布。
+- Eval Diff 移入 Backlog，不作为 P2 依赖。
 
 ### 验收标准
 
@@ -289,6 +296,7 @@ v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段
 - 自动信任新来源。
 - 自动执行推荐工具。
 - 企业级审批流。
+- Prompt、provider routing 和推荐规则的独立版本机制。
 
 ### 主要风险
 
@@ -299,7 +307,7 @@ v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段
 
 - 先通过 P1 建立可回放数据证据，再扩大 Tool Card 数量。
 - 用 `consider`、`ask_human` 和 `no_reliable_match` 表达安全中间状态。
-- 用 eval diff 和 critical safety cases 约束 P2 规则变化。
+- 用当前候选的 24 条 golden queries 和 4 条 critical safety cases 约束 P2 规则变化。
 
 ## v0.4
 
@@ -441,17 +449,17 @@ v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段
 
 ### P2：v0.3 推荐安全与评测
 
-- 实现安全风险评分 v1 和结构化 Human Approval 输出。
-- 增加 eval diff，比较同一 golden query 在不同 prompt、provider 和规则版本下的动作、候选和风险提示变化。
-- 将 golden queries 扩展到 20-40 个，并让 critical safety regression 阻止发布。
+- ~~实现安全风险评分 v1 和结构化 Human Approval 输出。~~ 实际完成：Recommendation Result v2 已接入两层确定性安全评估、结构化确认事项和安全默认值。
+- ~~增加 eval diff，比较同一 golden query 在不同 prompt、provider 和规则版本下的动作、候选和风险提示变化。~~ 实际决策：Eval Diff 移入 Backlog，P2 不依赖历史 build。
+- ~~将 golden queries 扩展到 20-40 个，并让 critical safety regression 阻止发布。~~ 实际完成：24 条 golden queries、4 条 critical safety cases 和严格发布门禁已通过验收。
 
 ### v0.3 Kickoff 验收
 
 - 50-150 张高质量 Tool Cards，关键字段 provenance 覆盖率 100%。
-- 20-40 个 golden queries，critical safety cases 全部通过。
+- 24 个 golden queries，4 个 critical safety cases 全部通过。
 - 关键 URL 有近期可达性或可解释状态，不允许未解释的持续 404/410 进入发布。
 - 发布候选不存在未解决重复项、validation error 或 intervention request。
-- prompt、provider、规则和评测结果版本可追溯，并能生成 eval diff。
+- release ID、commit SHA 和 reviewed bundle 可追溯；不维护独立 prompt/provider/rules 版本，也不在 P2 生成 Eval Diff。
 
 ### v0.4：界面与用户反馈
 
@@ -459,6 +467,8 @@ v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段
 - P2 将三态 Issue 处理、投票快照和 `feedback_rules.v0.1` 接入 `Release All` 的 reviewed bundle 构建。
 
 ### Backlog
+
+- Eval Diff：未来需要跨发布行为对比时再单独设计，不作为 v0.3 P2 发布依赖。
 
 - 更完整的 Provider 配置 UI。
 - 浏览器运行时读取 `provider_registry.json`。

@@ -33,7 +33,7 @@ import { createEvalPopoverRows } from "./eval-popover.js";
 import { buildCompareColumns } from "./compare-view.js";
 import { buildCollapsedRecommendationSummary, getRecommendationSubmitLabel } from "./recommendation-form.js";
 import { buildRecommendationRunSummary } from "./recommendation-status.js";
-import { createRecommendationItems, formatRecommendationApiError, parseRecommendationApiResponse, type RecommendationApiErrorBody, type RecommendationItem } from "./recommendation-view.js";
+import { createRecommendationItems, createRecommendationSafetyView, formatRecommendationApiError, parseRecommendationApiResponse, type RecommendationApiErrorBody, type RecommendationItem } from "./recommendation-view.js";
 import { listUiRecommendationModelOptions } from "./provider-options.js";
 import { createSourceReviewRows, type SourceReviewRow } from "./review-view.js";
 import "./styles.css";
@@ -573,6 +573,7 @@ function RecommendationList({
   onSelectRecommendation: (toolId: string) => void;
 }) {
   const isCaution = result.recommended_action === "ask_human" || result.recommended_action === "no_reliable_match";
+  const safety = createRecommendationSafetyView(result);
 
   return (
     <section className="grid gap-3">
@@ -581,6 +582,21 @@ function RecommendationList({
         <AlertTitle>{result.recommended_action}</AlertTitle>
         {result.no_match_reason && <AlertDescription>{result.no_match_reason}</AlertDescription>}
       </Alert>
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <Badge variant="outline">risk {safety.riskLevel}</Badge>
+        <span>{safety.releaseLabel}</span>
+      </div>
+      {safety.requiresHumanApproval && (
+        <Alert className="recommendation-safety-alert">
+          <ShieldAlert />
+          <AlertTitle>需要人工确认</AlertTitle>
+          {safety.approvalReason && <AlertDescription>{safety.approvalReason}</AlertDescription>}
+          <div className="grid gap-2 text-sm">
+            <ListBlock title="使用前确认事项" items={safety.confirmationItems} />
+            <ListBlock title="安全默认值" items={safety.safeDefaults} />
+          </div>
+        </Alert>
+      )}
       <div className="grid gap-2">
         {items.map((item) => (
           <Button

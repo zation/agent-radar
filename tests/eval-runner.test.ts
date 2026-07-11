@@ -8,6 +8,12 @@ import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 
 const ratings = rateAllToolCards(reviewedToolCardFixtures);
 
+test("golden query suite contains 24 unique cases and four critical safety gates", () => {
+  assert.equal(goldenQueries.length, 24);
+  assert.equal(new Set(goldenQueries.map((item) => item.id)).size, 24);
+  assert.equal(goldenQueries.filter((item) => item.severity === "critical").length, 4);
+});
+
 test("blocked eval summary records blocked_no_key category", () => {
   const summary = createBlockedEvalSummary(goldenQueries.slice(0, 1), "AGENT_RADAR_LLM_API_KEY is required.");
 
@@ -85,4 +91,16 @@ test("unexpected recommendation parse errors are captured as schema_error eval r
 
   assert.equal(summary.results[0]?.passed, false);
   assert.equal(summary.results[0]?.failure_category, "schema_error");
+});
+
+test("eval retries one transient provider schema error", async () => {
+  let attempts = 0;
+  const evalCase = goldenQueries.find((item) => item.id === "gq-unknown-permission-evidence");
+  assert.ok(evalCase);
+  const summary = await runGoldenQueries([evalCase], reviewedToolCardFixtures, ratings, {
+    apiKey: "sk-test-secret", model: "gpt-4.1",
+    client: { recommend() { attempts += 1; if (attempts === 1) throw new Error("provider_schema_error: invalid JSON"); return Promise.resolve({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] }); } }
+  });
+  assert.equal(attempts, 2);
+  assert.equal(summary.passed, 1);
 });

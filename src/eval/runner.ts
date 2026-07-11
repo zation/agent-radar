@@ -1,4 +1,4 @@
-import type { EvalCase, RatingResult, RecommendationResult, ToolCard } from "../schema.js";
+import type { EvalCase, RatingResult, RecommendationResult, RiskLevel, SafetyReasonCode, ToolCard } from "../schema.js";
 import { RecommendationProviderError, recommendTools, type RecommendToolsRuntime } from "../recommendation/engine.js";
 
 export type EvalFailureCategory = "blocked_no_key" | "provider_error" | "schema_error" | "quality_failure" | "none";
@@ -10,12 +10,19 @@ export interface EvalResult {
   failures: string[];
   recommended_action: string;
   top_tool_ids: string[];
+  severity: EvalCase["severity"];
+  risk_level: RiskLevel | "blocked";
+  requires_human_approval: boolean | null;
+  reason_codes: SafetyReasonCode[];
+  release_blocking: boolean;
 }
 
 export interface EvalSummary {
   passed: number;
   total: number;
   results: EvalResult[];
+  critical: { total: number; passed: number; failed: number; release_blocking: boolean };
+  release: { release_id: string; commit_sha: string };
 }
 
 export async function runGoldenQueries(
@@ -25,26 +32,29 @@ export async function runGoldenQueries(
   runtime: RecommendToolsRuntime
 ): Promise<EvalSummary> {
   const results = await Promise.all(cases.map(async (evalCase) => evaluateGoldenQuery(evalCase, cards, ratings, runtime)));
+  return buildSummary(results, runtime.release);
+}
+
+function buildSummary(results: EvalResult[], release = { release_id: "dev", commit_sha: "dev" }): EvalSummary {
+  const critical = results.filter((result) => result.severity === "critical");
   return {
     passed: results.filter((result) => result.passed).length,
     total: results.length,
-    results
+    results,
+    critical: { total: critical.length, passed: critical.filter((item) => item.passed).length, failed: critical.filter((item) => !item.passed).length, release_blocking: critical.some((item) => !item.passed) },
+    release
   };
 }
 
-export function createBlockedEvalSummary(cases: EvalCase[], reason: string): EvalSummary {
-  return {
-    passed: 0,
-    total: cases.length,
-    results: cases.map((evalCase) => ({
+export function createBlockedEvalSummary(cases: EvalCase[], reason: string, release = { release_id: "dev", commit_sha: "dev" }): EvalSummary {
+  return buildSummary(cases.map((evalCase) => ({
       case_id: evalCase.id,
       passed: false,
       failure_category: "blocked_no_key",
       failures: [reason],
       recommended_action: "blocked",
-      top_tool_ids: []
-    }))
-  };
+      top_tool_ids: [], severity: evalCase.severity, risk_level: "blocked", requires_human_approval: null, reason_codes: [], release_blocking: evalCase.severity === "critical"
+    })), release);
 }
 
 async function evaluateGoldenQuery(
@@ -53,11 +63,16 @@ async function evaluateGoldenQuery(
   ratings: RatingResult[],
   runtime: RecommendToolsRuntime
 ): Promise<EvalResult> {
-  try {
-    return evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards);
-  } catch (error) {
-    return createFailedEvalResult(evalCase.id, classifyEvalError(error), describeEvalError(error));
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards);
+    } catch (error) {
+      const category = classifyEvalError(error);
+      if (category === "schema_error" && attempt === 1) continue;
+      return createFailedEvalResult(evalCase, category, describeEvalError(error));
+    }
   }
+  return createFailedEvalResult(evalCase, "schema_error", "provider_schema_error: retry exhausted");
 }
 
 function evaluateCase(evalCase: EvalCase, result: RecommendationResult, cards: ToolCard[]): EvalResult {
@@ -84,6 +99,12 @@ function evaluateCase(evalCase: EvalCase, result: RecommendationResult, cards: T
   for (const toolId of evalCase.expected.should_not_recommend ?? []) {
     if (result.candidates.some((candidate) => candidate.tool_id === toolId)) failures.push(`should not recommend ${toolId}`);
   }
+  const riskRank: Record<RiskLevel, number> = { low: 1, medium: 2, high: 3, critical: 4, unknown: 5 };
+  if (evalCase.expected.minimum_risk_level && riskRank[result.safety_assessment.risk_level] < riskRank[evalCase.expected.minimum_risk_level]) failures.push(`risk below ${evalCase.expected.minimum_risk_level}`);
+  if (evalCase.expected.requires_human_approval !== undefined && result.safety_assessment.requires_human_approval !== evalCase.expected.requires_human_approval) failures.push("human approval mismatch");
+  for (const reason of evalCase.expected.must_include_reason_codes ?? []) if (!result.safety_assessment.reason_codes.includes(reason)) failures.push(`missing reason code ${reason}`);
+  if (evalCase.expected.must_include_confirmation_questions && result.safety_assessment.confirmation_questions.length === 0) failures.push("missing confirmation questions");
+  if (evalCase.expected.must_include_safe_defaults && result.safety_assessment.safe_defaults.length === 0) failures.push("missing safe defaults");
 
   return {
     case_id: evalCase.id,
@@ -91,18 +112,20 @@ function evaluateCase(evalCase: EvalCase, result: RecommendationResult, cards: T
     failure_category: failures.length === 0 ? "none" : "quality_failure",
     failures,
     recommended_action: result.recommended_action,
-    top_tool_ids: result.candidates.map((candidate) => candidate.tool_id)
+    top_tool_ids: result.candidates.map((candidate) => candidate.tool_id), severity: evalCase.severity,
+    risk_level: result.safety_assessment.risk_level, requires_human_approval: result.safety_assessment.requires_human_approval,
+    reason_codes: result.safety_assessment.reason_codes, release_blocking: evalCase.severity === "critical" && failures.length > 0
   };
 }
 
-function createFailedEvalResult(caseId: string, category: EvalFailureCategory, failure: string): EvalResult {
+function createFailedEvalResult(evalCase: EvalCase, category: EvalFailureCategory, failure: string): EvalResult {
   return {
-    case_id: caseId,
+    case_id: evalCase.id,
     passed: false,
     failure_category: category,
     failures: [failure],
     recommended_action: "blocked",
-    top_tool_ids: []
+    top_tool_ids: [], severity: evalCase.severity, risk_level: "blocked", requires_human_approval: null, reason_codes: [], release_blocking: evalCase.severity === "critical"
   };
 }
 

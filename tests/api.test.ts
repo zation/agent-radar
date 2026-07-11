@@ -16,6 +16,7 @@ const repository = createStaticRepository({
 const handler = createApiHandler(repository, {
   versionInfo: {
     release_id: "all-v0.2.1",
+    commit_sha: "0123456789abcdef",
     data_version: "data-test",
     api_version: "api-test",
     web_version: "web-test"
@@ -89,6 +90,7 @@ test("version endpoint returns release and component versions", async () => {
     schema_version: "agent_radar_version.v1",
     service: "agent-radar",
     release_id: "all-v0.2.1",
+    commit_sha: "0123456789abcdef",
     data_version: "data-test",
     api_version: "api-test",
     web_version: "web-test"
@@ -129,7 +131,8 @@ test("recommend_tools returns recommendation result", async () => {
 
   assert.equal(response.status, 200);
   const body = await response.json();
-  assert.equal(body.schema_version, "recommendation_result.v1");
+  assert.equal(body.schema_version, "recommendation_result.v2");
+  assert.deepEqual(body.release, { release_id: "all-v0.2.1", commit_sha: "0123456789abcdef" });
   assert.equal(body.recommended_action, "ask_human");
 });
 

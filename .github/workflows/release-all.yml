@@ -18,6 +18,8 @@ jobs:
     env:
       AGENT_RADAR_LLM_API_KEY: ${{ secrets.AGENT_RADAR_LLM_API_KEY }}
       AGENT_RADAR_LLM_MODEL: ${{ vars.AGENT_RADAR_LLM_MODEL || 'deepseek-v4-flash' }}
+      AGENT_RADAR_RELEASE_ID: ${{ github.ref_name }}
+      AGENT_RADAR_COMMIT_SHA: ${{ github.sha }}
       AGENT_RADAR_CHECK_URLS: "true"
       AGENT_RADAR_PREVIOUS_URL_VALIDATION: previous-reviewed-bundle/dist-pages/data/tool_card_url_validation.v2.json
       AGENT_RADAR_PREVIOUS_DATA_QUALITY_REPORT: previous-reviewed-bundle/dist-pages/data/data_quality_report.json
@@ -124,6 +126,7 @@ jobs:
             deploy
             --name=${{ vars.CLOUDFLARE_PROJECT_NAME || 'agent-radar' }}
             --var AGENT_RADAR_RELEASE_ID:${{ github.ref_name }}
+            --var AGENT_RADAR_COMMIT_SHA:${{ github.sha }}
             --var AGENT_RADAR_API_VERSION:${{ github.ref_name }}
             --var AGENT_RADAR_WEB_VERSION:${{ github.ref_name }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}

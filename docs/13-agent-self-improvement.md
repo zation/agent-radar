@@ -210,7 +210,9 @@ verification:
 - 是否需要人工复核。
 ```
 
-## Eval Diff 格式
+## Eval Diff Backlog 格式
+
+该能力尚未实现，已从 v0.3 P2 移入 Backlog。以下仅保留未来重新立项时的候选格式，不代表当前产物或发布依赖。
 
 ```yaml
 before:

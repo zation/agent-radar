@@ -5,6 +5,7 @@ import { createOpenAiRecommendationClient, normalizeApiKey, recommendTools, reso
 import { rateAllToolCards } from "../src/rating/engine.js";
 
 const ratings = rateAllToolCards(reviewedToolCardFixtures);
+const release = { release_id: "all-v0.3.2-test", commit_sha: "0123456789abcdef" };
 
 test("routes MiniMax model labels to the MiniMax chat completions endpoint", () => {
   assert.deepEqual(resolveModelRequest("MiniMax M3"), {
@@ -208,15 +209,18 @@ test("builds recommendations from an LLM client response", async () => {
     },
     reviewedToolCardFixtures,
     ratings,
-    { apiKey: "sk-test-secret", model: "gpt-4.1", client }
+    { apiKey: "sk-test-secret", model: "gpt-4.1", client, release }
   );
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0]?.apiKey, "sk-test-secret");
   assert.equal(calls[0]?.model, "gpt-4.1");
   assert.match(calls[0]?.prompt ?? "", /skill-test-driven-development/);
-  assert.equal(result.schema_version, "recommendation_result.v1");
-  assert.equal(result.recommended_action, "compare");
+  assert.equal(result.schema_version, "recommendation_result.v2");
+  assert.deepEqual(result.release, release);
+  assert.equal(result.safety_assessment.risk_level, "high");
+  assert.equal(result.safety_assessment.requires_human_approval, true);
+  assert.equal(result.recommended_action, "ask_human");
   assert.equal(result.candidates[0]?.tool_id, "skill-test-driven-development");
   assert.equal(result.candidates[0]?.name, "Test Driven Development Skill");
   assert.equal(result.candidates[0]?.fit_score, 91);

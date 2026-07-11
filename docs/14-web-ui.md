@@ -1,5 +1,9 @@
 # 14 Web UI
 
+## v0.3 P2 推荐安全展示
+
+Recommend 结果区显示总体风险、release ID、短 commit SHA、人工确认原因、“使用前确认事项”和安全默认值。确认事项是只读列表；Web 不提供输入框、确认状态、回答持久化、重新推荐或授权/执行按钮。
+
 ## 文档用途
 
 本文件定义 Agent Radar Web UI 的信息架构、页面结构、数据来源、交互边界和验证方式。它用于指导由 Cloudflare Worker Static Assets 提供的公开站点设计、实现和后续维护。

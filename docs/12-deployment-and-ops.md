@@ -1,5 +1,9 @@
 # 12 部署与运维
 
+## v0.3 P2 发布门禁
+
+Release All 在 reviewed bundle 构建 job 注入 `AGENT_RADAR_RELEASE_ID` 和 `AGENT_RADAR_COMMIT_SHA`，运行当前候选的 24 条真实 provider golden queries，并在上传 bundle 前校验 4 条 critical safety cases。部署 job 原样部署已审核 bundle，并把相同 release ID 与 commit SHA 注入 Worker。P2 不下载历史 eval artifact，也不生成 Eval Diff；现有 P1 历史数据质量 artifact 读取保持不变。
+
 ## 文档用途
 
 本文件定义 Agent Radar 的低成本部署、定时任务、发布、监控、故障处理和回滚方案。

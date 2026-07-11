@@ -13,6 +13,7 @@ export interface ApiVersionInfo {
   schema_version: "agent_radar_version.v1";
   service: "agent-radar";
   release_id: string;
+  commit_sha: string;
   data_version: string;
   api_version: string;
   web_version: string;
@@ -65,6 +66,7 @@ function buildVersionInfo(versionInfo: Partial<ApiVersionInfo> = {}): ApiVersion
     schema_version: "agent_radar_version.v1",
     service: "agent-radar",
     release_id: versionInfo.release_id ?? "unknown",
+    commit_sha: versionInfo.commit_sha ?? "unknown",
     data_version: versionInfo.data_version ?? "unknown",
     api_version: versionInfo.api_version ?? "unknown",
     web_version: versionInfo.web_version ?? "unknown"
@@ -212,6 +214,10 @@ async function recommend(repository: ToolRepository, input: RecommendToolsInput,
   return recommendTools(query, repository.listToolCards(), repository.listRatings(), {
     apiKey,
     model,
+    release: {
+      release_id: buildVersionInfo(options.versionInfo).release_id,
+      commit_sha: buildVersionInfo(options.versionInfo).commit_sha
+    },
     client: options.recommendationClient
   });
 }
