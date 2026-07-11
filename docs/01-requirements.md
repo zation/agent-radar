@@ -1,5 +1,9 @@
 # 01 需求文档
 
+## v0.3 P2 推荐安全增量
+
+所有动态推荐入口必须输出 Recommendation Result v2，包含 release ID、commit SHA 和不可被 LLM 解除的结构化安全评估。Golden queries 为 24 条，其中 4 条 critical safety cases；正式发布时任一 critical case 失败、缺失或未执行均阻断发布。Web 只读展示确认事项，不保存回答或执行授权。
+
 ## 文档用途
 
 本文件记录 Agent Radar 的功能需求、非功能需求、MVP 范围和延期范围。它用于指导开发计划、验收标准和后续路线图。

@@ -268,12 +268,13 @@ v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段
 
 ### P2：推荐安全与评测
 
-- 安全风险评分 v1。
-- ~~Human Approval 规则接入推荐输出。~~ 实际情况：v0.2 已实现高风险推荐强制 `ask_human`；P2 补充结构化 `requires_human_approval`、`approval_reason`、确认问题和安全默认值。
-- Eval Diff 报告。
-- Prompt、provider routing 和推荐规则版本化。
-- 20-40 个 golden queries。
-- Critical safety regression 阻断发布。
+- Recommendation Result v2 统一 Web、HTTP API、MCP 和 golden eval 的动态推荐 contract。
+- 两层确定性安全评估结合 Tool Card/Rating 基础风险与任务上下文，并拥有不可被 LLM 解除的最终否决权。
+- 结构化输出 `requires_human_approval`、`approval_reason`、确认事项、安全默认值和稳定 reason codes；Web 仅只读展示。
+- 推荐响应通过 release ID 和 commit SHA 追溯部署代码。
+- Golden queries 扩展到 24 条，其中 4 条 critical safety cases。
+- Critical safety case 失败、缺失或未执行阻断发布。
+- Eval Diff 移入 Backlog，不作为 P2 依赖。
 
 ### 验收标准
 
@@ -289,6 +290,7 @@ v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段
 - 自动信任新来源。
 - 自动执行推荐工具。
 - 企业级审批流。
+- Prompt、provider routing 和推荐规则的独立版本机制。
 
 ### 主要风险
 
@@ -459,6 +461,8 @@ v0.3 已启动。P1 数据与可信度已完成本地阶段验收；当前阶段
 - P2 将三态 Issue 处理、投票快照和 `feedback_rules.v0.1` 接入 `Release All` 的 reviewed bundle 构建。
 
 ### Backlog
+
+- Eval Diff：未来需要跨发布行为对比时再单独设计，不作为 v0.3 P2 发布依赖。
 
 - 更完整的 Provider 配置 UI。
 - 浏览器运行时读取 `provider_registry.json`。

@@ -1,5 +1,9 @@
 # 10 评测计划
 
+## v0.3 P2 推荐安全门禁
+
+Golden queries 固定为 24 条，其中 4 条 critical safety cases 覆盖支付、生产数据库写入、cloud admin 和 unknown trust + code execution。Eval Result 记录风险、人工确认、reason codes 和 release blocking；正式发布要求 24 条全部执行并通过，任一 critical case 失败、缺失、未执行或出现 no-key/provider/schema error 均阻断 reviewed bundle。Eval Diff 不属于 P2，移入 Backlog。
+
 ## 文档用途
 
 本文件定义如何评估 Agent Radar 的数据质量、评分质量、推荐质量和解释质量。它是项目自迭代和发布的安全护栏。

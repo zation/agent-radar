@@ -324,6 +324,8 @@ Recommendation Query 是用户或 agent 输入的任务上下文。
 
 ## Recommendation Result
 
+v0.3 P2 将动态推荐契约直接升级为 `recommendation_result.v2`。v2 在原有 query、候选和动作之外增加 `release { release_id, commit_sha }` 与 `safety_assessment`；不提供 v1 兼容输出或版本协商。安全评估包含总体风险、稳定 reason codes、是否需要人工确认、确认原因、只读确认事项、安全默认值和最宽松允许动作。
+
 Recommendation Result 是推荐引擎输出。
 
 ### 字段定义
@@ -331,7 +333,7 @@ Recommendation Result 是推荐引擎输出。
 | 字段 | 类型 | 必填 | 示例 | 说明 |
 | --- | --- | --- | --- | --- |
 | `id` | string | 是 | `rec-20260706-abc123` | 推荐 ID |
-| `schema_version` | string | 是 | `recommendation_result.v1` | schema 版本 |
+| `schema_version` | string | 是 | `recommendation_result.v2` | schema 版本；P2 breaking change |
 | `query` | object | 是 | Recommendation Query | 原始或标准化查询 |
 | `query_understanding` | object | 是 | `{ "intent": "payment_integration" }` | 任务解析 |
 | `recommended_action` | enum | 是 | `compare` | agent 下一步 |

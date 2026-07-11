@@ -1,5 +1,9 @@
 # 03 系统架构
 
+## v0.3 P2 推荐安全组件
+
+`src/recommendation/safety.ts` 位于 LLM 候选归一化之后、Recommendation Result v2 组装之前。它读取 query、Tool Cards、Ratings 和候选，确定性生成风险、reason codes、人工确认信息与动作上限。Web、HTTP API、MCP 和 build-time golden eval 复用同一推荐链路。
+
 ## 文档用途
 
 本文件描述 Agent Radar 的系统模块、数据流、接口边界和部署形态。它用于指导代码结构、技术选型和模块演进。

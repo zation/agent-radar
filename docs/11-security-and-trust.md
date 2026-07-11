@@ -217,6 +217,8 @@ v0.4 反馈处理额外要求：
 
 ## Human Approval 规则
 
+v0.3 P2 将本节规则实现为动态推荐后的确定性安全评估。Recommendation Result v2 输出稳定 reason codes、确认原因、`confirmation_questions` 和 `safe_defaults`；确认问题只供 coding agent 提问或 Web 只读展示，不构成审批记录、授权状态或自动执行许可。
+
 以下情况必须人工确认：
 
 - 安装或运行来源不明工具。
