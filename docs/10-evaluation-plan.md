@@ -348,7 +348,7 @@ expected:
 
 ## Regression Eval
 
-每次发布前生成 eval diff：
+Eval Diff 已移入 Backlog，v0.3 P2 不生成跨发布 diff。当前发布前只校验同一候选版本的 24 条 golden queries 和 4 条 critical safety cases。未来重启该能力时，候选格式为：
 
 ```yaml
 data_version_before:
@@ -365,7 +365,7 @@ critical_failures:
 review_required:
 ```
 
-必须人工查看：
+未来实现后需要人工查看：
 
 - 推荐等级升高的高风险工具。
 - 风险等级降低的工具。

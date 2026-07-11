@@ -380,7 +380,8 @@ MVP 工具：
 输出：
 
 - Eval Report。
-- Eval Diff。
+- 当前候选的 critical safety gate 结果。
+- Eval Diff 属于 Backlog，当前 Eval Runner 不生成。
 
 依赖：
 

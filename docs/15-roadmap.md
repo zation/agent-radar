@@ -307,7 +307,7 @@ v0.3 P1 与 P2 均已完成本地阶段验收。P2 已统一 Recommendation Resu
 
 - 先通过 P1 建立可回放数据证据，再扩大 Tool Card 数量。
 - 用 `consider`、`ask_human` 和 `no_reliable_match` 表达安全中间状态。
-- 用 eval diff 和 critical safety cases 约束 P2 规则变化。
+- 用当前候选的 24 条 golden queries 和 4 条 critical safety cases 约束 P2 规则变化。
 
 ## v0.4
 
@@ -449,17 +449,17 @@ v0.3 P1 与 P2 均已完成本地阶段验收。P2 已统一 Recommendation Resu
 
 ### P2：v0.3 推荐安全与评测
 
-- 实现安全风险评分 v1 和结构化 Human Approval 输出。
-- 增加 eval diff，比较同一 golden query 在不同 prompt、provider 和规则版本下的动作、候选和风险提示变化。
-- 将 golden queries 扩展到 20-40 个，并让 critical safety regression 阻止发布。
+- ~~实现安全风险评分 v1 和结构化 Human Approval 输出。~~ 实际完成：Recommendation Result v2 已接入两层确定性安全评估、结构化确认事项和安全默认值。
+- ~~增加 eval diff，比较同一 golden query 在不同 prompt、provider 和规则版本下的动作、候选和风险提示变化。~~ 实际决策：Eval Diff 移入 Backlog，P2 不依赖历史 build。
+- ~~将 golden queries 扩展到 20-40 个，并让 critical safety regression 阻止发布。~~ 实际完成：24 条 golden queries、4 条 critical safety cases 和严格发布门禁已通过验收。
 
 ### v0.3 Kickoff 验收
 
 - 50-150 张高质量 Tool Cards，关键字段 provenance 覆盖率 100%。
-- 20-40 个 golden queries，critical safety cases 全部通过。
+- 24 个 golden queries，4 个 critical safety cases 全部通过。
 - 关键 URL 有近期可达性或可解释状态，不允许未解释的持续 404/410 进入发布。
 - 发布候选不存在未解决重复项、validation error 或 intervention request。
-- prompt、provider、规则和评测结果版本可追溯，并能生成 eval diff。
+- release ID、commit SHA 和 reviewed bundle 可追溯；不维护独立 prompt/provider/rules 版本，也不在 P2 生成 Eval Diff。
 
 ### v0.4：界面与用户反馈
 
