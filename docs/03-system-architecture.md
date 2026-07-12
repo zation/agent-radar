@@ -452,7 +452,7 @@ v0.4 Web UI
   -> production approval and release
 ```
 
-v0.4 之前，生产 Worker 仍保持当前只读 Tool Card/API/MCP 主路径。v0.4 P1 才新增 GitHub OAuth、会话和投票写接口；自由文本原因只由用户主动提交到 GitHub Issue，不存入 D1。v0.4 P2 在现有 `Release All` 的 reviewed bundle 构建阶段处理反馈，不新增 Data/MCP/Web 独立发布 workflow。
+v0.4 P1 已在同一个生产 Worker 中新增 GitHub OAuth、签名会话 Cookie 和投票写接口；自由文本原因只由用户主动提交到 GitHub Issue，不存入 D1。会话是 30 天 HMAC 签名的 stateless HttpOnly Cookie，D1 只保存当前投票和固定窗口 mutation 计数。v0.4 P2 在现有 `Release All` 的 reviewed bundle 构建阶段处理反馈，不新增 Data/MCP/Web 独立发布 workflow。
 
 ## 存储建议
 
@@ -466,8 +466,8 @@ v0.4 之前，生产 Worker 仍保持当前只读 Tool Card/API/MCP 主路径。
 | Search Index | 同一 Worker deployment 的静态 JSON | D1 优化索引 |
 | Eval Case | JSON | D1 table |
 | Eval Report | Markdown/JSON | Dashboard |
-| GitHub User / Session | v0.4 前不存储 | v0.4 D1 table，只保存最小身份和会话数据 |
-| Tool Card Vote | v0.4 前不存储 | v0.4 D1 table，`github_user_id + tool_card_key` 唯一 |
+| GitHub User / Session | 不存储 OAuth token | v0.4 P1 使用 HMAC 签名 Cookie，只含 GitHub user ID、公开用户名和到期时间 |
+| Tool Card Vote | v0.4 前不存储 | v0.4 P1 D1 table，`github_user_id + tool_id` 唯一 |
 | Feedback Reason | v0.4 前不存储 | GitHub Issue；不复制到 D1 |
 
 ## 技术选型建议

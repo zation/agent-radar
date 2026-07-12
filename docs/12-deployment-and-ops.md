@@ -359,6 +359,11 @@ GitHub 配置要求：
 | `CLOUDFLARE_API_TOKEN` | secret | Wrangler Worker deploy 认证。 |
 | `CLOUDFLARE_ACCOUNT_ID` | secret | Cloudflare account id。 |
 | `CLOUDFLARE_PROJECT_NAME` | repository variable | Cloudflare project name；默认使用 `agent-radar`。 |
+| `GITHUB_OAUTH_CLIENT_ID` | Worker text variable | GitHub OAuth App public client ID；由 `keep_vars = true` 在 deploy 时保留。 |
+| `GITHUB_OAUTH_CLIENT_SECRET` | Worker secret | GitHub OAuth App client secret。 |
+| `AGENT_RADAR_SESSION_SECRET` | Worker secret | 至少 32 bytes，用于签名 session/state Cookie。 |
+
+v0.4 P1 将 D1 binding `DB` 指向数据库 `agent-radar`，schema migration 位于 `migrations/`。`Release All` 在 immutable Worker deploy 之前执行 `wrangler d1 migrations apply agent-radar --remote`；migration 失败会阻断部署。执行 workflow 的 `CLOUDFLARE_API_TOKEN` 除 Worker deploy 权限外必须具有 D1 Edit 权限。
 
 Workflow 在部署前上传的 reviewed bundle artifact 名为 `agent-radar-all-<run_id>`，包含：
 

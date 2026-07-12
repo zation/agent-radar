@@ -489,6 +489,8 @@ Review Summary v1 是对 Tool Card draft、已发布 Tool Card 或 promotion can
 
 ## Feedback Record
 
+v0.4 P1 的线上原始反馈使用 D1 `feedback_votes` 表，而不是把自由文本写入 Feedback Record：`github_user_id + tool_id` 为主键，`vote` 只允许 `up/down`，并保存最新公开用户名与创建/更新时间。`feedback_rate_limits` 每个 GitHub user ID 只保留一个固定分钟窗口和 mutation 计数。取消投票会删除当前 vote row；OAuth token、session、Issue 原因和其他自由文本均不进入 D1。下述 Feedback Record 是 P2 构建期规范化 artifact，尚未接入评分。
+
 Feedback Record 记录用户或 agent 对 Tool Card、推荐结果或实际使用结果的反馈。反馈是点评和评测输入，不直接改写 Tool Card。
 
 ```json

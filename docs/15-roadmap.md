@@ -31,7 +31,7 @@
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP、v0.2 和 v0.3 均已完成；`all-v0.3.3` 已通过生产发布与线上核验。v0.4 P1 的 Web UI 视觉与交互重构已完成；GitHub OAuth、D1 投票和 Issue Form 反馈写链路仍待独立 Plan 与实现。
+实际情况：MVP、v0.2 和 v0.3 均已完成；`all-v0.3.3` 已通过生产发布与线上核验。v0.4 P1 的 Web UI、GitHub OAuth、签名 session、D1 投票和 Issue Form 反馈写链路已完成，生产 D1 migrations 已应用；线上 OAuth 端到端验证随下一次不可变 release deploy 执行。v0.4 P2 尚未启动。
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
@@ -325,6 +325,7 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 - 聚合赞踩数公开，个人投票状态仅本人可见，不公开用户列表。
 - 可选打开 `zation/agent-radar` 的 GitHub Issue Form；页面不直接创建 Issue。
 - Issue Form 预填 Tool Card key、投票类型、数据版本和 Tool Card URL，具体原因必填。
+- P1 实现状态：已完成。D1 database `agent-radar` 已绑定且生产 migrations 已应用；完整测试、本地 Worker/D1 和浏览器匿名反馈/OAuth authorize contract 已验证。
 
 ### P2：反馈处理与评级接入
 
@@ -498,7 +499,9 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 - Web UI 实施 Plan：[`v0.4 P1 Web UI 视觉与交互重构`](superpowers/plans/2026-07-11-v0.4-p1-web-ui-视觉与交互重构.md)（已完成）。
 - UI 可维护性 Spec：[`v0.4 UI：shadcn + Tailwind 可维护性重构`](superpowers/specs/2026-07-11-v0.4-ui-shadcn-tailwind-maintainability-设计.md)（已完成，实现提交 `6ca864a7`）。
 - UI 可维护性 Plan：[`v0.4 UI shadcn + Tailwind 可维护性重构`](superpowers/plans/2026-07-11-v0.4-ui-shadcn-tailwind-maintainability.md)（已完成，实现提交 `6ca864a7`）。
-- P1 UI 重构已完成；下一步实现 GitHub OAuth、D1 投票和结构化 Issue Form 跳转。
+- P1 UI 重构与反馈写链路已完成实现；下一步先完成 production migration/deploy 验证，再启动 P2。
+- P1 Feedback Spec：[`v0.4 P1 GitHub Feedback`](superpowers/specs/2026-07-12-v0.4-p1-github-feedback-design.md)（已完成，实现提交 `086c28bb`、`293b4940`、`0317362f`）。
+- P1 Feedback Plan：[`v0.4 P1 GitHub Feedback Implementation Plan`](superpowers/plans/2026-07-12-v0.4-p1-github-feedback.md)（已完成，实现提交 `086c28bb`、`293b4940`、`0317362f`）。
 - P2 将三态 Issue 处理、投票快照和 `feedback_rules.v0.1` 接入 `Release All` 的 reviewed bundle 构建。
 
 ### v0.5：公开内容与评测数据英文化

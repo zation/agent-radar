@@ -73,6 +73,8 @@ v0.4 反馈处理额外要求：
 - GitHub 写操作必须由固定代码路径执行，并限制为 `zation/agent-radar` 中带 `tool-feedback` 标签的 Issue comment、处理标签和 close 操作。
 - 涉及安全、评分规则争议、证据冲突或信息不足时必须输出 `needs-human-review` 并保持 Issue open。
 
+v0.4 P1 已实现的采集边界：OAuth 不请求 scope，只读取 GitHub public user ID/login；access token 只用于一次身份查询。Session 与 10 分钟 OAuth state 都使用 Web Crypto HMAC-SHA256 签名的 `HttpOnly; Secure; SameSite=Lax; Path=/` Cookie，session 有效期 30 天且不进入 D1。写投票必须具有有效 session、同源 `Origin` 和 JSON Content-Type，并按 GitHub user ID 固定限制为每分钟 30 次 mutation。错误响应不得包含 OAuth code、token、secret、Cookie 或 GitHub/D1 原始响应正文。
+
 ### Secret 泄露
 
 风险：
