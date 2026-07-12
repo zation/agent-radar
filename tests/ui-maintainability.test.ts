@@ -46,9 +46,27 @@ test("dense index rows preserve readable separation and clipping", async () => {
   assert.match(evaluation, /evaluation-index[^\"]*gap-2/, "src/ui/evaluation-page.tsx");
 });
 
-test("shared navigation and filters expose visible hover treatment", async () => {
+test("shared interactive controls expose pointer and visible hover treatment", async () => {
   const button = await readSource("src/components/ui/button.tsx");
   const toggle = await readSource("src/components/ui/toggle.tsx");
-  assert.match(button, /nav: \"[^\"]*my-2/, "src/components/ui/button.tsx");
+  assert.match(button, /group\/button[^\"]*cursor-pointer/, "src/components/ui/button.tsx");
+  assert.match(toggle, /group\/toggle[^\"]*cursor-pointer/, "src/components/ui/toggle.tsx");
+  assert.match(button, /nav: \"[^\"]*rounded-lg[^\"]*aria-\[current=page\]:bg-primary\/10/, "src/components/ui/button.tsx");
+  assert.doesNotMatch(button, /nav: \"[^\"]*border-b-2/, "src/components/ui/button.tsx");
   assert.match(toggle, /outline: \"[^\"]*hover:bg-accent/, "src/components/ui/toggle.tsx");
+});
+
+test("top navigation is vertically centered", async () => {
+  const shell = await readSource("src/ui/app-shell.tsx");
+  assert.match(shell, /radar-navigation[^\"]*items-center/, "src/ui/app-shell.tsx");
+});
+
+test("form fields use a distinct surface background", async () => {
+  for (const path of ["src/components/ui/input.tsx", "src/components/ui/textarea.tsx"]) {
+    const source = await readSource(path);
+    assert.match(source, /bg-background/, path);
+    assert.doesNotMatch(source, /border border-input bg-transparent/, path);
+  }
+  const select = await readSource("src/components/ui/select.tsx");
+  assert.match(select, /bg-background/, "src/components/ui/select.tsx");
 });
