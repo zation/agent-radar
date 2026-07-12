@@ -28,7 +28,8 @@
     "data-quality:check": "npm run build && node dist/src/cli/check-data-quality.js",
     "review-summary:check": "npm run build && node dist/src/cli/check-review-summary.js",
     "mcp:smoke": "npm run build && node dist/src/cli/run-mcp-smoke.js",
-    "eval": "npm run build && node dist/src/cli/run-eval.js"
+    "eval": "npm run build && node dist/src/cli/run-eval.js",
+    "feedback:prepare": "npm run build && node dist/src/cli/prepare-feedback.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
