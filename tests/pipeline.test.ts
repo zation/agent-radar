@@ -302,6 +302,7 @@ test("publishes one feedback-adjusted score to ratings and search index", async 
   try {
     await buildArtifacts({
       outputDir, toolCards: reviewedToolCardFixtures, generatedAt,
+      checkUrlReachability: false,
       feedbackBuildInput: { schema_version: "feedback_build_input.v1", generated_at: generatedAt, release_tag: "fixture", artifacts },
     });
     const ratings = (await readFile(join(outputDir, "data", "ratings.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line) as { tool_id: string; overall_score: number; base_score: number });
