@@ -31,7 +31,7 @@
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP、v0.2 和 v0.3 均已完成；`all-v0.3.3` 已通过生产发布与线上核验。v0.4 P1 的 Web UI、GitHub OAuth、签名 session、D1 投票和 Issue Form 反馈写链路已完成，生产 D1 migrations 已应用；线上 OAuth 端到端验证随下一次不可变 release deploy 执行。v0.4 P2 尚未启动。
+实际情况：MVP、v0.2、v0.3 和 v0.4 P1 均已完成。`all-v0.4.1` 已通过生产发布与线上核验，Web UI、GitHub OAuth、签名 session、D1 投票和 Issue Form 反馈写链路已投入生产。下一阶段进入 v0.4 P2。
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
@@ -39,9 +39,9 @@
 - Web UI 已用 shadcn/Base UI primitives 统一交互行为，并用 Tailwind utilities 维护布局、字号和领域视觉；集中式页面 CSS 已收缩为全局 theme/token 规则。
 - 默认 `npm run dev` 已统一为 Vite UI HMR + Wrangler Worker API 热重载 + local D1，并自动准备六个 runtime artifacts 与应用本地 migrations；`/api/*` 通过 Vite 同源代理，不再维护简化版 Vite API middleware。
 - Desktop 使用列表 + 详情双栏；Mobile 使用 list → detail drill-in，并通过浏览器历史恢复任务、筛选和滚动位置。
-- 旧 Compare、Review 和 eval 状态弹层已退出 Web 导航；OAuth/D1 投票完成前不渲染假反馈控件。
+- 旧 Compare、Review 和 eval 状态弹层已退出 Web 导航；Tool Detail 使用真实 OAuth/D1 feedback 控件。
 - Workers 风格只读 API 已实现 `search_tools`、`get_tool_card`、`recommend_tools`、`explain_rating`。
-- 本地 Vite dev server 已挂载 `/api/*`，避免本地开发时前端请求 API 404。
+- 本地 Vite dev server 将 `/api/*` 同源代理到 Wrangler Worker，UI 与完整 API 均支持热重载。
 - 推荐路径已从本地关键词/规则排序改为 BYOK LLM-backed 推荐；本地代码负责组装 Tool Card/Rating 上下文、调用 provider、校验已知 `tool_id`、保留风险边界并归一化输出。
 - 当前支持的 LLM provider/model 选项：
   - OpenAI：`OpenAI GPT-4.1`、`OpenAI GPT-4.1 mini`
@@ -326,7 +326,7 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 - 聚合赞踩数公开，个人投票状态仅本人可见，不公开用户列表。
 - 可选打开 `zation/agent-radar` 的 GitHub Issue Form；页面不直接创建 Issue。
 - Issue Form 预填 Tool Card key、投票类型、数据版本和 Tool Card URL，具体原因必填。
-- P1 实现状态：已完成。D1 database `agent-radar` 已绑定且生产 migrations 已应用；完整测试、本地 Worker/D1 和浏览器匿名反馈/OAuth authorize contract 已验证。
+- P1 实现状态：已完成并由 `all-v0.4.1` 发布。Release All run `29194345806` 的 reviewed bundle、生产 D1 migrations、Worker deploy、MCP smoke 和 production release evidence 全部通过；线上 version/session/feedback/OAuth authorize 与 Issue Form 已核验。
 
 ### P2：反馈处理与评级接入
 
@@ -500,7 +500,7 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 - Web UI 实施 Plan：[`v0.4 P1 Web UI 视觉与交互重构`](superpowers/plans/2026-07-11-v0.4-p1-web-ui-视觉与交互重构.md)（已完成）。
 - UI 可维护性 Spec：[`v0.4 UI：shadcn + Tailwind 可维护性重构`](superpowers/specs/2026-07-11-v0.4-ui-shadcn-tailwind-maintainability-设计.md)（已完成，实现提交 `6ca864a7`）。
 - UI 可维护性 Plan：[`v0.4 UI shadcn + Tailwind 可维护性重构`](superpowers/plans/2026-07-11-v0.4-ui-shadcn-tailwind-maintainability.md)（已完成，实现提交 `6ca864a7`）。
-- P1 UI 重构与反馈写链路已完成实现；下一步先完成 production migration/deploy 验证，再启动 P2。
+- P1 UI 重构与反馈写链路已由 `all-v0.4.1` 完成生产验收；下一步启动 P2。
 - P1 Feedback Spec：[`v0.4 P1 GitHub Feedback`](superpowers/specs/2026-07-12-v0.4-p1-github-feedback-design.md)（已完成，实现提交 `086c28bb`、`293b4940`、`0317362f`）。
 - P1 Feedback Plan：[`v0.4 P1 GitHub Feedback Implementation Plan`](superpowers/plans/2026-07-12-v0.4-p1-github-feedback.md)（已完成，实现提交 `086c28bb`、`293b4940`、`0317362f`）。
 - P2 将三态 Issue 处理、投票快照和 `feedback_rules.v0.1` 接入 `Release All` 的 reviewed bundle 构建。
