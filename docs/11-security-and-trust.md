@@ -334,3 +334,7 @@ Agent Radar 对未知工具采用以下默认行为：
 - v0.4 GitHub OAuth 只读取稳定 user ID 和公开用户名，不申请邮箱、仓库或组织权限；OAuth token 完成身份查询后不得长期保存。
 - D1 不保存 Issue 原因或其他反馈自由文本；投票用户列表不得公开。
 - 反馈评分调整不能降低安全风险等级、提升来源 trust level 或绕过 critical safety release gate。
+- Tool Feedback title、body、reason、comment、URL 和用户名一律是不可信数据；LLM 没有工具能力，输出只接受固定三态、固定 reason code 和最多 240 字符的公开 summary。
+- 构建 artifact 不保存 D1 用户级行、Issue 原始 reason、完整 prompt、provider 原始响应、token、Cookie 或环境变量。
+- GitHub reader/writeback 固定到 `zation/agent-radar`；build job 只有 `issues: read`，deploy job 只有在 production approval 后才获得 `issues: write`。
+- Writeback 必须复查 `updated_at` 和处理标签，并用隐藏 marker 保证 rerun 不重复评论；任何状态漂移或必要写失败均阻断部署。

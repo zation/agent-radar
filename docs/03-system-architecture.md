@@ -525,6 +525,14 @@ checkout
 
 ## 扩展点
 
+## v0.4 P2 反馈处理链路
+
+`Release All` 的 build job 先从生产 D1 执行只返回 Tool 聚合计数的 SQL，并以 `issues: read` 读取固定仓库 `zation/agent-radar` 的 Tool Feedback Issue。确定性解析器负责字段、Tool ID、vote 和标签状态校验；只有未处理 open Issue 会进入 `feedback_classifier.v0.1`，每个 Issue 使用一个隔离请求，最大并发 4、单次最多 50 条、失败重试一次。
+
+Build job 生成 `feedback_vote_snapshot.v1`、`feedback_classification.v1`、`feedback_processing_plan.v1` 和 `feedback_summary.v1`，再由 Rating Engine 生成 `rating_result.v2`。GitHub 写操作不发生在 build：production environment approval 后，deploy job 以 `issues: write` 复查 `updated_at`、处理标签和隐藏幂等 marker，完成 comment/label/close 后才允许 D1 migration 与 Worker deploy。
+
+反馈针对上一份已发布 reviewed Tool Cards 解析，因为用户只能对生产中已经存在的 Tool 提交反馈；pipeline 会把同一份 final ratings 传给 search、recommendation、HTTP API、MCP、D1 seed 和 Web artifacts。
+
 - 新增来源：增加 SourceDefinition 和 parser。
 - 新增工具类型：更新 taxonomy、Tool Card 字段约束、评分规则和评测样例。
 - 新增评分维度：更新评分规则、Rating Result schema 和 eval。

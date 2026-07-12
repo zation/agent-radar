@@ -611,6 +611,18 @@ MVP：
 | API 不可用 | 回滚 Worker deployment；必要时 Web UI 显示静态数据，MCP 返回错误 |
 | 数据污染 | 回滚 manifest，新增安全/数据 eval |
 
+## v0.4 P2 feedback release 顺序
+
+1. 恢复上一份成功的 reviewed bundle，以其中已发布 Tool Cards 作为反馈 Tool ID 边界。
+2. 使用 Wrangler 对生产 D1 执行 aggregate-only SQL，输出每个 Tool 的 up/down/row counts。
+3. Build job 以 `issues: read` 准备 `feedback_build_input.v1`，运行 pipeline/eval，并把四类 feedback artifacts 纳入 reviewed bundle 与 manifest checksums。
+4. GitHub `production` environment 完成人工 approval。
+5. Deploy job 恢复并校验同一 bundle，以 `issues: write` 应用 `feedback_processing_plan.v1`。
+6. 全部 Issue action 成功后，才执行 production D1 migrations 和 Worker deploy。
+7. 部署后运行 MCP smoke；`production_release_evidence.v1` 记录 feedback rules、vote snapshot checksum 和 processing plan checksum。
+
+Build 后新增/切换的 D1 vote 和新 Issue 留到下一次 release。缺少生产 D1 snapshot、LLM/GitHub 读权限、分类失败或 artifact checksum 错误阻断 build；Issue precondition 漂移、写权限缺失、comment/label/close 失败阻断 deploy。
+
 ## 维护规则
 
 - 新增基础设施前必须说明成本、替代方案和运维负担。

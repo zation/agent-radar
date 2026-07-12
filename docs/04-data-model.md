@@ -608,6 +608,16 @@ updated_at:
 
 ## 维护规则
 
+## Feedback artifacts 与 Rating Result v2
+
+- `feedback_vote_snapshot.v1`：只保存 `tool_id`、`up_count`、`down_count`、`row_count`、生成时间和 canonical checksum，不包含用户 ID、login 或逐用户 vote。
+- `feedback_classification.v1`：保存 Issue number/URL、sanitized input checksum、分类器/model 标识、三态结论、固定 reason code、公开安全 summary 与时间；不保存原始 reason、完整 prompt 或 provider 响应。
+- `feedback_processing_plan.v1`：保存预期 `updated_at`、原处理标签、固定 comment、隐藏 marker、标签变更、最终 open/closed 状态和可选 replacement Issue。
+- `feedback_summary.v1`：按 Tool 保存 D1/Issue/raw/applied adjustment、accepted Issue IDs、`feedback_rules.v0.1` 和 vote snapshot checksum。
+- `rating_result.v2`：保留 v1 的 dimension、risk、evidence 与 explanation 语义，新增 `base_score` 和 `feedback_adjustment`；`overall_score` 表示应用反馈后的 final score。
+
+上述四类 feedback artifacts 都属于 reviewed bundle，并由 artifact manifest 和 production release evidence 的 checksum 绑定。
+
 - 修改字段语义必须同步更新采集、评分、推荐和评测文档。
 - 删除字段前必须提供迁移策略。
 - 新增字段必须说明生成方式、质量要求和 agent 决策用途。

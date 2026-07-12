@@ -332,7 +332,9 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 阶段 Spec：[`v0.4 P2：反馈处理与评级接入`](superpowers/specs/2026-07-12-v0.4-p2-feedback-processing-rating-design.md)（已批准，待实施）。
 
-阶段 Plan：[`v0.4 P2：反馈处理与评级接入实施计划`](superpowers/plans/2026-07-12-v0.4-p2-feedback-processing-rating.md)（草稿，待执行）。
+阶段 Plan：[`v0.4 P2：反馈处理与评级接入实施计划`](superpowers/plans/2026-07-12-v0.4-p2-feedback-processing-rating.md)（已完成；生产发布待单独确认）。
+
+实现状态：代码、workflow、contract tests 与权威文档已完成；首个 P2 `all-v0.4.x` production release、真实 Issue 回写和线上 evidence 验收尚未执行。
 
 - `Release All` 的 reviewed bundle 构建阶段读取并处理带 `tool-feedback` 标签的 open Issue。
 - 确定性校验后，由受限 LLM 输出 `accepted`、`rejected` 或 `needs-human-review`。

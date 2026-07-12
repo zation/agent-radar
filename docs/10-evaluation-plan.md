@@ -494,6 +494,15 @@ Feedback Eval 将 Web UI、MCP/API 和 agent runtime 的反馈转化为可操作
 
 ## 如何用于自迭代
 
+## v0.4 P2 反馈发布门禁
+
+- Issue Form 解析、状态冲突、latest-wins 去重、deprecated replacement 和 checksum 必须有确定性测试。
+- 分类器 contract 必须证明每个新 Issue 一个请求、并发不超过 4、输入不串 Issue、严格三态 schema、最多一次重试，processed/needs-human 历史不调用 LLM。
+- 评分回归覆盖 D1 `±0.2`、Issue `±1`、方向相反、`±3` cap、0–100 clamp、一位小数及 risk/trust/security 不被提升。
+- Workflow contract 必须证明 build 只读、writeback 在 production approval 后且早于 Worker deploy，precondition 或写失败会阻断 deploy。
+- 现有 24 条 golden queries、4 条 critical safety cases、API/MCP/Web score 一致性必须继续通过。
+- 首个 P2 production tag 还需验证真实 D1 snapshot、GitHub 回写、reviewed bundle checksum、MCP smoke 与 production evidence；在此之前 Roadmap 标记为“实现完成、待生产验收”。
+
 评测失败可生成 agent 改进任务：
 
 ```yaml

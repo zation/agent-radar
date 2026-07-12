@@ -378,6 +378,12 @@ explanations:
 
 ## 评分回归要求
 
+## feedback_rules.v0.1
+
+反馈从第一条开始计分，不设最小样本：D1 当前投票按 `(up_count - down_count) × 0.2`，每个 GitHub numeric user ID + Tool ID 最新的 accepted Issue 按 vote 贡献 `+1` 或 `-1`。两条信号流独立相加，同一用户可合计贡献 `±1.2`；Issue 流中较旧的 accepted Issue 标记 deprecated 并不再计分。
+
+`raw_adjustment` 限制到 `[-3, 3]` 后加到 `base_score`，final `overall_score` 再限制到 `[0, 100]`，使用十分位整数计算并最多输出一位小数。Dimension scores 保持不变；recommendation level 从 final score 计算，但 maintenance、evidence、risk、trust 与 critical safety 上限继续优先。反馈永远不能降低 risk、提升 trust 或解除安全上限。
+
 以下变更必须运行评分评测：
 
 - 修改权重。
