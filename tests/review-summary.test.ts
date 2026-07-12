@@ -20,6 +20,11 @@ const manifest: ArtifactManifest = {
   data_version: "data-test",
   eval: { passed: 10, total: 10, model: "test", failure_categories: {} },
   source_registry_diff: { added: 2, removed: 1, changed: 1 },
+  feedback: {
+    rules_version: "feedback_rules.v0.1", vote_snapshot_checksum: `sha256:${"b".repeat(64)}`,
+    processing_plan_checksum: `sha256:${"c".repeat(64)}`, d1_rows: 4, affected_tools: 2,
+    accepted: 1, rejected: 1, needs_human_review: 1, deprecated: 1, max_absolute_adjustment: 1.2,
+  },
   checksums: { "data/input.json": `sha256:${"a".repeat(64)}` },
 };
 
@@ -60,9 +65,11 @@ test("review summary v2 puts blocking evidence before warnings and changes", () 
   assert.equal(summary.blocking_items[0]?.reason_code, "critical_provenance_incomplete");
   assert.deepEqual(summary.changes.source_registry, { added: 2, removed: 1, changed: 1 });
   assert.equal(summary.changes.tool_cards.added, 3);
+  assert.equal(summary.summaries.feedback.max_absolute_adjustment, 1.2);
   assert.ok(markdown.indexOf("## Blocking") < markdown.indexOf("## Warnings"));
   assert.ok(markdown.indexOf("## Warnings") < markdown.indexOf("## Changes"));
   assert.match(markdown, /data\/field_provenance\/tool_card_fields\.v2\.json/);
+  assert.match(markdown, /Feedback: 4 D1 rows, 2 affected Tools/);
 });
 
 test("review summary checksum verification detects modified inputs", async () => {

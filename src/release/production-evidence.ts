@@ -16,7 +16,7 @@ const positiveDecimalIntegerPattern = /^[1-9][0-9]*$/;
 const gitShaPattern = /^[0-9a-f]{6,64}$/;
 const bundleNamePattern = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const utcTimestampPattern = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/;
-type ProductionArtifactManifest = Pick<ArtifactManifest, "schema_version" | "git_sha" | "checksums">;
+type ProductionArtifactManifest = Pick<ArtifactManifest, "schema_version" | "git_sha" | "checksums" | "feedback">;
 
 export interface BuildProductionReleaseEvidenceOptions {
   manifestPath: string;
@@ -50,6 +50,9 @@ export interface ProductionReleaseEvidence {
     artifact_name: string;
     manifest_sha256: string;
     d1_seed_sha256: string;
+    feedback_rules_version: "feedback_rules.v0.1";
+    feedback_vote_snapshot_checksum: string;
+    feedback_processing_plan_checksum: string;
   };
   smoke: {
     passed: true;
@@ -81,6 +84,10 @@ export async function buildProductionReleaseEvidence(
   if (manifest.checksums[d1SeedChecksumPath] !== d1SeedSha256) {
     throw new Error("D1 seed checksum must match artifact manifest.");
   }
+  if (!manifest.feedback || manifest.feedback.rules_version !== "feedback_rules.v0.1") throw new Error("Feedback release evidence is required.");
+  if (manifest.checksums["data/feedback_processing_plan.json"] !== manifest.feedback.processing_plan_checksum) {
+    throw new Error("Feedback processing plan checksum must match artifact manifest.");
+  }
   if (normalizeMcpEndpoint(smokeResult.endpoint) !== expectedMcpEndpoint) {
     throw new Error("MCP smoke endpoint must match the production Worker MCP endpoint.");
   }
@@ -102,7 +109,10 @@ export async function buildProductionReleaseEvidence(
     bundle: {
       artifact_name: options.bundleName,
       manifest_sha256: sha256(manifestContents),
-      d1_seed_sha256: d1SeedSha256
+      d1_seed_sha256: d1SeedSha256,
+      feedback_rules_version: manifest.feedback.rules_version,
+      feedback_vote_snapshot_checksum: manifest.feedback.vote_snapshot_checksum,
+      feedback_processing_plan_checksum: manifest.feedback.processing_plan_checksum
     },
     smoke: {
       passed: true,
@@ -122,7 +132,7 @@ export function renderProductionReleaseEvidenceMarkdown(evidence: ProductionRele
     `- Worker: ${markdownInline(evidence.deployment.worker_base_url)}`,
     `- MCP endpoint: ${markdownInline(evidence.deployment.mcp_endpoint)}`,
     `- Reviewed bundle: ${markdownInline(evidence.bundle.artifact_name)}`,
-    `- Checksums: manifest=${markdownInline(evidence.bundle.manifest_sha256)} d1_seed=${markdownInline(evidence.bundle.d1_seed_sha256)}`,
+    `- Checksums: manifest=${markdownInline(evidence.bundle.manifest_sha256)} d1_seed=${markdownInline(evidence.bundle.d1_seed_sha256)} feedback_plan=${markdownInline(evidence.bundle.feedback_processing_plan_checksum)}`,
     `- MCP smoke: PASS ${evidence.smoke.passed_checks}/${evidence.smoke.total}`,
     `- Generated at: ${markdownInline(evidence.generated_at)}`,
     ""
@@ -186,8 +196,18 @@ function parseArtifactManifest(contents: Buffer): ProductionArtifactManifest {
   return {
     schema_version: "artifact_manifest.v1",
     git_sha: value.git_sha,
-    checksums: value.checksums as Record<string, string>
+    checksums: value.checksums as Record<string, string>,
+    feedback: parseFeedbackManifest(value.feedback)
   };
+}
+
+function parseFeedbackManifest(value: unknown): NonNullable<ArtifactManifest["feedback"]> {
+  if (!isPlainObject(value) || value.rules_version !== "feedback_rules.v0.1"
+    || typeof value.vote_snapshot_checksum !== "string" || !canonicalSha256Pattern.test(value.vote_snapshot_checksum)
+    || typeof value.processing_plan_checksum !== "string" || !canonicalSha256Pattern.test(value.processing_plan_checksum)) {
+    throw new Error("artifact manifest feedback evidence is invalid.");
+  }
+  return value as unknown as NonNullable<ArtifactManifest["feedback"]>;
 }
 
 function parseMcpSmokeResult(contents: Buffer): McpSmokeResult {

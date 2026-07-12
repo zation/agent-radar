@@ -32,6 +32,7 @@ export interface ReviewSummaryV2 {
     auto_review: Record<string, number>;
     release_admission: Record<string, number>;
     promotion: Record<string, number>;
+    feedback: Record<string, number>;
   };
   blocking_items: ReviewSummaryActionItem[];
   warning_items: ReviewSummaryActionItem[];
@@ -109,6 +110,15 @@ export function buildReviewSummaryV2(options: BuildReviewSummaryV2Options): Revi
             validation_warnings: manifest.promotion_check.validation_warnings,
           }
         : {},
+      feedback: manifest.feedback ? {
+        d1_rows: manifest.feedback.d1_rows,
+        affected_tools: manifest.feedback.affected_tools,
+        accepted: manifest.feedback.accepted,
+        rejected: manifest.feedback.rejected,
+        needs_human_review: manifest.feedback.needs_human_review,
+        deprecated: manifest.feedback.deprecated,
+        max_absolute_adjustment: manifest.feedback.max_absolute_adjustment,
+      } : {},
     },
     blocking_items: blockingItems,
     warning_items: warningItems,
@@ -134,12 +144,17 @@ export function renderReviewSummaryV2Markdown(summary: ReviewSummaryV2): string 
     "## Changes",
     `- Source Registry: +${summary.changes.source_registry.added} / -${summary.changes.source_registry.removed} / ${summary.changes.source_registry.changed} changed`,
     `- Tool Cards: +${summary.changes.tool_cards.added} / -${summary.changes.tool_cards.removed} / ${summary.changes.tool_cards.changed} changed`,
+    ...(summary.summaries.feedback.d1_rows === undefined ? [] : [
+      `- Feedback: ${summary.summaries.feedback.d1_rows} D1 rows, ${summary.summaries.feedback.affected_tools} affected Tools, max |adjustment| ${summary.summaries.feedback.max_absolute_adjustment}`,
+    ]),
     "",
     "## Artifact Paths",
     "- `data/field_provenance/tool_card_fields.v2.json`",
     "- `data/conflicts/tool_card_conflicts.json`",
     "- `data/tool_card_url_validation.v2.json`",
     "- `data/data_quality_report.json`",
+    "- `data/feedback_summary.json`",
+    "- `data/feedback_processing_plan.json`",
   ];
   return `${lines.join("\n")}\n`;
 }

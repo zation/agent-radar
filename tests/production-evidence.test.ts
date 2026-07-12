@@ -44,7 +44,10 @@ test("builds immutable production evidence from the reviewed bundle and deployed
     assert.deepEqual(evidence.bundle, {
       artifact_name: "agent-radar-all-29012144469",
       manifest_sha256: manifestSha256,
-      d1_seed_sha256: fixture.d1SeedSha256
+      d1_seed_sha256: fixture.d1SeedSha256,
+      feedback_rules_version: "feedback_rules.v0.1",
+      feedback_vote_snapshot_checksum: `sha256:${"b".repeat(64)}`,
+      feedback_processing_plan_checksum: `sha256:${"c".repeat(64)}`
     });
     assert.deepEqual(evidence.smoke, { passed: true, total: 4, passed_checks: 4, failed: 0 });
     assert.equal(evidence.generated_at, "2026-07-10T00:00:00Z");
@@ -535,7 +538,14 @@ async function createFixture(): Promise<EvidenceFixture> {
     built_at: "2026-07-10T00:00:00Z",
     data_version: "data-test",
     eval: { passed: 10, total: 10, model: "deepseek-v4-flash", failure_categories: { none: 10 } },
-    checksums: { "data/d1_seed.sql": d1SeedSha256 }
+    feedback: {
+      rules_version: "feedback_rules.v0.1",
+      vote_snapshot_checksum: `sha256:${"b".repeat(64)}`,
+      processing_plan_checksum: `sha256:${"c".repeat(64)}`,
+      d1_rows: 0, affected_tools: 0, accepted: 0, rejected: 0, needs_human_review: 0, deprecated: 0,
+      max_absolute_adjustment: 0
+    },
+    checksums: { "data/d1_seed.sql": d1SeedSha256, "data/feedback_processing_plan.json": `sha256:${"c".repeat(64)}` }
   };
   const smoke = {
     schema_version: "mcp_smoke_result.v1",

@@ -107,6 +107,18 @@ export interface ArtifactManifest {
     blocking: number;
     warnings: number;
   };
+  feedback?: {
+    rules_version: "feedback_rules.v0.1";
+    vote_snapshot_checksum: string;
+    processing_plan_checksum: string;
+    d1_rows: number;
+    affected_tools: number;
+    accepted: number;
+    rejected: number;
+    needs_human_review: number;
+    deprecated: number;
+    max_absolute_adjustment: number;
+  };
   checksums: Record<string, string>;
 }
 
@@ -127,6 +139,8 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
   const toolCardFieldProvenance = await readToolCardFieldProvenanceSummary(options.distDir);
   const dataQuality = await readDataQualitySummary(options.distDir);
   const reviewSummary = await readReviewSummary(options.distDir);
+  const checksums = await checksumFiles(options.distDir);
+  const feedback = await readFeedbackSummary(options.distDir, checksums);
 
   return {
     schema_version: "artifact_manifest.v1",
@@ -146,8 +160,40 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
     ...(toolCardFieldProvenance ? { tool_card_field_provenance: toolCardFieldProvenance } : {}),
     ...(dataQuality ? { data_quality: dataQuality } : {}),
     ...(reviewSummary ? { review_summary: reviewSummary } : {}),
-    checksums: await checksumFiles(options.distDir)
+    ...(feedback ? { feedback } : {}),
+    checksums
   };
+}
+
+async function readFeedbackSummary(distDir: string, checksums: Record<string, string>): Promise<ArtifactManifest["feedback"] | undefined> {
+  try {
+    const [summary, classification, plan] = await Promise.all([
+      readFile(join(distDir, "data", "feedback_summary.json"), "utf8").then((text) => JSON.parse(text)),
+      readFile(join(distDir, "data", "feedback_classification.json"), "utf8").then((text) => JSON.parse(text)),
+      readFile(join(distDir, "data", "feedback_processing_plan.json"), "utf8").then((text) => JSON.parse(text)),
+    ]) as [
+      { rules_version: "feedback_rules.v0.1"; vote_snapshot_checksum: string; tools: Array<{ applied_adjustment: number }> },
+      { classifications: Array<{ decision: string }> },
+      { actions: Array<{ labels_to_add: string[] }> },
+    ];
+    const processingPlanChecksum = checksums["data/feedback_processing_plan.json"];
+    if (summary.rules_version !== "feedback_rules.v0.1" || !processingPlanChecksum) throw new Error("feedback_manifest_invalid");
+    return {
+      rules_version: summary.rules_version,
+      vote_snapshot_checksum: summary.vote_snapshot_checksum,
+      processing_plan_checksum: processingPlanChecksum,
+      d1_rows: await readFile(join(distDir, "data", "feedback_vote_snapshot.json"), "utf8").then((text) => (JSON.parse(text) as { total_row_count: number }).total_row_count),
+      affected_tools: summary.tools.length,
+      accepted: classification.classifications.filter(({ decision }) => decision === "accepted").length,
+      rejected: classification.classifications.filter(({ decision }) => decision === "rejected").length,
+      needs_human_review: classification.classifications.filter(({ decision }) => decision === "needs-human-review").length,
+      deprecated: plan.actions.filter(({ labels_to_add }) => labels_to_add.includes("feedback-deprecated")).length,
+      max_absolute_adjustment: Math.max(0, ...summary.tools.map(({ applied_adjustment }) => Math.abs(applied_adjustment))),
+    };
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return undefined;
+    throw error;
+  }
 }
 
 async function readSourceRegistryDiffSummary(distDir: string): Promise<ArtifactManifest["source_registry_diff"] | undefined> {

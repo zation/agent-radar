@@ -24,6 +24,7 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     ...(manifest.promotion_check ? [`- Promotion check: ${formatPromotionCheck(manifest.promotion_check)}`] : []),
     ...(manifest.data_quality ? [`- P1 data quality: ${formatDataQuality(manifest.data_quality)}`] : []),
     ...(manifest.review_summary ? [`- Review Summary v2: ${manifest.review_summary.status}, ${manifest.review_summary.blocking} blocking, ${manifest.review_summary.warnings} warnings`] : []),
+    ...(manifest.feedback ? [`- Feedback: ${manifest.feedback.d1_rows} D1 rows, ${manifest.feedback.affected_tools} affected Tools, ${manifest.feedback.needs_human_review} needs human review, ${manifest.feedback.deprecated} deprecated`] : []),
     `- Checksums: ${Object.keys(manifest.checksums).length} files`
   ];
   return `${lines.join("\n")}\n`;
@@ -115,6 +116,9 @@ function renderReviewRequired(manifest: ArtifactManifest): string[] {
   const dataQuality = manifest.data_quality;
   if (dataQuality && (dataQuality.status === "blocked" || dataQuality.blocking > 0)) {
     items.push(`- P1 data quality: ${dataQuality.blocking} blocking (${dataQuality.reason_codes.join(", ")})`);
+  }
+  if ((manifest.feedback?.needs_human_review ?? 0) > 0) {
+    items.push(`- Feedback: ${manifest.feedback!.needs_human_review} Issue(s) need human review`);
   }
 
   return items.length > 0 ? items : ["- None. Review the full artifact only if you want detailed provenance."];
