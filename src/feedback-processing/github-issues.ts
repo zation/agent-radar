@@ -56,12 +56,20 @@ export function createGitHubIssueReader({ token, fetcher = fetch }: GitHubIssueR
 
   return {
     async listNewIssues(): Promise<GitHubIssueSnapshot[]> {
-      return (await list("open", "tool-feedback")).filter((issue) => classifyIssueState(issue) === "new");
+      return selectStates(await list("open", "tool-feedback"), "new");
     },
     async listHistoricalAcceptedIssues(): Promise<GitHubIssueSnapshot[]> {
-      return (await list("closed", "feedback-accepted")).filter((issue) => classifyIssueState(issue) === "historical-accepted");
+      return selectStates(await list("closed", "feedback-accepted"), "historical-accepted");
     },
   };
+}
+
+function selectStates(issues: GitHubIssueSnapshot[], selected: "new" | "historical-accepted"): GitHubIssueSnapshot[] {
+  return issues.filter((issue) => {
+    const state = classifyIssueState(issue);
+    if (state === "blocked") throw new Error(`feedback_issue_state_blocked: ${issue.number}`);
+    return state === selected;
+  });
 }
 
 function mapIssue(issue: GitHubApiIssue): GitHubIssueSnapshot {

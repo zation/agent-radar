@@ -42,7 +42,7 @@ test("reads only closed historical accepted Issues and redacts response failures
     token: "secret-token",
     fetcher: async () => Response.json([
       apiIssue(8, "closed", ["tool-feedback", "feedback-accepted"]),
-      apiIssue(7, "closed", ["tool-feedback", "feedback-accepted", "feedback-deprecated"]),
+      { ...apiIssue(7, "closed", ["tool-feedback", "feedback-accepted", "feedback-deprecated"]), body: "Replaced by #8" },
       apiIssue(6, "closed", ["tool-feedback", "feedback-rejected"]),
     ]),
   });
@@ -54,4 +54,12 @@ test("reads only closed historical accepted Issues and redacts response failures
     assert.doesNotMatch(error.message, /secret/);
     return true;
   });
+});
+
+test("fails closed instead of silently filtering a conflicting Issue state", async () => {
+  const reader = createGitHubIssueReader({
+    token: "token",
+    fetcher: async () => Response.json([apiIssue(10, "open", ["tool-feedback", "feedback-accepted", "feedback-rejected"])]),
+  });
+  await assert.rejects(() => reader.listNewIssues(), /feedback_issue_state_blocked: 10/);
 });
