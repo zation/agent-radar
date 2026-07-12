@@ -57,7 +57,9 @@ test("shared interactive controls expose pointer and visible hover treatment", a
 });
 
 test("top navigation is vertically centered", async () => {
+  const button = await readSource("src/components/ui/button.tsx");
   const shell = await readSource("src/ui/app-shell.tsx");
+  assert.match(button, /nav: \"[^\"]*text-base/, "src/components/ui/button.tsx");
   assert.match(shell, /radar-navigation[^\"]*items-center/, "src/ui/app-shell.tsx");
 });
 
@@ -69,4 +71,17 @@ test("form fields use a distinct surface background", async () => {
   }
   const select = await readSource("src/components/ui/select.tsx");
   assert.match(select, /bg-background/, "src/components/ui/select.tsx");
+});
+
+test("recommendation composer uses contrasted fields and a second-row Run action", async () => {
+  const source = await readSource("src/ui/tools-workspace.tsx");
+  assert.match(source, /recommend-task-input[^\"]*bg-white\/10/, "src/ui/tools-workspace.tsx");
+  assert.match(source, /recommend-controls[^\"]*items-end/, "src/ui/tools-workspace.tsx");
+  assert.match(source, /recommend-run[^\"]*ml-auto/, "src/ui/tools-workspace.tsx");
+  assert.match(source, /submitting \? \"Running\" : \"Run\"/, "src/ui/tools-workspace.tsx");
+});
+
+test("evaluation index renders its item gap", async () => {
+  const source = await readSource("src/ui/evaluation-page.tsx");
+  assert.match(source, /evaluation-index[^\"]*grid[^\"]*gap-2/, "src/ui/evaluation-page.tsx");
 });

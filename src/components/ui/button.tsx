@@ -18,7 +18,7 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30 dark:focus-visible:ring-destructive/40",
         link: "text-primary underline-offset-4 hover:underline",
-        nav: "h-9 rounded-lg border-0 px-4 text-muted-foreground hover:bg-accent hover:text-foreground aria-[current=page]:bg-primary/10 aria-[current=page]:font-semibold aria-[current=page]:text-primary",
+        nav: "h-9 rounded-lg border-0 px-4 text-base text-muted-foreground hover:bg-accent hover:text-foreground aria-[current=page]:bg-primary/10 aria-[current=page]:font-semibold aria-[current=page]:text-primary",
         filter: "border-border bg-background text-muted-foreground hover:bg-muted hover:text-foreground aria-pressed:bg-primary aria-pressed:text-primary-foreground",
         row: "h-auto min-h-16 w-full min-w-0 justify-start overflow-hidden rounded-lg border border-transparent bg-transparent p-3 text-left whitespace-normal hover:border-border hover:bg-muted/70 aria-[current=true]:border-primary/35 aria-[current=true]:bg-primary/8",
       },
