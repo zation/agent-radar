@@ -330,6 +330,8 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 ### P2：反馈处理与评级接入
 
+阶段 Spec：[`v0.4 P2：反馈处理与评级接入`](superpowers/specs/2026-07-12-v0.4-p2-feedback-processing-rating-design.md)（草稿，待书面审核）。
+
 - `Release All` 的 reviewed bundle 构建阶段读取并处理带 `tool-feedback` 标签的 open Issue。
 - 确定性校验后，由受限 LLM 输出 `accepted`、`rejected` 或 `needs-human-review`。
 - accepted/rejected 回写 Comment、处理标签和 build 信息后关闭；needs-human-review 保持 open，移除该标签后才能重新进入自动处理。
