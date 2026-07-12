@@ -1,5 +1,7 @@
 import { createArtifactRepositoryFromText } from "./api/artifact-repository.js";
 import { createApiHandler } from "./api/handler.js";
+import { createFeedbackHttpHandler } from "./feedback/http.js";
+import { createD1FeedbackStore, type D1Database } from "./feedback/store.js";
 
 interface AssetsBinding {
   fetch(request: Request): Promise<Response>;
@@ -11,6 +13,10 @@ interface Env {
   AGENT_RADAR_COMMIT_SHA?: string;
   AGENT_RADAR_API_VERSION?: string;
   AGENT_RADAR_WEB_VERSION?: string;
+  DB?: D1Database;
+  GITHUB_OAUTH_CLIENT_ID?: string;
+  GITHUB_OAUTH_CLIENT_SECRET?: string;
+  AGENT_RADAR_SESSION_SECRET?: string;
 }
 
 interface DataManifest {
@@ -30,6 +36,14 @@ export default {
       ratingsJsonl: await fetchAsset(env, request, "/data/ratings.jsonl"),
       searchIndexJson: await fetchAsset(env, request, "/data/search_index.json")
     });
+    const feedbackResponse = await createFeedbackHttpHandler({
+      repository,
+      store: env.DB ? createD1FeedbackStore(env.DB) : undefined,
+      clientId: env.GITHUB_OAUTH_CLIENT_ID,
+      clientSecret: env.GITHUB_OAUTH_CLIENT_SECRET,
+      sessionSecret: env.AGENT_RADAR_SESSION_SECRET
+    })(request);
+    if (feedbackResponse) return feedbackResponse;
     const handleRequest = createApiHandler(repository, {
       versionInfo: {
         release_id: env.AGENT_RADAR_RELEASE_ID ?? "unknown",
