@@ -102,3 +102,21 @@ test("all release workflow applies feedback migrations before production deploy"
   assert.ok(deploy > migration);
   assert.match(workflow, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/);
 });
+
+test("all release workflow prepares feedback read-only and applies it after approval before deploy", async () => {
+  const workflow = await readFile(".github/workflows/release-all.yml", "utf8");
+  const query = workflow.indexOf("- name: Read production feedback aggregate");
+  const prepare = workflow.indexOf("- name: Prepare feedback build input");
+  const build = workflow.indexOf("- name: Build reviewed bundle");
+  const apply = workflow.indexOf("- name: Apply approved feedback plan");
+  const migrate = workflow.indexOf("- name: Apply production D1 migrations");
+  const deploy = workflow.indexOf("- name: Deploy Cloudflare Worker");
+  assert.ok(query >= 0 && prepare > query && build > prepare);
+  assert.ok(apply > build && migrate > apply && deploy > migrate);
+  assert.match(workflow, /issues:\s*read/);
+  assert.match(workflow, /issues:\s*write/);
+  assert.match(workflow, /GROUP BY tool_id/);
+  assert.doesNotMatch(workflow, /SELECT[^\n]*(github_user_id|github_login)/i);
+  assert.match(workflow, /AGENT_RADAR_FEEDBACK_BUILD_INPUT:\s*feedback-build-input\.json/);
+  assert.match(workflow, /npm run feedback:apply -- --plan reviewed-bundle\/dist-pages\/data\/feedback_processing_plan\.json/);
+});
