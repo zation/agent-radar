@@ -15,6 +15,8 @@ function validArtifact(path: string): string {
 
 test("prepares the artifacts required by Tools and Evaluation pages", () => {
   const files: readonly string[] = DEV_DATA_FILES;
+  assert.equal(files.length, 6);
+  assert.ok(files.includes("manifest.json"));
   assert.ok(files.includes("golden_queries.json"));
   assert.equal(files.includes("source_registry_review_requests.json"), false);
 });

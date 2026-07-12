@@ -7,6 +7,7 @@ export const DEV_DATA_FILES = [
   "search_index.json",
   "golden_queries.json",
   "eval_summary.json",
+  "manifest.json",
 ] as const;
 
 export interface EnsureDevDataOptions {

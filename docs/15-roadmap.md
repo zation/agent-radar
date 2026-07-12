@@ -37,6 +37,7 @@
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
 - React/Vite Web UI 已重构为 `Tools` 与 `Evaluation` 两个入口；Recommend 合并进 Tools 并直接重排工具索引，Evaluation 展示 24 条 golden queries 的目的、预期、实测和 release gate 状态。
 - Web UI 已用 shadcn/Base UI primitives 统一交互行为，并用 Tailwind utilities 维护布局、字号和领域视觉；集中式页面 CSS 已收缩为全局 theme/token 规则。
+- 默认 `npm run dev` 已统一为 Vite UI HMR + Wrangler Worker API 热重载 + local D1，并自动准备六个 runtime artifacts 与应用本地 migrations；`/api/*` 通过 Vite 同源代理，不再维护简化版 Vite API middleware。
 - Desktop 使用列表 + 详情双栏；Mobile 使用 list → detail drill-in，并通过浏览器历史恢复任务、筛选和滚动位置。
 - 旧 Compare、Review 和 eval 状态弹层已退出 Web 导航；OAuth/D1 投票完成前不渲染假反馈控件。
 - Workers 风格只读 API 已实现 `search_tools`、`get_tool_card`、`recommend_tools`、`explain_rating`。

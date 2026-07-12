@@ -222,28 +222,31 @@ npm run eval
 npm run pages:build
 npm run dev
 npm run dev:data
-npm run dev:with-data
+npm run dev:api
+npm run dev:ui
 npm run release:build
 npm run promotion:check
 npm run mcp:smoke
 npm run preview:build
-npm run dev:server -- --port 4173
 ```
 
 命令说明：
 
 - `npm test`：运行 TypeScript 编译和 Node test suite，覆盖评分、推荐、pipeline、API 和 UI 数据装配。
 - `npm run pipeline`：生成本地 `public/data` artifacts、D1 seed SQL 和 `public/reports` eval report；这些文件是发布产物，不再默认进入 git。
-- `npm run dev`：先确保 UI 和本地 API 必需的五个 artifacts 存在且可解析；缺失或损坏时从固定的已验证 production origin `https://agent-radar.zation1.workers.dev` 下载，再启动 127.0.0.1 上的 Vite。
-- `npm run dev:data`：只执行本地 UI data bootstrap。下载先进入临时目录，`tool_cards.jsonl`、`ratings.jsonl`、`search_index.json`、`eval_summary.json` 和 `source_registry_review_requests.json` 全部通过 HTTP、HTML fallback、JSON/JSONL 校验后才替换本地文件；它不运行或放宽 production pipeline 门禁。
+- `npm run dev`：确保六个 UI/Worker artifacts 存在，构建一次 Wrangler Static Assets，自动应用 local D1 migrations，然后并行启动 Vite `127.0.0.1:5173` 和 Wrangler `127.0.0.1:8787`。Vite 保留 UI HMR，并把 `/api/*` 同源代理到热重载的 Worker；Worker 使用 local D1。
+- `npm run dev:data`：只执行本地 data bootstrap。`tool_cards.jsonl`、`ratings.jsonl`、`search_index.json`、`golden_queries.json`、`eval_summary.json` 和 `manifest.json` 全部通过 HTTP、HTML fallback、JSON/JSONL 校验后才替换本地文件；它不运行或放宽 production pipeline 门禁。
 - `npm run eval`：运行 10 个 v0.2 golden queries；需要 `AGENT_RADAR_LLM_API_KEY` 才会调用真实 LLM provider。缺少 key 时输出 blocked summary 并退出非 0。
 - `npm run pages:build`：构建 Vite 静态 UI，输出到本地 `dist-pages/`，供 Worker Static Assets 部署使用。命令名暂时保留以减少迁移噪声。
-- `npm run dev:with-data`：兼容入口；执行与 `npm run dev` 相同的 production UI data bootstrap，并在 4173 端口启动 Vite dev server。
+- `npm run dev:api`：单独启动 Wrangler Worker API 热重载和 local D1，固定端口 8787。
+- `npm run dev:db`：幂等应用 `migrations/` 到 Wrangler local D1；默认由 `npm run dev` 自动执行。
+- `npm run dev:ui`：单独启动 Vite UI HMR，固定端口 5173；需要完整 API 时应同时运行 `dev:api` 或直接使用 `npm run dev`。
+- `npm run dev:with-data`：兼容别名，等价于 `npm run dev`。
 - `npm run release:build`：运行测试、生成发布产物并构建静态 UI 输出，适合 CI 或手动发布前使用。
 - `npm run promotion:check`：默认读取 `dist-pages/data/promotion_candidates/promotion_check.json`；release workflow 也显式传入该 reviewed bundle 路径。如果 promotion candidate 重复或未通过 Tool Card validator dry-run，则非 0 退出，并在进入 production gate 前阻断发布。
 - `npm run mcp:smoke`：对部署后的 Worker base URL 执行 JSON-RPC smoke test，覆盖 initialize、tools/list、只读 tools/call 和只读边界。Worker 一体化发布后，GitHub Actions 必须从 deploy output 自动传入 base URL；`AGENT_RADAR_MCP_BASE_URL` 只作为本地或外部 endpoint override。
 - `npm run preview:build`：release build 只运行一次 ingestion/pipeline，并把版本化 review evidence 随静态数据复制到 `dist-pages/`；finalize 只从同一 `dist-pages` 校验和渲染 artifact manifest 与 `artifacts/review/ingestion.md`，不会再次联网采集。
-- `npm run dev:server -- --port 4173`：只启动 Vite，并通过 dev middleware 挂载 `/api/*` 到同一套 API handler；不会准备数据。正常开发优先运行 `npm run dev`，缺数据错误界面测试使用 `npm run dev:empty`。
+- `.dev.vars`：由 `.dev.vars.example` 复制并保持 git ignored，保存开发 OAuth Client ID/Secret 和至少 32 bytes 的 session secret。开发 GitHub OAuth App callback 固定为 `http://127.0.0.1:5173/api/auth/github/callback`。
 
 LLM 推荐相关环境变量：
 

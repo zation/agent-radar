@@ -24,5 +24,6 @@ data/review/
 data/release_admission/
 artifacts/
 .env
+.dev.vars
 .DS_Store
 *.log

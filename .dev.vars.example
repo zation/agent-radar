@@ -1,0 +1,7 @@
+# Copy to .dev.vars and replace these placeholders. Never commit .dev.vars.
+GITHUB_OAUTH_CLIENT_ID=replace-with-development-oauth-client-id
+GITHUB_OAUTH_CLIENT_SECRET=replace-with-development-oauth-client-secret
+AGENT_RADAR_SESSION_SECRET=replace-with-at-least-32-random-bytes
+AGENT_RADAR_RELEASE_ID=local-v0.4
+AGENT_RADAR_API_VERSION=local
+AGENT_RADAR_WEB_VERSION=local
