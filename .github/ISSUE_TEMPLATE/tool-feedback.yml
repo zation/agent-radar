@@ -1,0 +1,47 @@
+name: Tool feedback
+description: Add context to an Agent Radar Tool feedback vote.
+title: "[tool-feedback]: "
+labels: ["tool-feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include tokens, secrets, private code, email, customer data, or a full prompt.
+  - type: input
+    id: tool_id
+    attributes:
+      label: Tool ID
+    validations:
+      required: true
+  - type: dropdown
+    id: vote
+    attributes:
+      label: Vote
+      options: ["up", "down"]
+    validations:
+      required: true
+  - type: input
+    id: release
+    attributes:
+      label: Release
+    validations:
+      required: true
+  - type: input
+    id: data_version
+    attributes:
+      label: Data version
+    validations:
+      required: true
+  - type: input
+    id: tool_url
+    attributes:
+      label: Tool URL
+    validations:
+      required: true
+  - type: textarea
+    id: reason
+    attributes:
+      label: What should we know?
+      description: Explain what was useful or what should improve without sharing sensitive information.
+    validations:
+      required: true

@@ -1,6 +1,7 @@
 import { Bot, Tag } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { IdentityMenu } from "./identity-menu.js";
 
 export type Page = "tools" | "evaluation";
 
@@ -17,7 +18,7 @@ export function AppShell({ activePage, releaseId, onPageChange, children }: { ac
               </Button>
             ))}
           </nav>
-          <div className="flex items-center justify-self-end gap-2 font-mono text-sm font-semibold text-muted-foreground"><Tag className="size-4" />{releaseId}</div>
+          <div className="flex items-center justify-self-end gap-2 text-muted-foreground"><span className="flex items-center gap-1 font-mono text-sm font-semibold"><Tag className="size-4" />{releaseId}</span><IdentityMenu /></div>
         </div>
       </header>
       {children}
