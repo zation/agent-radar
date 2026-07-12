@@ -24,6 +24,13 @@ export interface FeedbackProcessingAction {
   replacement_issue_number?: number;
 }
 
+export interface FeedbackProcessingPlan {
+  schema_version: "feedback_processing_plan.v1";
+  generated_at: string;
+  release_tag: string;
+  actions: FeedbackProcessingAction[];
+}
+
 export interface FeedbackToolSummary {
   tool_id: string;
   up_count: number;
@@ -48,12 +55,7 @@ export interface FeedbackArtifacts {
     generated_at: string;
     classifications: FeedbackClassification[];
   };
-  processingPlan: {
-    schema_version: "feedback_processing_plan.v1";
-    generated_at: string;
-    release_tag: string;
-    actions: FeedbackProcessingAction[];
-  };
+  processingPlan: FeedbackProcessingPlan;
   summary: {
     schema_version: "feedback_summary.v1";
     generated_at: string;

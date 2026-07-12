@@ -29,7 +29,8 @@
     "review-summary:check": "npm run build && node dist/src/cli/check-review-summary.js",
     "mcp:smoke": "npm run build && node dist/src/cli/run-mcp-smoke.js",
     "eval": "npm run build && node dist/src/cli/run-eval.js",
-    "feedback:prepare": "npm run build && node dist/src/cli/prepare-feedback.js"
+    "feedback:prepare": "npm run build && node dist/src/cli/prepare-feedback.js",
+    "feedback:apply": "npm run build && node dist/src/cli/apply-feedback-plan.js"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
