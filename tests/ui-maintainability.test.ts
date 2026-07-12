@@ -85,3 +85,10 @@ test("evaluation index renders its item gap", async () => {
   const source = await readSource("src/ui/evaluation-page.tsx");
   assert.match(source, /evaluation-index[^\"]*grid[^\"]*gap-2/, "src/ui/evaluation-page.tsx");
 });
+
+test("shared outline filter toggles expose a distinct pressed state", async () => {
+  const source = await readFile("src/components/ui/toggle.tsx", "utf8");
+  assert.match(source, /outline:[\s\S]*data-pressed:border-primary/);
+  assert.match(source, /outline:[\s\S]*data-pressed:bg-primary/);
+  assert.match(source, /outline:[\s\S]*data-pressed:text-primary-foreground/);
+});
