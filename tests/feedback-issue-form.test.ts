@@ -7,5 +7,5 @@ test("Tool feedback Issue Form contains structured fields and safety warning", a
   for (const id of ["tool_id", "vote", "release", "data_version", "tool_url", "reason"]) assert.match(text, new RegExp(`id: ${id}`));
   for (const warning of ["tokens", "secrets", "private code", "email", "customer data", "full prompt"]) assert.match(text, new RegExp(warning));
   assert.match(text, /labels: \["tool-feedback"\]/); assert.match(text, /id: reason[\s\S]*required: true/);
-  assert.match(text, /type: input\s+id: vote/);
+  assert.match(text, /type: dropdown\s+id: vote[\s\S]*options: \["up", "down"\]/);
 });
