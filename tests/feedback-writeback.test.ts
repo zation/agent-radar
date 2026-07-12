@@ -20,13 +20,13 @@ function action(overrides: Partial<FeedbackProcessingAction> = {}): FeedbackProc
 
 test("checks preconditions then comments, labels, and closes only the fixed repository Issue", async () => {
   const requests: Array<{ url: string; method: string; body: string }> = [];
-  const fetcher: typeof fetch = async (input, init) => {
-    const url = String(input);
+  const fetcher: typeof fetch = (input, init) => {
+    const url = requestUrl(input);
     const method = init?.method ?? "GET";
-    requests.push({ url, method, body: String(init?.body ?? "") });
-    if (method === "GET" && url.endsWith("/issues/5")) return Response.json({ number: 5, state: "open", updated_at: "2026-07-12T01:00:00Z", labels: [{ name: "tool-feedback" }] });
-    if (method === "GET" && url.endsWith("/issues/5/comments?per_page=100")) return Response.json([]);
-    return Response.json({}, { status: 200 });
+    requests.push({ url, method, body: typeof init?.body === "string" ? init.body : "" });
+    if (method === "GET" && url.endsWith("/issues/5")) return Promise.resolve(Response.json({ number: 5, state: "open", updated_at: "2026-07-12T01:00:00Z", labels: [{ name: "tool-feedback" }] }));
+    if (method === "GET" && url.endsWith("/issues/5/comments?per_page=100")) return Promise.resolve(Response.json([]));
+    return Promise.resolve(Response.json({}, { status: 200 }));
   };
   await applyFeedbackProcessingPlan({ schema_version: "feedback_processing_plan.v1", generated_at: "2026-07-12T02:00:00Z", release_tag: "all-v0.4.2", actions: [action()] }, { token: "token", fetcher });
   assert.ok(requests.every(({ url }) => url.startsWith("https://api.github.com/repos/zation/agent-radar/")));
@@ -42,10 +42,10 @@ test("blocks changed Issues and treats an already-applied matching marker as ide
     schema_version: "feedback_processing_plan.v1", generated_at: "2026-07-12T02:00:00Z", release_tag: "tag", actions: [action()],
   }, {
     token: "token",
-    fetcher: async (input, init) => {
+    fetcher: (input, init) => {
       if ((init?.method ?? "GET") !== "GET") writes += 1;
-      if (String(input).endsWith("/issues/5")) return Response.json({ state: "open", updated_at: "changed", labels: [{ name: "tool-feedback" }] });
-      return Response.json([]);
+      if (requestUrl(input).endsWith("/issues/5")) return Promise.resolve(Response.json({ state: "open", updated_at: "changed", labels: [{ name: "tool-feedback" }] }));
+      return Promise.resolve(Response.json([]));
     },
   }), /feedback_issue_precondition_failed: 5/);
   assert.equal(writes, 0);
@@ -54,10 +54,10 @@ test("blocks changed Issues and treats an already-applied matching marker as ide
     schema_version: "feedback_processing_plan.v1", generated_at: "2026-07-12T02:00:00Z", release_tag: "tag", actions: [action()],
   }, {
     token: "token",
-    fetcher: async (input, init) => {
+    fetcher: (input, init) => {
       if ((init?.method ?? "GET") !== "GET") writes += 1;
-      if (String(input).endsWith("/issues/5")) return Response.json({ state: "closed", updated_at: "later", labels: [{ name: "tool-feedback" }, { name: "feedback-accepted" }] });
-      return Response.json([{ body: marker }]);
+      if (requestUrl(input).endsWith("/issues/5")) return Promise.resolve(Response.json({ state: "closed", updated_at: "later", labels: [{ name: "tool-feedback" }, { name: "feedback-accepted" }] }));
+      return Promise.resolve(Response.json([{ body: marker }]));
     },
   }));
   assert.equal(writes, 0);
@@ -70,13 +70,17 @@ test("stops the plan on the first write failure", async () => {
     actions: [action(), action({ issue_number: 6, comment_body: action().comment_body.replace("issue-5", "issue-6") })],
   }, {
     token: "token",
-    fetcher: async (input, init) => {
-      const url = String(input);
+    fetcher: (input, init) => {
+      const url = requestUrl(input);
       if (url.includes("/issues/6")) issueSixRead = true;
-      if ((init?.method ?? "GET") === "POST" && url.endsWith("/comments")) return new Response("secret failure", { status: 500 });
-      if (url.endsWith("/comments?per_page=100")) return Response.json([]);
-      return Response.json({ state: "open", updated_at: "2026-07-12T01:00:00Z", labels: [{ name: "tool-feedback" }] });
+      if ((init?.method ?? "GET") === "POST" && url.endsWith("/comments")) return Promise.resolve(new Response("secret failure", { status: 500 }));
+      if (url.endsWith("/comments?per_page=100")) return Promise.resolve(Response.json([]));
+      return Promise.resolve(Response.json({ state: "open", updated_at: "2026-07-12T01:00:00Z", labels: [{ name: "tool-feedback" }] }));
     },
   }), /github_write_failed: 500/);
   assert.equal(issueSixRead, false);
 });
+
+function requestUrl(input: string | URL | Request): string {
+  return typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+}

@@ -33,7 +33,7 @@ test("sends one isolated minimal request per Issue with concurrency capped at fo
   const fetcher: typeof fetch = async (_url, init) => {
     active += 1;
     maximumActive = Math.max(maximumActive, active);
-    bodies.push(String(init?.body));
+    bodies.push(typeof init?.body === "string" ? init.body : "");
     await new Promise((resolve) => setTimeout(resolve, 5));
     active -= 1;
     return providerResponse(accepted);
@@ -61,7 +61,7 @@ test("rejects more than fifty inputs before making a provider request", async ()
   await assert.rejects(() => classifyFeedbackIssues(Array.from({ length: 51 }, (_, index) => input(index + 1)), {
     apiKey: "key",
     model: "gpt-4.1-mini",
-    fetcher: async () => { calls += 1; return providerResponse(accepted); },
+    fetcher: () => { calls += 1; return Promise.resolve(providerResponse(accepted)); },
   }), /feedback_issue_limit_exceeded/);
   assert.equal(calls, 0);
 });
@@ -71,9 +71,9 @@ test("retries malformed output once and validates the strict public schema", asy
   const result = await classifyFeedbackIssues([input(1)], {
     apiKey: "key",
     model: "gpt-4.1-mini",
-    fetcher: async () => {
+    fetcher: () => {
       calls += 1;
-      return calls === 1 ? providerResponse({ decision: "yes" }) : providerResponse(accepted);
+      return Promise.resolve(calls === 1 ? providerResponse({ decision: "yes" }) : providerResponse(accepted));
     },
     now: () => new Date("2026-07-12T02:00:00Z"),
   });
@@ -84,6 +84,6 @@ test("retries malformed output once and validates the strict public schema", asy
   await assert.rejects(() => classifyFeedbackIssues([input(2)], {
     apiKey: "key",
     model: "gpt-4.1-mini",
-    fetcher: async () => providerResponse({ ...accepted, summary: "x".repeat(241) }),
+    fetcher: () => Promise.resolve(providerResponse({ ...accepted, summary: "x".repeat(241) })),
   }), /feedback_classification_failed: issue 2/);
 });

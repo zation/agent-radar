@@ -30,7 +30,7 @@ function issue(number: number, state: "open" | "closed", labels: string[]): GitH
 
 test("prepares zero and classified feedback inputs without reclassifying history", async () => {
   const empty = await prepareFeedbackBuildInput({
-    voteRows: [], cards: reviewedToolCardFixtures, newIssues: [], historicalIssues: [], classify: async () => [],
+    voteRows: [], cards: reviewedToolCardFixtures, newIssues: [], historicalIssues: [], classify: () => Promise.resolve([]),
     generatedAt: "2026-07-12T02:00:00Z", releaseTag: "all-v0.4.2",
   });
   assert.deepEqual(empty.artifacts.summary.tools, []);
@@ -41,13 +41,13 @@ test("prepares zero and classified feedback inputs without reclassifying history
     cards: reviewedToolCardFixtures,
     newIssues: [issue(2, "open", ["tool-feedback"])],
     historicalIssues: [issue(1, "closed", ["tool-feedback", "feedback-accepted"])],
-    classify: async (inputs) => {
+    classify: (inputs) => {
       classifiedCount = inputs.length;
-      return inputs.map(({ issue: parsed }) => ({
+      return Promise.resolve(inputs.map(({ issue: parsed }) => ({
         issue_number: parsed.issue_number, issue_url: parsed.issue_url, sanitized_input_checksum: `sha256:${"b".repeat(64)}`,
         classifier_version: "feedback_classifier.v0.1", model_identifier: "fixture", decision: "accepted" as const,
         reason_code: "valid_experience" as const, summary: "Valid.", classified_at: "2026-07-12T02:00:00Z",
-      }));
+      })));
     },
     generatedAt: "2026-07-12T02:00:00Z", releaseTag: "all-v0.4.2",
   });

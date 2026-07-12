@@ -168,9 +168,9 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
 async function readFeedbackSummary(distDir: string, checksums: Record<string, string>): Promise<ArtifactManifest["feedback"] | undefined> {
   try {
     const [summary, classification, plan] = await Promise.all([
-      readFile(join(distDir, "data", "feedback_summary.json"), "utf8").then((text) => JSON.parse(text)),
-      readFile(join(distDir, "data", "feedback_classification.json"), "utf8").then((text) => JSON.parse(text)),
-      readFile(join(distDir, "data", "feedback_processing_plan.json"), "utf8").then((text) => JSON.parse(text)),
+      readFile(join(distDir, "data", "feedback_summary.json"), "utf8").then((text): unknown => JSON.parse(text) as unknown),
+      readFile(join(distDir, "data", "feedback_classification.json"), "utf8").then((text): unknown => JSON.parse(text) as unknown),
+      readFile(join(distDir, "data", "feedback_processing_plan.json"), "utf8").then((text): unknown => JSON.parse(text) as unknown),
     ]) as [
       { rules_version: "feedback_rules.v0.1"; vote_snapshot_checksum: string; tools: Array<{ applied_adjustment: number }> },
       { classifications: Array<{ decision: string }> },

@@ -304,10 +304,10 @@ test("publishes one feedback-adjusted score to ratings and search index", async 
       outputDir, toolCards: reviewedToolCardFixtures, generatedAt,
       feedbackBuildInput: { schema_version: "feedback_build_input.v1", generated_at: generatedAt, release_tag: "fixture", artifacts },
     });
-    const ratings = (await readFile(join(outputDir, "data", "ratings.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+    const ratings = (await readFile(join(outputDir, "data", "ratings.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line) as { tool_id: string; overall_score: number; base_score: number });
     const rating = ratings.find(({ tool_id }) => tool_id === toolId);
-    const index = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
-    const document = index.documents.find(({ tool_id }: { tool_id: string }) => tool_id === toolId);
+    const index = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8")) as { documents: Array<{ tool_id: string; rating_overall: number }> };
+    const document = index.documents.find(({ tool_id }) => tool_id === toolId);
     assert.equal(rating.overall_score, rating.base_score + 0.2);
     assert.equal(document.rating_overall, rating.overall_score);
   } finally {

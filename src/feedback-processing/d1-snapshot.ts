@@ -7,7 +7,8 @@ export function parseD1AggregateSnapshot(value: unknown): FeedbackVoteRow[] {
   const rows: unknown[] = [];
   for (const envelope of value) {
     if (!isRecord(envelope) || !Array.isArray(envelope.results)) throw new Error("d1_snapshot_invalid_envelope");
-    rows.push(...envelope.results);
+    const results: unknown[] = envelope.results;
+    rows.push(...results);
   }
   return rows.map((row) => {
     if (!isRecord(row)) throw new Error("d1_snapshot_invalid_row");
@@ -25,4 +26,3 @@ export function parseD1AggregateSnapshot(value: unknown): FeedbackVoteRow[] {
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
-
