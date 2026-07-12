@@ -6,9 +6,14 @@ import { issueUrl } from "./feedback-client.js";
 import { useFeedback } from "./feedback-provider.js";
 
 export function ToolFeedback({ toolId }: { toolId: string }) {
-  const feedback = useFeedback(); const { load } = feedback; const summary = feedback.summaries[toolId]; const [dialogOpen, setDialogOpen] = useState(false); const [lastVote, setLastVote] = useState<"up" | "down">("up");
+  const feedback = useFeedback(); const { load } = feedback; const summary = feedback.summaries[toolId]; const [manualDialogOpen, setManualDialogOpen] = useState(false); const [manualVote, setManualVote] = useState<"up" | "down">("up");
   useEffect(() => load(toolId), [load, toolId]);
-  async function vote(next: "up" | "down") { setLastVote(next); const result = await feedback.vote(toolId, next); if (result.changed) setDialogOpen(true); }
+  const oauthVote = feedback.oauthFeedbackToolId === toolId ? summary?.viewer_vote : null;
+  const oauthDialogOpen = Boolean(oauthVote);
+  const dialogOpen = manualDialogOpen || oauthDialogOpen;
+  const lastVote = oauthVote ?? manualVote;
+  async function vote(next: "up" | "down") { setManualVote(next); const result = await feedback.vote(toolId, next); if (result.changed) setManualDialogOpen(true); }
+  function setDialogOpen(open: boolean) { setManualDialogOpen(open); if (!open && oauthDialogOpen) feedback.consumeOAuthFeedback(toolId); }
   return <section aria-label="Tool feedback" className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/45 p-4">
     <span className="mr-auto text-sm font-medium">Feedback</span>
     <Button aria-label="Thumbs up" aria-pressed={summary?.viewer_vote === "up"} onClick={() => void vote("up")} variant="outline"><ThumbsUp data-icon="inline-start" />{summary?.up ?? 0}</Button>

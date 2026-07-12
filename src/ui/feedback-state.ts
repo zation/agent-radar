@@ -9,3 +9,9 @@ export function optimisticVote(summary: FeedbackSummary, next: Vote | null): Fee
   result.viewer_vote = next;
   return result;
 }
+
+export function parseOAuthFeedbackReturn(value: string): { toolId: string } | null {
+  const url = new URL(value);
+  const toolId = url.searchParams.get("tool");
+  return url.searchParams.get("feedback") === "applied" && toolId ? { toolId } : null;
+}
