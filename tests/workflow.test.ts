@@ -93,3 +93,12 @@ test("all release workflow uses Node 24-compatible GitHub actions", async () => 
   assert.doesNotMatch(workflow, /actions\/download-artifact@v[1-7]\b/);
   assert.doesNotMatch(workflow, /cloudflare\/wrangler-action@v[1-3]\b/);
 });
+
+test("all release workflow applies feedback migrations before production deploy", async () => {
+  const workflow = await readFile(".github/workflows/release-all.yml", "utf8");
+  const migration = workflow.indexOf("wrangler d1 migrations apply agent-radar --remote");
+  const deploy = workflow.indexOf("name: Deploy Cloudflare Worker");
+  assert.ok(migration >= 0);
+  assert.ok(deploy > migration);
+  assert.match(workflow, /CLOUDFLARE_API_TOKEN: \$\{\{ secrets\.CLOUDFLARE_API_TOKEN \}\}/);
+});

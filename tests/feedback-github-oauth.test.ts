@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+/* eslint-disable @typescript-eslint/require-await */
 import test from "node:test";
 import { buildGitHubAuthorizeUrl, buildToolReturnPath, exchangeGitHubCode, fetchGitHubIdentity } from "../src/feedback/github-oauth.js";
 
@@ -23,6 +24,6 @@ test("OAuth exchange and public identity use safe headers and redact failures", 
 });
 
 test("tool return paths remain internal", () => {
-  assert.equal(buildToolReturnPath("skill-a"), "/tools/skill-a");
-  assert.equal(buildToolReturnPath("https://evil.test"), "/tools");
+  assert.equal(buildToolReturnPath("skill-a"), "/?tool=skill-a");
+  assert.equal(buildToolReturnPath("https://evil.test"), "/");
 });

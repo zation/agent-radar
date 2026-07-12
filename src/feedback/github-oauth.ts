@@ -25,5 +25,5 @@ export async function fetchGitHubIdentity(token: string, fetcher: GitHubFetcher 
 }
 
 export function buildToolReturnPath(toolId: string): string {
-  return /^[a-z0-9][a-z0-9._-]*$/i.test(toolId) ? `/tools/${encodeURIComponent(toolId)}` : "/tools";
+  return /^[a-z0-9][a-z0-9._-]*$/i.test(toolId) ? `/?tool=${encodeURIComponent(toolId)}` : "/";
 }

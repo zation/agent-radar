@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+/* eslint-disable @typescript-eslint/no-this-alias, @typescript-eslint/require-await */
 import test from "node:test";
 import { FeedbackRateLimitError, createD1FeedbackStore, type D1Database } from "../src/feedback/store.js";
 

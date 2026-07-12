@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+/* eslint-disable @typescript-eslint/require-await, @typescript-eslint/no-base-to-string, @typescript-eslint/no-unnecessary-type-assertion */
 import test from "node:test";
 import { createStaticRepository } from "../src/api/repository.js";
 import { createFeedbackHttpHandler } from "../src/feedback/http.js";

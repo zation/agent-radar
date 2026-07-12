@@ -4,15 +4,18 @@ import { fetchFeedback, fetchSession, logout as requestLogout, putFeedback, sign
 import { optimisticVote } from "./feedback-state.js";
 
 interface FeedbackContextValue {
-  user: ViewerIdentity | null; version: { release_id: string; data_version: string }; summaries: Record<string, FeedbackSummary>; errors: Record<string, string>; load(toolId: string): void;
-  vote(toolId: string, vote: Vote): Promise<{ changed: boolean }>; signIn(toolId?: string, vote?: Vote): void; signOut(): Promise<void>;
+  user: ViewerIdentity | null; version: { release_id: string; data_version: string }; summaries: Record<string, FeedbackSummary>; errors: Record<string, string>; load: (toolId: string) => void;
+  vote: (toolId: string, vote: Vote) => Promise<{ changed: boolean }>; signIn: (toolId?: string, vote?: Vote) => void; signOut: () => Promise<void>;
 }
 const Context = createContext<FeedbackContextValue | null>(null);
 
 export function FeedbackProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<ViewerIdentity | null>(null); const [summaries, setSummaries] = useState<Record<string, FeedbackSummary>>({}); const [errors, setErrors] = useState<Record<string, string>>({});
   const [version, setVersion] = useState({ release_id: "unknown", data_version: "unknown" });
-  useEffect(() => { void Promise.all([fetchSession(), fetch("/api/version").then((response) => response.json() as Promise<{ release_id: string; data_version: string }>)]).then(([session, nextVersion]) => { setUser(session.user); setVersion(nextVersion); }).catch(() => undefined); }, []);
+  useEffect(() => {
+    void Promise.all([fetchSession(), fetch("/api/version").then((response) => response.json() as Promise<{ release_id: string; data_version: string }>)]).then(([session, nextVersion]) => { setUser(session.user); setVersion(nextVersion); }).catch(() => undefined);
+    const url = new URL(window.location.href); if (url.searchParams.has("feedback")) { url.searchParams.delete("feedback"); window.history.replaceState(null, "", url.pathname + url.search); }
+  }, []);
   const load = useCallback((toolId: string) => { if (summaries[toolId]) return; void fetchFeedback(toolId).then((value) => setSummaries((current) => ({ ...current, [toolId]: value }))).catch(() => setErrors((current) => ({ ...current, [toolId]: "Feedback is unavailable." }))); }, [summaries]);
   const value = useMemo<FeedbackContextValue>(() => ({ user, version, summaries, errors, load,
     async vote(toolId, next) {

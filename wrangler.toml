@@ -1,6 +1,13 @@
 name = "agent-radar"
 main = "src/worker.ts"
 compatibility_date = "2026-07-09"
+keep_vars = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "agent-radar"
+database_id = "19e96958-6bc9-454b-8c0e-4ab447da48ae"
+migrations_dir = "migrations"
 
 [assets]
 directory = "./dist-pages"

@@ -21,7 +21,7 @@ const types = ["all", "skill", "mcp", "agent"];
 export function ToolsWorkspace({ tools }: { tools: ToolViewModel[] }) {
   const [query, setQuery] = useState(""); const [apiKey, setApiKey] = useState(""); const [model, setModel] = useState(models[0]); const [risk, setRisk] = useState<RiskTolerance>("low");
   const [result, setResult] = useState<RecommendationResult | null>(null); const [error, setError] = useState(""); const [submitting, setSubmitting] = useState(false); const [manualExpanded, setManualExpanded] = useState(false);
-  const [search, setSearch] = useState(""); const [type, setType] = useState("all"); const [selectedId, setSelectedId] = useState(tools[0]?.card.id ?? "");
+  const [search, setSearch] = useState(""); const [type, setType] = useState("all"); const [selectedId, setSelectedId] = useState(() => new URLSearchParams(window.location.search).get("tool") ?? tools[0]?.card.id ?? "");
   const mobile = useMobileDrillIn("tool");
   const uiState = getRecommendationUiState({ isSubmitting: submitting, result, error });
   const ranked = useMemo(() => result ? createRankedToolRows(result, tools) : [], [result, tools]);

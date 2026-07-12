@@ -1,6 +1,7 @@
 dist/
 dist-pages/
 .worktrees/
+.wrangler/
 node_modules/
 public/data/
 public/reports/

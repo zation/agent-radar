@@ -8,6 +8,7 @@ export default tseslint.config(
     ignores: [
       "dist/",
       "dist-pages/",
+      ".wrangler/",
       "node_modules/",
       "data/",
       "public/data/",

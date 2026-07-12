@@ -6,8 +6,8 @@ import { issueUrl } from "./feedback-client.js";
 import { useFeedback } from "./feedback-provider.js";
 
 export function ToolFeedback({ toolId }: { toolId: string }) {
-  const feedback = useFeedback(); const summary = feedback.summaries[toolId]; const [dialogOpen, setDialogOpen] = useState(false); const [lastVote, setLastVote] = useState<"up" | "down">("up");
-  useEffect(() => feedback.load(toolId), [feedback.load, toolId]);
+  const feedback = useFeedback(); const { load } = feedback; const summary = feedback.summaries[toolId]; const [dialogOpen, setDialogOpen] = useState(false); const [lastVote, setLastVote] = useState<"up" | "down">("up");
+  useEffect(() => load(toolId), [load, toolId]);
   async function vote(next: "up" | "down") { setLastVote(next); const result = await feedback.vote(toolId, next); if (result.changed) setDialogOpen(true); }
   return <section aria-label="Tool feedback" className="mt-5 flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/45 p-4">
     <span className="mr-auto text-sm font-medium">Feedback</span>
