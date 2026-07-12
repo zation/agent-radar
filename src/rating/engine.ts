@@ -1,4 +1,5 @@
-import type { Confidence, RatingResult, RiskLevel, ToolCard } from "../schema.js";
+import type { Confidence, FeedbackAdjustment, RatingResult, RiskLevel, ToolCard } from "../schema.js";
+import { emptyFeedbackAdjustment } from "../feedback-processing/scoring.js";
 
 const ratedAt = "2026-07-06T00:00:00Z";
 
@@ -17,26 +18,29 @@ const riskRank: Record<RiskLevel, number> = {
   unknown: 5
 };
 
-export function rateAllToolCards(cards: ToolCard[]): RatingResult[] {
-  return cards.map((card) => rateToolCard(card));
+export function rateAllToolCards(cards: ToolCard[], feedbackByTool: ReadonlyMap<string, FeedbackAdjustment> = new Map()): RatingResult[] {
+  return cards.map((card) => rateToolCard(card, feedbackByTool.get(card.id)));
 }
 
-export function rateToolCard(card: ToolCard): RatingResult {
+export function rateToolCard(card: ToolCard, feedbackAdjustment: FeedbackAdjustment = emptyFeedbackAdjustment()): RatingResult {
   const penalties: string[] = [];
   const boosts: string[] = [];
   const riskLevel = deriveRiskLevel(card, penalties);
   const dimensionScores = scoreDimensions(card, riskLevel, penalties, boosts);
-  const overall = Math.round(Object.values(dimensionScores).reduce((sum, score) => sum + score, 0) / Object.keys(dimensionScores).length);
+  const baseScore = Math.round(Object.values(dimensionScores).reduce((sum, score) => sum + score, 0) / Object.keys(dimensionScores).length);
+  const overall = clampToTenth(baseScore + feedbackAdjustment.applied);
   const evidenceQuality = card.confidence;
   const recommendationLevel = chooseRecommendationLevel(card, overall, riskLevel, evidenceQuality);
 
   return {
     id: `rating:${card.id}:20260706`,
-    schema_version: "rating_result.v1",
+    schema_version: "rating_result.v2",
     tool_id: card.id,
     tool_type: card.type,
     rules_version: "rating_rules.v0.1-draft",
+    base_score: baseScore,
     overall_score: overall,
+    feedback_adjustment: feedbackAdjustment,
     recommendation_level: recommendationLevel,
     risk_level: riskLevel,
     dimension_scores: dimensionScores,
@@ -140,4 +144,8 @@ function chooseRecommendationLevel(card: ToolCard, score: number, riskLevel: Ris
 
 function clamp(value: number): number {
   return Math.max(0, Math.min(100, value));
+}
+
+function clampToTenth(value: number): number {
+  return Math.round(clamp(value) * 10) / 10;
 }

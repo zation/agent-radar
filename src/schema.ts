@@ -102,11 +102,13 @@ export interface RatingExplanation {
 
 export interface RatingResult {
   id: string;
-  schema_version: "rating_result.v1";
+  schema_version: "rating_result.v2";
   tool_id: string;
   tool_type: ToolType;
   rules_version: "rating_rules.v0.1-draft";
+  base_score: number;
   overall_score: number;
+  feedback_adjustment: FeedbackAdjustment;
   recommendation_level: RecommendationLevel;
   risk_level: RiskLevel;
   dimension_scores: Record<string, number>;
@@ -115,6 +117,17 @@ export interface RatingResult {
   boosts: string[];
   evidence_quality: Confidence;
   rated_at: string;
+}
+
+export interface FeedbackAdjustment {
+  d1: number;
+  accepted_issues: number;
+  raw: number;
+  applied: number;
+  cap: 3;
+  rules_version: "feedback_rules.v0.1";
+  vote_snapshot_checksum: `sha256:${string}`;
+  accepted_issue_ids: number[];
 }
 
 export interface RecommendationQuery {

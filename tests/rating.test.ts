@@ -9,6 +9,8 @@ test("rates official low-risk skills as recommendable with explanations", () => 
   const rating = rateToolCard(card);
 
   assert.equal(rating.rules_version, "rating_rules.v0.1-draft");
+  assert.equal(rating.schema_version, "rating_result.v2");
+  assert.equal(rating.base_score, rating.overall_score);
   assert.equal(rating.recommendation_level, "recommended");
   assert.equal(rating.risk_level, "low");
   assert.ok(rating.overall_score >= 75);
