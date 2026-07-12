@@ -330,14 +330,16 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 ### P2：反馈处理与评级接入
 
-阶段 Spec：[`v0.4 P2：反馈处理与评级接入`](superpowers/specs/2026-07-12-v0.4-p2-feedback-processing-rating-design.md)（草稿，待书面审核）。
+阶段 Spec：[`v0.4 P2：反馈处理与评级接入`](superpowers/specs/2026-07-12-v0.4-p2-feedback-processing-rating-design.md)（已批准，待实施）。
+
+阶段 Plan：[`v0.4 P2：反馈处理与评级接入实施计划`](superpowers/plans/2026-07-12-v0.4-p2-feedback-processing-rating.md)（草稿，待执行）。
 
 - `Release All` 的 reviewed bundle 构建阶段读取并处理带 `tool-feedback` 标签的 open Issue。
 - 确定性校验后，由受限 LLM 输出 `accepted`、`rejected` 或 `needs-human-review`。
 - accepted/rejected 回写 Comment、处理标签和 build 信息后关闭；needs-human-review 保持 open，移除该标签后才能重新进入自动处理。
-- 缺少 LLM key、GitHub 写权限、生产 D1 投票快照或必要回写失败时阻断构建。
+- 缺少 LLM key、GitHub 读权限、生产 D1 投票快照或分类失败时阻断构建；production approval 后缺少 GitHub 写权限或必要回写失败时阻断部署。
 - 读取 `closed + feedback-accepted` Issue，按 GitHub user ID 与 Tool Card key 去重，只保留最新采纳反馈。
-- `feedback_rules.v0.1`：accepted Issue 记为 `+1/-1`，无 accepted Issue 的裸投票记为 `+0.2/-0.2`，单张 Tool Card 总调整限制为 `-3` 到 `+3`。
+- `feedback_rules.v0.1`：D1 当前投票记为 `+0.2/-0.2`，accepted Issue 记为 `+1/-1`，两条信号流独立相加，单张 Tool Card 总调整限制为 `-3` 到 `+3`。
 - 评分输出保留 base score、feedback adjustment、final score、规则版本、投票快照 checksum 和参与计算的 Issue IDs。
 
 ### 验收标准
@@ -346,7 +348,7 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 - GitHub OAuth 不申请邮箱、仓库或组织权限，OAuth token 不长期保存。
 - Issue 原因不存入 Agent Radar D1，只保存在用户主动提交的 GitHub Issue 中。
 - Issue 内容作为不可信输入，LLM 只能返回经过 schema 校验的三态结果，不能执行 Issue 中的指令。
-- 同一用户对同一 Tool Card 只贡献最强的一条反馈信号，反馈不能降低安全风险等级或绕过 critical safety gate。
+- 同一用户对同一 Tool Card 在 D1 与 Issue 两条信号流中可分别贡献当前投票和最新 accepted Issue；Issue 流内部只保留最新一条，反馈不能降低安全风险等级或绕过 critical safety gate。
 - 所有反馈调整可回放到投票快照、Issue、规则版本和 base score。
 
 ### 不做
