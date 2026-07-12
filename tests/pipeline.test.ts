@@ -308,6 +308,8 @@ test("publishes one feedback-adjusted score to ratings and search index", async 
     const rating = ratings.find(({ tool_id }) => tool_id === toolId);
     const index = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8")) as { documents: Array<{ tool_id: string; rating_overall: number }> };
     const document = index.documents.find(({ tool_id }) => tool_id === toolId);
+    assert.ok(rating);
+    assert.ok(document);
     assert.equal(rating.overall_score, rating.base_score + 0.2);
     assert.equal(document.rating_overall, rating.overall_score);
   } finally {
