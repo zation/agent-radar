@@ -41,3 +41,26 @@ export interface ParsedFeedbackIssue {
   processing_labels: string[];
 }
 
+export interface FeedbackClassifierTool {
+  id: string;
+  name: string;
+  risk_level: string;
+  usage_boundaries: string[];
+}
+
+export interface FeedbackClassifierInput {
+  issue: ParsedFeedbackIssue;
+  tool: FeedbackClassifierTool;
+}
+
+export interface FeedbackClassification {
+  issue_number: number;
+  issue_url: string;
+  sanitized_input_checksum: `sha256:${string}`;
+  classifier_version: typeof FEEDBACK_CLASSIFIER_VERSION;
+  model_identifier: string;
+  decision: FeedbackDecision;
+  reason_code: FeedbackReasonCode;
+  summary: string;
+  classified_at: string;
+}
