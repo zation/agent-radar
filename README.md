@@ -46,7 +46,7 @@ npm run preview:build
 - `public/data/manifest.json`
 - `public/reports/eval-data-2026-07-06.md`
 
-开发环境通过 `npm run dev` 准备 UI/Worker 必需的六个 artifacts、自动应用 local D1 migrations，然后并行启动 Vite `127.0.0.1:5173` 与 Wrangler `127.0.0.1:8787`。Vite 提供 React/Tailwind HMR，并把同源 `/api/*` 代理给热重载的 Worker；Wrangler 使用 local D1，不会写生产数据库。复制 `.dev.vars.example` 为 `.dev.vars` 可配置开发 GitHub OAuth 和 session secret，开发 OAuth callback 使用 `http://127.0.0.1:5173/api/auth/github/callback`。该 bootstrap 不运行或放宽生产数据门禁。发布环境仍通过 `npm run release:build` 执行严格 pipeline。Worker 入口在 `src/worker.ts`，UI 入口在 `index.html` 和 `src/ui/App.tsx`。
+开发环境通过 `npm run dev` 准备 UI/Worker 必需的六个 artifacts、自动应用 local D1 migrations，然后并行启动 Vite `127.0.0.1:5173` 与 Wrangler `127.0.0.1:8787`。Vite 提供 React/Tailwind HMR，并把同源 `/api/*` 代理给热重载的 Worker；Wrangler 使用 local D1，不会写生产数据库。所有本地 LLM、OAuth 和 session 配置统一读取 git ignored 的 `.env`，可从 `.env.example` 复制；开发 OAuth callback 使用 `http://127.0.0.1:5173/api/auth/github/callback`。该 bootstrap 不运行或放宽生产数据门禁。发布环境仍通过 `npm run release:build` 执行严格 pipeline。Worker 入口在 `src/worker.ts`，UI 入口在 `index.html` 和 `src/ui/App.tsx`。
 
 `npm run ingest` 运行 v0.2 数据采集 MVP 的本地链路：读取 enabled Source Registry、保存 Raw Snapshot 到 `data/raw/`，输出 Source Records、Tool Card drafts、release admission、promotion candidates 和 promotion check artifact。`npm run pipeline` 默认消费通过 gate 的采集候选并生成可靠推荐发布数据。这些中间文件是可再生成的采集产物，不进入 git。
 

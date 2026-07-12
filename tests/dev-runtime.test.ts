@@ -9,7 +9,7 @@ test("default dev command runs Vite HMR and Wrangler Worker with local D1", asyn
   assert.match(packageJson.scripts.dev, /pages:build/);
   assert.match(packageJson.scripts.dev, /dev:db/);
   assert.match(packageJson.scripts.dev, /concurrently/);
-  assert.equal(packageJson.scripts["dev:api"], "wrangler dev --local --port 8787");
+  assert.equal(packageJson.scripts["dev:api"], "wrangler dev --local --port 8787 --env-file .env");
   assert.equal(packageJson.scripts["dev:db"], "CI=1 wrangler d1 migrations apply agent-radar --local");
   assert.equal(packageJson.scripts["dev:ui"], "vite --host 127.0.0.1 --port 5173 --strictPort");
   assert.ok(packageJson.devDependencies.concurrently);
@@ -23,8 +23,8 @@ test("Vite proxies same-origin API requests to the hot-reloading Worker", async 
   assert.doesNotMatch(config, /agentRadarApiDevPlugin/);
 });
 
-test("local Worker variables have a safe committed example", async () => {
-  const example = await readFile(".dev.vars.example", "utf8");
+test("local Worker variables share the safe committed env example", async () => {
+  const example = await readFile(".env.example", "utf8");
   assert.match(example, /GITHUB_OAUTH_CLIENT_ID=/);
   assert.match(example, /GITHUB_OAUTH_CLIENT_SECRET=/);
   assert.match(example, /AGENT_RADAR_SESSION_SECRET=/);

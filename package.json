@@ -7,7 +7,7 @@
     "clean": "rm -rf dist public/data public/reports",
     "dev": "npm run dev:data && npm run pages:build && npm run dev:db && concurrently --kill-others-on-fail --names api,ui \"npm:dev:api\" \"npm:dev:ui\"",
     "dev:data": "npm run build && node dist/src/cli/ensure-dev-data.js",
-    "dev:api": "wrangler dev --local --port 8787",
+    "dev:api": "wrangler dev --local --port 8787 --env-file .env",
     "dev:db": "CI=1 wrangler d1 migrations apply agent-radar --local",
     "dev:ui": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "dev:server": "npm run dev:ui",

@@ -238,7 +238,7 @@ npm run preview:build
 - `npm run dev:data`：只执行本地 data bootstrap。`tool_cards.jsonl`、`ratings.jsonl`、`search_index.json`、`golden_queries.json`、`eval_summary.json` 和 `manifest.json` 全部通过 HTTP、HTML fallback、JSON/JSONL 校验后才替换本地文件；它不运行或放宽 production pipeline 门禁。
 - `npm run eval`：运行 10 个 v0.2 golden queries；需要 `AGENT_RADAR_LLM_API_KEY` 才会调用真实 LLM provider。缺少 key 时输出 blocked summary 并退出非 0。
 - `npm run pages:build`：构建 Vite 静态 UI，输出到本地 `dist-pages/`，供 Worker Static Assets 部署使用。命令名暂时保留以减少迁移噪声。
-- `npm run dev:api`：单独启动 Wrangler Worker API 热重载和 local D1，固定端口 8787。
+- `npm run dev:api`：显式通过 `--env-file .env` 读取统一的本地配置，启动 Wrangler Worker API 热重载和 local D1，固定端口 8787。
 - `npm run dev:db`：幂等应用 `migrations/` 到 Wrangler local D1；默认由 `npm run dev` 自动执行。
 - `npm run dev:ui`：单独启动 Vite UI HMR，固定端口 5173；需要完整 API 时应同时运行 `dev:api` 或直接使用 `npm run dev`。
 - `npm run dev:with-data`：兼容别名，等价于 `npm run dev`。
@@ -246,7 +246,7 @@ npm run preview:build
 - `npm run promotion:check`：默认读取 `dist-pages/data/promotion_candidates/promotion_check.json`；release workflow 也显式传入该 reviewed bundle 路径。如果 promotion candidate 重复或未通过 Tool Card validator dry-run，则非 0 退出，并在进入 production gate 前阻断发布。
 - `npm run mcp:smoke`：对部署后的 Worker base URL 执行 JSON-RPC smoke test，覆盖 initialize、tools/list、只读 tools/call 和只读边界。Worker 一体化发布后，GitHub Actions 必须从 deploy output 自动传入 base URL；`AGENT_RADAR_MCP_BASE_URL` 只作为本地或外部 endpoint override。
 - `npm run preview:build`：release build 只运行一次 ingestion/pipeline，并把版本化 review evidence 随静态数据复制到 `dist-pages/`；finalize 只从同一 `dist-pages` 校验和渲染 artifact manifest 与 `artifacts/review/ingestion.md`，不会再次联网采集。
-- `.dev.vars`：由 `.dev.vars.example` 复制并保持 git ignored，保存开发 OAuth Client ID/Secret 和至少 32 bytes 的 session secret。开发 GitHub OAuth App callback 固定为 `http://127.0.0.1:5173/api/auth/github/callback`。
+- `.env`：由 `.env.example` 复制并保持 git ignored，统一保存本地 LLM、开发 OAuth Client ID/Secret 和至少 32 bytes 的 session secret；Wrangler 由 `--env-file .env` 显式读取。开发 GitHub OAuth App callback 固定为 `http://127.0.0.1:5173/api/auth/github/callback`。
 
 LLM 推荐相关环境变量：
 
