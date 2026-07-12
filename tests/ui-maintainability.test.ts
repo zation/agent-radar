@@ -34,7 +34,7 @@ test("feature surfaces keep static interface chrome in English", async () => {
 test("desktop indexes scroll within a bounded viewport height", async () => {
   for (const path of ["src/ui/tools-workspace.tsx", "src/ui/evaluation-page.tsx"]) {
     const source = await readSource(path);
-    assert.match(source, /lg:max-h-\[min\(60vh,640px\)\]/, path);
+    assert.match(source, /lg:max-h-\[max\(60vh,640px\)\]/, path);
     assert.match(source, /lg:overflow-y-auto/, path);
   }
 });
