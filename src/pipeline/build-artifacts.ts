@@ -15,6 +15,9 @@ import { normalizeToolCardDraftsWithEvidence } from "../ingestion/normalizer.js"
 import { buildSourceRegistryReviewArtifact, buildSourceRegistryReviewRequests } from "../ingestion/source-review.js";
 import { buildSourceRegistryArtifact, buildSourceRegistryDiff, sourceRegistry } from "../ingestion/source-registry.js";
 import { rateAllToolCards } from "../rating/engine.js";
+import { buildFeedbackArtifacts } from "../feedback-processing/artifacts.js";
+import { calculateFeedbackAdjustment } from "../feedback-processing/scoring.js";
+import { validateFeedbackBuildInput, type FeedbackBuildInput } from "../feedback-processing/preparer.js";
 import { DEFAULT_RECOMMENDATION_MODEL, buildProviderRegistryArtifact } from "../recommendation/provider-registry.js";
 import { buildSearchIndex } from "../search/index-builder.js";
 import type { SourceRecord, ToolCard } from "../schema.js";
@@ -43,6 +46,7 @@ export interface BuildArtifactsOptions {
   generatedAt?: string;
   previousSourceRecords?: SourceRecord[];
   allowBenchmarkProxyDns?: boolean;
+  feedbackBuildInput?: FeedbackBuildInput;
 }
 
 export interface BuildArtifactsSummary {
@@ -114,7 +118,12 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   });
   await writeFile(join(publicDataDir, "data_quality_report.json"), JSON.stringify(dataQualityReport, null, 2), "utf8");
   assertDataQualityReport(dataQualityReport);
-  const ratings = rateAllToolCards(toolCards);
+  const feedbackInput = validateFeedbackBuildInput(options.feedbackBuildInput ?? buildEmptyFeedbackInput(generatedAt));
+  const feedbackByTool = new Map(feedbackInput.artifacts.summary.tools.map((summary) => [
+    summary.tool_id,
+    calculateFeedbackAdjustment(summary, feedbackInput.artifacts.summary.vote_snapshot_checksum),
+  ]));
+  const ratings = rateAllToolCards(toolCards, feedbackByTool);
   const index = buildSearchIndex(toolCards, ratings);
   const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";
   const model = process.env.AGENT_RADAR_LLM_MODEL ?? DEFAULT_RECOMMENDATION_MODEL;
@@ -128,6 +137,10 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
 
   await writeFile(join(publicDataDir, "tool_cards.jsonl"), toJsonl(toolCards), "utf8");
   await writeFile(join(publicDataDir, "ratings.jsonl"), toJsonl(ratings), "utf8");
+  await writeFile(join(publicDataDir, "feedback_vote_snapshot.json"), JSON.stringify(feedbackInput.artifacts.voteSnapshot, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "feedback_classification.json"), JSON.stringify(feedbackInput.artifacts.classification, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "feedback_processing_plan.json"), JSON.stringify(feedbackInput.artifacts.processingPlan, null, 2), "utf8");
+  await writeFile(join(publicDataDir, "feedback_summary.json"), JSON.stringify(feedbackInput.artifacts.summary, null, 2), "utf8");
   await writeFile(join(publicDataDir, "search_index.json"), JSON.stringify(index, null, 2), "utf8");
   await writeFile(join(publicDataDir, "source_registry.json"), JSON.stringify(sourceRegistryArtifact, null, 2), "utf8");
   await writeFile(join(publicDataDir, "source_registry_diff.json"), JSON.stringify(sourceRegistryDiff, null, 2), "utf8");
@@ -148,13 +161,18 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         data_version: dataVersion,
         schema_versions: {
           tool_card: "tool_card.v1",
-          rating_result: "rating_result.v1",
+          rating_result: "rating_result.v2",
+          feedback_vote_snapshot: "feedback_vote_snapshot.v1",
+          feedback_classification: "feedback_classification.v1",
+          feedback_processing_plan: "feedback_processing_plan.v1",
+          feedback_summary: "feedback_summary.v1",
           search_index: "search_index.v1",
           source_registry: "source_registry.v1"
         },
         rules_versions: {
           rating: "rating_rules.v0.1-draft",
-          recommendation: "recommendation_rules.v1"
+          recommendation: "recommendation_rules.v1",
+          feedback: "feedback_rules.v0.1"
         },
         index_version: "index-2026-07-06",
         source_registry: "data/source_registry.json",
@@ -172,6 +190,10 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         mcp_tools: "data/mcp_tools.json",
         mcp_examples: "data/mcp_examples.json",
         mcp_smoke_checklist: "data/mcp_smoke_checklist.json",
+        feedback_vote_snapshot: "data/feedback_vote_snapshot.json",
+        feedback_classification: "data/feedback_classification.json",
+        feedback_processing_plan: "data/feedback_processing_plan.json",
+        feedback_summary: "data/feedback_summary.json",
         d1_seed: "data/d1_seed.sql",
         eval_report: `reports/eval-${dataVersion}.md`,
         published_at: generatedAt
@@ -187,6 +209,17 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
     ratingCount: ratings.length,
     goldenQueriesPassed: evalSummary.passed,
     goldenQueriesTotal: evalSummary.total
+  };
+}
+
+function buildEmptyFeedbackInput(generatedAt: string): FeedbackBuildInput {
+  return {
+    schema_version: "feedback_build_input.v1",
+    generated_at: generatedAt,
+    release_tag: "local-no-feedback",
+    artifacts: buildFeedbackArtifacts({
+      voteRows: [], historicalAccepted: [], newIssues: [], classifications: [], generatedAt, releaseTag: "local-no-feedback",
+    }),
   };
 }
 

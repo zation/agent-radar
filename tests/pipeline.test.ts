@@ -7,6 +7,7 @@ import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
 import { assertDataTrustArtifacts, buildArtifacts } from "../src/pipeline/build-artifacts.js";
 import { sourceRegistry as defaultSourceRegistry } from "../src/ingestion/source-registry.js";
 import type { ToolCard } from "../src/schema.js";
+import { buildFeedbackArtifacts } from "../src/feedback-processing/artifacts.js";
 
 interface EvalSummaryFile {
   results: Array<{ failure_category: string; failures: string[] }>;
@@ -14,8 +15,8 @@ interface EvalSummaryFile {
 
 interface ManifestFile {
   eval_report: string;
-  rules_versions: { rating: string };
-  schema_versions: { tool_card: string; source_registry: string };
+  rules_versions: { rating: string; feedback: string };
+  schema_versions: { tool_card: string; source_registry: string; rating_result: string };
   source_registry: string;
   source_registry_diff: string;
   source_registry_review: string;
@@ -31,6 +32,7 @@ interface ManifestFile {
   mcp_tools: string;
   mcp_examples: string;
   mcp_smoke_checklist: string;
+  feedback_summary: string;
 }
 
 function mockGitHubRepo(fullName: string): Record<string, unknown> {
@@ -124,6 +126,9 @@ test("builds MVP data artifacts and an eval report", async () => {
     const manifest = JSON.parse(await readFile(join(outputDir, "data", "manifest.json"), "utf8")) as ManifestFile;
     assert.equal(manifest.rules_versions.rating, "rating_rules.v0.1-draft");
     assert.equal(manifest.schema_versions.tool_card, "tool_card.v1");
+    assert.equal(manifest.schema_versions.rating_result, "rating_result.v2");
+    assert.equal(manifest.rules_versions.feedback, "feedback_rules.v0.1");
+    assert.equal(manifest.feedback_summary, "data/feedback_summary.json");
     assert.equal(manifest.schema_versions.source_registry, "source_registry.v1");
     assert.equal(manifest.source_registry, "data/source_registry.json");
     assert.equal(manifest.source_registry_diff, "data/source_registry_diff.json");
@@ -282,6 +287,30 @@ test("builds MVP data artifacts and an eval report", async () => {
     else process.env.AGENT_RADAR_LLM_API_KEY = originalApiKey;
     if (originalModel === undefined) delete process.env.AGENT_RADAR_LLM_MODEL;
     else process.env.AGENT_RADAR_LLM_MODEL = originalModel;
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test("publishes one feedback-adjusted score to ratings and search index", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-feedback-pipeline-"));
+  const generatedAt = "2026-07-12T04:00:00.000Z";
+  const toolId = reviewedToolCardFixtures[0].id;
+  const artifacts = buildFeedbackArtifacts({
+    voteRows: [{ tool_id: toolId, up_count: 1, down_count: 0, row_count: 1 }],
+    historicalAccepted: [], newIssues: [], classifications: [], generatedAt, releaseTag: "fixture",
+  });
+  try {
+    await buildArtifacts({
+      outputDir, toolCards: reviewedToolCardFixtures, generatedAt,
+      feedbackBuildInput: { schema_version: "feedback_build_input.v1", generated_at: generatedAt, release_tag: "fixture", artifacts },
+    });
+    const ratings = (await readFile(join(outputDir, "data", "ratings.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line));
+    const rating = ratings.find(({ tool_id }) => tool_id === toolId);
+    const index = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8"));
+    const document = index.documents.find(({ tool_id }: { tool_id: string }) => tool_id === toolId);
+    assert.equal(rating.overall_score, rating.base_score + 0.2);
+    assert.equal(document.rating_overall, rating.overall_score);
+  } finally {
     await rm(outputDir, { recursive: true, force: true });
   }
 });

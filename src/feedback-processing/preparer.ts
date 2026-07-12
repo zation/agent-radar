@@ -1,5 +1,6 @@
 import type { ToolCard } from "../schema.js";
 import { buildFeedbackArtifacts, type FeedbackArtifacts, type FeedbackVoteRow } from "./artifacts.js";
+import { canonicalChecksum } from "./artifacts.js";
 import type { FeedbackClassification, FeedbackClassifierInput, GitHubIssueSnapshot } from "./contracts.js";
 import { parseFeedbackIssue } from "./issue-parser.js";
 import { classifyIssueState } from "./issue-state.js";
@@ -60,3 +61,16 @@ export async function prepareFeedbackBuildInput(options: PrepareFeedbackBuildInp
   };
 }
 
+export function validateFeedbackBuildInput(value: unknown): FeedbackBuildInput {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("feedback_build_input_invalid");
+  const input = value as FeedbackBuildInput;
+  if (input.schema_version !== "feedback_build_input.v1" || !input.artifacts || input.artifacts.voteSnapshot?.schema_version !== "feedback_vote_snapshot.v1"
+    || input.artifacts.classification?.schema_version !== "feedback_classification.v1"
+    || input.artifacts.processingPlan?.schema_version !== "feedback_processing_plan.v1"
+    || input.artifacts.summary?.schema_version !== "feedback_summary.v1") throw new Error("feedback_build_input_invalid");
+  const { checksum, ...votePayload } = input.artifacts.voteSnapshot;
+  if (canonicalChecksum(votePayload) !== checksum || input.artifacts.summary.vote_snapshot_checksum !== checksum) {
+    throw new Error("feedback_build_input_checksum_mismatch");
+  }
+  return input;
+}

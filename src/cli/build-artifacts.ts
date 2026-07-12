@@ -1,8 +1,15 @@
 import { buildArtifacts } from "../pipeline/build-artifacts.js";
 import { loadPreviousReleaseArtifacts } from "../pipeline/previous-artifacts.js";
 import { config } from "dotenv";
+import { readFile } from "node:fs/promises";
+import { validateFeedbackBuildInput } from "../feedback-processing/preparer.js";
 
 config({ override: false, quiet: true });
+const feedbackPath = process.env.AGENT_RADAR_FEEDBACK_BUILD_INPUT;
+if (process.env.CI === "true" && !feedbackPath) throw new Error("AGENT_RADAR_FEEDBACK_BUILD_INPUT is required in CI");
+const feedbackBuildInput = feedbackPath
+  ? validateFeedbackBuildInput(JSON.parse(await readFile(feedbackPath, "utf8")) as unknown)
+  : undefined;
 const previous = await loadPreviousReleaseArtifacts({
   urlPath: process.env.AGENT_RADAR_PREVIOUS_URL_VALIDATION,
   qualityPath: process.env.AGENT_RADAR_PREVIOUS_DATA_QUALITY_REPORT,
@@ -19,5 +26,6 @@ const summary = await buildArtifacts({
   previousSourceRegistry: previous.sourceRegistry?.sources,
   previousSourceRecords: previous.sourceRecords,
   allowBenchmarkProxyDns: process.env.AGENT_RADAR_ALLOW_BENCHMARK_PROXY_DNS === "true",
+  feedbackBuildInput,
 });
 console.log(JSON.stringify(summary, null, 2));
