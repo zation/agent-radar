@@ -11,32 +11,35 @@ body:
     id: tool_id
     attributes:
       label: Tool ID
+      description: Prefilled by Agent Radar; please do not edit.
     validations:
       required: true
-  - type: dropdown
+  - type: input
     id: vote
     attributes:
       label: Vote
-      description: Confirm the vote you want to explain.
-      options: ["up", "down"]
+      description: Prefilled by Agent Radar; please do not edit.
     validations:
       required: true
   - type: input
     id: release
     attributes:
       label: Release
+      description: Prefilled by Agent Radar; please do not edit.
     validations:
       required: true
   - type: input
     id: data_version
     attributes:
       label: Data version
+      description: Prefilled by Agent Radar; please do not edit.
     validations:
       required: true
   - type: input
     id: tool_url
     attributes:
       label: Tool URL
+      description: Prefilled by Agent Radar; please do not edit.
     validations:
       required: true
   - type: textarea
