@@ -13,11 +13,11 @@ body:
       label: Tool ID
     validations:
       required: true
-  - type: dropdown
+  - type: input
     id: vote
     attributes:
       label: Vote
-      options: ["up", "down"]
+      description: Prefilled from your current Agent Radar vote (`up` or `down`).
     validations:
       required: true
   - type: input
