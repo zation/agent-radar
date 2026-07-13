@@ -38,8 +38,8 @@ function buildManifestTool(name: ToolName): McpToolManifest["tools"][number] {
     method: contract.http.method,
     path: contract.http.path,
     read_only: true,
-    input_schema: z.toJSONSchema(contract.input) as Record<string, unknown>,
-    output_schema: z.toJSONSchema(contract.output) as Record<string, unknown>,
+    input_schema: z.toJSONSchema(contract.input),
+    output_schema: z.toJSONSchema(contract.output),
     annotations: contract.annotations
   };
 }

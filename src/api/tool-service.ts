@@ -4,7 +4,7 @@ import {
   type RecommendationLlmClient
 } from "../recommendation/engine.js";
 import { DEFAULT_RECOMMENDATION_MODEL } from "../recommendation/provider-registry.js";
-import type { RecommendationQuery, SearchDocument, ToolType } from "../schema.js";
+import type { SearchDocument, ToolType } from "../schema.js";
 import type { ToolRepository } from "./repository.js";
 import type { ToolInput, ToolName } from "./tool-contracts.js";
 
@@ -133,7 +133,7 @@ async function recommend(
   const model = input.model?.trim() || options.fallbackModel?.trim() || DEFAULT_RECOMMENDATION_MODEL;
   const { model: _model, ...query } = input;
   try {
-    return await recommendTools(query as RecommendationQuery, repository.listToolCards(), repository.listRatings(), {
+    return await recommendTools(query, repository.listToolCards(), repository.listRatings(), {
       apiKey,
       model,
       release: {

@@ -49,6 +49,13 @@ export default {
     const handleRequest = createApiHandler(repository, {
       fallbackLlmApiKey: env.AGENT_RADAR_LLM_API_KEY,
       fallbackModel: env.AGENT_RADAR_LLM_MODEL,
+      mcp: {
+        serverVersion: mcpServerVersion(env.AGENT_RADAR_RELEASE_ID),
+        allowedHosts: isProductionRelease(env.AGENT_RADAR_RELEASE_ID)
+          ? ["agent-radar.zation1.workers.dev"]
+          : ["agent-radar.zation1.workers.dev", "localhost", "127.0.0.1"],
+        allowedOrigins: []
+      },
       versionInfo: {
         release_id: env.AGENT_RADAR_RELEASE_ID ?? "unknown",
         commit_sha: env.AGENT_RADAR_COMMIT_SHA ?? "unknown",
@@ -60,6 +67,14 @@ export default {
     return handleRequest(request);
   }
 };
+
+function isProductionRelease(releaseId: string | undefined): boolean {
+  return Boolean(releaseId?.startsWith("all-v"));
+}
+
+function mcpServerVersion(releaseId: string | undefined): string {
+  return releaseId?.startsWith("all-v") ? releaseId.slice("all-v".length) : "0.6.0-dev";
+}
 
 async function fetchAsset(env: Env, request: Request, path: string): Promise<string> {
   const url = new URL(path, request.url);
