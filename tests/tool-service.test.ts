@@ -44,7 +44,7 @@ test("request credential overrides the configured fallback without leaking", asy
     recommendationClient: successfulRecommendationClient(calls),
     fallbackLlmApiKey: "fallback-key",
     fallbackModel: "deepseek-v4-flash",
-    versionInfo: { release_id: "all-v0.6.1", commit_sha: "abc123" }
+    versionInfo: { release_id: "all-v0.6.2", commit_sha: "abc123" }
   });
 
   const result = await service.execute(
@@ -56,7 +56,7 @@ test("request credential overrides the configured fallback without leaking", asy
   assert.deepEqual(calls, [{ apiKey: "request-key", model: "openai/gpt-5-mini" }]);
   assert.equal(JSON.stringify(result).includes("request-key"), false);
   assert.equal(JSON.stringify(result).includes("fallback-key"), false);
-  assert.deepEqual(result.release, { release_id: "all-v0.6.1", commit_sha: "abc123" });
+  assert.deepEqual(result.release, { release_id: "all-v0.6.2", commit_sha: "abc123" });
 });
 
 test("configured credential is used only when the request has none", async () => {
@@ -70,6 +70,25 @@ test("configured credential is used only when the request has none", async () =>
   await service.execute("recommend_tools", { task: "choose" });
 
   assert.deepEqual(calls, [{ apiKey: "fallback-key", model: "deepseek-v4-flash" }]);
+});
+
+test("configured base URL is passed only to the provider client", async () => {
+  const calls: Array<{ apiKey: string; model: string; baseUrl?: string }> = [];
+  const service = createToolService(repository, {
+    recommendationClient: {
+      recommend(input) {
+        calls.push({ apiKey: input.apiKey, model: input.model, baseUrl: input.baseUrl });
+        return Promise.resolve({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] });
+      }
+    },
+    fallbackLlmApiKey: "fallback-key",
+    fallbackModel: "MiniMax-M3",
+    fallbackBaseUrl: "https://api.minimaxi.com"
+  });
+
+  await service.execute("recommend_tools", { task: "choose" });
+
+  assert.deepEqual(calls, [{ apiKey: "fallback-key", model: "MiniMax-M3", baseUrl: "https://api.minimaxi.com" }]);
 });
 
 test("missing recommendation credential returns a stable safe error", async () => {

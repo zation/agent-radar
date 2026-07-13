@@ -14,6 +14,7 @@ test("all release workflow gates promotion candidates before Worker validation",
   assert.match(workflow, /run:\s*npm run data-quality:check -- dist-pages\/data\/data_quality_report\.json/);
   assert.match(workflow, /run:\s*npm run review-summary:check -- dist-pages/);
   assert.match(workflow, /AGENT_RADAR_CHECK_URLS:\s*["']?true["']?/);
+  assert.match(workflow, /AGENT_RADAR_LLM_BASE_URL:\s*\$\{\{ vars\.AGENT_RADAR_LLM_BASE_URL \}\}/);
   assert.match(workflow, /Restore previous reviewed baselines/);
   assert.match(workflow, /tags:\s*\n\s+- "all-v\*"/);
 });
@@ -32,6 +33,8 @@ test("all release workflow uses environment approval before Worker deploy", asyn
   assert.match(workflow, /deploy-production:[\s\S]*Deploy Cloudflare Worker/);
   assert.match(workflow, /deploy-production:[\s\S]*command: >\s*\n\s*deploy/);
   assert.match(workflow, /deploy-production:[\s\S]*--name=\$\{\{ vars\.CLOUDFLARE_PROJECT_NAME \|\| 'agent-radar' \}\}/);
+  assert.match(workflow, /deploy-production:[\s\S]*--var AGENT_RADAR_LLM_MODEL:\$\{\{ vars\.AGENT_RADAR_LLM_MODEL \|\| 'deepseek-v4-flash' \}\}/);
+  assert.match(workflow, /deploy-production:[\s\S]*--var AGENT_RADAR_LLM_BASE_URL:\$\{\{ vars\.AGENT_RADAR_LLM_BASE_URL \}\}/);
   assert.match(workflow, /deploy-production:[\s\S]*Smoke test deployed Worker MCP/);
   assert.match(workflow, /deploy-production:[\s\S]*AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);
   assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);

@@ -13,7 +13,7 @@ const metadata = JSON.parse(await readFile("server.json", "utf8")) as Record<str
 const source = {
   repository: "zation/agent-radar",
   runId: "31000000001",
-  releaseTag: "all-v0.6.1",
+  releaseTag: "all-v0.6.2",
   gitSha: "abcdef1234567890"
 };
 
@@ -61,7 +61,7 @@ test("builds publication evidence bound to the exact production release and Regi
     const evidence = await buildMcpRegistryPublicationEvidence({
       ...paths,
       ...source,
-      registryQueryUrl: "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.zation%2Fagent-radar&version=0.6.1",
+      registryQueryUrl: "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.zation%2Fagent-radar&version=0.6.2",
       registryQueriedAt: "2026-07-13T08:01:00Z"
     });
 
@@ -75,7 +75,7 @@ test("builds publication evidence bound to the exact production release and Regi
     assert.equal(evidence.production_evidence.sha256.startsWith("sha256:"), true);
     assert.deepEqual(evidence.registry, {
       name: "io.github.zation/agent-radar",
-      version: "0.6.1",
+      version: "0.6.2",
       status: "active",
       is_latest: true,
       published_at: "2026-07-13T08:00:00Z",
@@ -136,7 +136,7 @@ test("rejects Registry remote drift", () => {
 test("rejects wrong source run, tag, or SHA", async () => {
   for (const [field, value] of [
     ["runId", "31000000002"],
-    ["releaseTag", "all-v0.6.2"],
+    ["releaseTag", "all-v0.6.3"],
     ["gitSha", "deadbeef12345678"]
   ] as const) {
     await withFixture(async (paths) => {

@@ -14,6 +14,7 @@ interface Env {
   AGENT_RADAR_API_VERSION?: string;
   AGENT_RADAR_WEB_VERSION?: string;
   AGENT_RADAR_LLM_API_KEY?: string;
+  AGENT_RADAR_LLM_BASE_URL?: string;
   AGENT_RADAR_LLM_MODEL?: string;
   DB?: D1Database;
   GITHUB_OAUTH_CLIENT_ID?: string;
@@ -48,6 +49,7 @@ export default {
     if (feedbackResponse) return feedbackResponse;
     const handleRequest = createApiHandler(repository, {
       fallbackLlmApiKey: env.AGENT_RADAR_LLM_API_KEY,
+      fallbackBaseUrl: env.AGENT_RADAR_LLM_BASE_URL,
       fallbackModel: env.AGENT_RADAR_LLM_MODEL,
       mcp: {
         serverVersion: mcpServerVersion(env.AGENT_RADAR_RELEASE_ID),
@@ -73,7 +75,7 @@ function isProductionRelease(releaseId: string | undefined): boolean {
 }
 
 function mcpServerVersion(releaseId: string | undefined): string {
-  return releaseId?.startsWith("all-v") ? releaseId.slice("all-v".length) : "0.6.1-dev";
+  return releaseId?.startsWith("all-v") ? releaseId.slice("all-v".length) : "0.6.2-dev";
 }
 
 async function fetchAsset(env: Env, request: Request, path: string): Promise<string> {

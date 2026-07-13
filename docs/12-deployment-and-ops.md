@@ -133,8 +133,8 @@ npm run preview:build
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `AGENT_RADAR_LLM_API_KEY` | for provider eval or optional Worker fallback | Explicit server credential; request header takes precedence |
-| `AGENT_RADAR_LLM_MODEL` | no | Provider model; default `deepseek-v4-flash` |
-| `AGENT_RADAR_LLM_BASE_URL` | no | OpenAI-compatible endpoint base override |
+| `AGENT_RADAR_LLM_MODEL` | repository variable | Provider model; default `deepseek-v4-flash`; Release All also deploys it as a Worker variable |
+| `AGENT_RADAR_LLM_BASE_URL` | repository variable when using a regional/custom endpoint | OpenAI-compatible endpoint base override injected into Release All and the Worker runtime |
 | `AGENT_RADAR_CHECK_URLS` | no | Enable live Tool Card URL checks |
 | `AGENT_RADAR_MCP_BASE_URL` | local smoke only | External smoke target override |
 | `CLOUDFLARE_API_TOKEN` | CI secret | Worker deploy and D1 migration |

@@ -14,10 +14,10 @@ const repository = createStaticRepository({
   index: buildSearchIndex(reviewedToolCardFixtures, ratings)
 });
 const service = createToolService(repository, {
-  versionInfo: { release_id: "all-v0.6.1", commit_sha: "abc123" }
+  versionInfo: { release_id: "all-v0.6.2", commit_sha: "abc123" }
 });
 const handler = createMcpHttpHandler(service, {
-  serverVersion: "0.6.1",
+  serverVersion: "0.6.2",
   allowedHosts: ["agent-radar.test", "localhost"],
   allowedOrigins: ["https://console.agent-radar.test"]
 });
@@ -81,7 +81,7 @@ test("SDK MCP handler initializes and lists the shared read-only tools", async (
   assert.equal(initialize.status, 200);
   const initialized = await readRpcResponse<InitializeRpcResponse>(initialize);
   assert.equal(initialized.result.serverInfo.name, "io.github.zation/agent-radar");
-  assert.equal(initialized.result.serverInfo.version, "0.6.1");
+  assert.equal(initialized.result.serverInfo.version, "0.6.2");
 
   const listed = await readRpcResponse<ToolsListRpcResponse>(await handler(rpcRequest({
     jsonrpc: "2.0", id: 2, method: "tools/list", params: {}

@@ -16,6 +16,7 @@ import { assessRecommendationSafety } from "./safety.js";
 
 export interface RecommendationLlmInput {
   apiKey: string;
+  baseUrl?: string;
   model: string;
   prompt: string;
 }
@@ -70,6 +71,7 @@ export class RecommendationProviderError extends Error {
 
 export interface RecommendToolsRuntime {
   apiKey: string;
+  baseUrl?: string;
   model: string;
   release?: { release_id: string; commit_sha: string };
   client?: RecommendationLlmClient;
@@ -93,6 +95,7 @@ export async function recommendTools(
   const client = runtime.client ?? createOpenAiRecommendationClient();
   const llmOutput = await client.recommend({
     apiKey: runtime.apiKey,
+    baseUrl: runtime.baseUrl,
     model: runtime.model.trim(),
     prompt: buildRecommendationPrompt(query, cards, ratings)
   });
@@ -140,7 +143,7 @@ export function createOpenAiRecommendationClient(
 ): RecommendationLlmClient {
   return {
     async recommend(input) {
-      const modelRequest = resolveModelRequest(input.model);
+      const modelRequest = resolveModelRequest(input.model, input.baseUrl);
       console.warn("recommendation_llm_request", {
         provider: modelRequest.provider,
         endpoint: modelRequest.endpoint,
@@ -346,8 +349,10 @@ interface ModelRequest {
   provider: RecommendationProvider;
 }
 
-export function resolveModelRequest(model: string): ModelRequest {
-  const providerModel = resolveRecommendationProviderModel(model, { baseUrl: readEnv("AGENT_RADAR_LLM_BASE_URL") });
+export function resolveModelRequest(model: string, baseUrl?: string): ModelRequest {
+  const providerModel = resolveRecommendationProviderModel(model, {
+    baseUrl: baseUrl ?? readEnv("AGENT_RADAR_LLM_BASE_URL")
+  });
   return {
     endpoint: providerModel.endpoint,
     instructionRole: providerModel.instructionRole,

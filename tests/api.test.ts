@@ -15,7 +15,7 @@ const repository = createStaticRepository({
 });
 const handler = createApiHandler(repository, {
   mcp: {
-    serverVersion: "0.6.1",
+    serverVersion: "0.6.2",
     allowedHosts: ["agent-radar.test"],
     allowedOrigins: []
   },

@@ -21,6 +21,7 @@ jobs:
       issues: read
     env:
       AGENT_RADAR_LLM_API_KEY: ${{ secrets.AGENT_RADAR_LLM_API_KEY }}
+      AGENT_RADAR_LLM_BASE_URL: ${{ vars.AGENT_RADAR_LLM_BASE_URL }}
       AGENT_RADAR_LLM_MODEL: ${{ vars.AGENT_RADAR_LLM_MODEL || 'deepseek-v4-flash' }}
       AGENT_RADAR_RELEASE_ID: ${{ github.ref_name }}
       AGENT_RADAR_COMMIT_SHA: ${{ github.sha }}
@@ -170,6 +171,8 @@ jobs:
             --var AGENT_RADAR_COMMIT_SHA:${{ github.sha }}
             --var AGENT_RADAR_API_VERSION:${{ github.ref_name }}
             --var AGENT_RADAR_WEB_VERSION:${{ github.ref_name }}
+            --var AGENT_RADAR_LLM_MODEL:${{ vars.AGENT_RADAR_LLM_MODEL || 'deepseek-v4-flash' }}
+            --var AGENT_RADAR_LLM_BASE_URL:${{ vars.AGENT_RADAR_LLM_BASE_URL }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Smoke test deployed Worker MCP

@@ -34,6 +34,22 @@ test("uses AGENT_RADAR_LLM_BASE_URL to override the selected provider endpoint",
   }
 });
 
+test("an explicit request-scoped base URL overrides process environment", () => {
+  const originalBaseUrl = process.env.AGENT_RADAR_LLM_BASE_URL;
+  try {
+    process.env.AGENT_RADAR_LLM_BASE_URL = "https://wrong.example";
+    assert.deepEqual(resolveModelRequest("MiniMax M3", "https://api.minimaxi.com"), {
+      endpoint: "https://api.minimaxi.com/v1/chat/completions",
+      instructionRole: "system",
+      model: "MiniMax-M3",
+      provider: "minimax"
+    });
+  } finally {
+    if (originalBaseUrl === undefined) delete process.env.AGENT_RADAR_LLM_BASE_URL;
+    else process.env.AGENT_RADAR_LLM_BASE_URL = originalBaseUrl;
+  }
+});
+
 test("keeps OpenAI model labels on the OpenAI chat completions endpoint", () => {
   assert.deepEqual(resolveModelRequest("OpenAI GPT-4.1"), {
     endpoint: "https://api.openai.com/v1/chat/completions",

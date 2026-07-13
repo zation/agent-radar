@@ -26,6 +26,7 @@ export interface ToolServiceOptions {
   recommendationClient?: RecommendationLlmClient;
   versionInfo?: Partial<ApiVersionInfo>;
   fallbackLlmApiKey?: string;
+  fallbackBaseUrl?: string;
   fallbackModel?: string;
 }
 
@@ -135,6 +136,7 @@ async function recommend(
   try {
     return await recommendTools(query, repository.listToolCards(), repository.listRatings(), {
       apiKey,
+      baseUrl: options.fallbackBaseUrl?.trim() || undefined,
       model,
       release: {
         release_id: options.versionInfo?.release_id ?? "unknown",
