@@ -46,7 +46,7 @@ function registryResponse(servers: unknown[] = [registryServer()]): Record<strin
       _meta: {
         "io.modelcontextprotocol.registry/official": {
           status: "active",
-          publishedAt: "2026-07-13T08:00:00Z",
+          publishedAt: "2026-07-13T08:00:00.123456Z",
           updatedAt: "2026-07-13T08:00:00Z",
           isLatest: true
         }
@@ -78,7 +78,7 @@ test("builds publication evidence bound to the exact production release and Regi
       version: "0.6.3",
       status: "active",
       is_latest: true,
-      published_at: "2026-07-13T08:00:00Z",
+      published_at: "2026-07-13T08:00:00.123456Z",
       transport: "streamable-http",
       remote_url: "https://agent-radar.zation1.workers.dev/api/mcp",
       repository: { url: "https://github.com/zation/agent-radar", source: "github" }
@@ -101,6 +101,14 @@ test("canonical metadata checksum is deterministic across object key order", () 
 test("classifies no record as publish-required and an identical record as idempotent", () => {
   assert.deepEqual(classifyMcpRegistryRecord(registryResponse([]), metadata), { kind: "publish-required" });
   assert.equal(classifyMcpRegistryRecord(registryResponse(), metadata).kind, "identical");
+});
+
+test("rejects Registry timestamps with more than nanosecond precision", () => {
+  const response = registryResponse();
+  const official = ((response.servers as Array<Record<string, unknown>>)[0]._meta as Record<string, Record<string, unknown>>)
+    ["io.modelcontextprotocol.registry/official"];
+  official.publishedAt = "2026-07-13T08:00:00.1234567890Z";
+  assert.throws(() => classifyMcpRegistryRecord(response, metadata), /publication metadata is invalid/i);
 });
 
 test("rejects an immutable Registry conflict or ambiguous exact records", () => {

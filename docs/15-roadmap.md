@@ -46,7 +46,7 @@
 - `recommend_tools` 已移除 body/tool input 中的 `api_key`，统一使用可选 secret header `X-Agent-Radar-LLM-API-Key`，优先级为 request header、显式 Worker fallback、typed missing-key error；Web key 只保留在 component memory。
 - `/api/mcp` 已增加 Host、Origin、method、CORS 与 65,536-byte UTF-8 body guard；v2 smoke evidence 固定覆盖七项检查及 structured/text parity。
 - 根目录 remote-only `server.json` 已推进为 `io.github.zation/agent-radar@0.6.3`，声明生产 `streamable-http` endpoint、optional secret header 和无 packages 约束；发布前继续使用官方 `mcp-publisher` v1.8.0 validation。
-- 独立 `Publish MCP Registry` workflow 已实现 successful Release All run 绑定、evidence-SHA checkout、生产 version/fresh smoke 复验、固定 publisher checksum、GitHub OIDC、幂等/冲突判断、官方 API polling 与 `mcp_registry_publication_evidence.v1` 上传；针对成功 `all-v0.6.3` 的 Registry runs `29269587581`、`29269680290` 先后暴露 checkout 前下载缺少显式仓库、以及 checkout 清理未跟踪证据目录的问题。生产不受影响；证据现固定在 Runner 临时目录，继续使用同一成功 Release All run ID 重放。
+- 独立 `Publish MCP Registry` workflow 已实现 successful Release All run 绑定、evidence-SHA checkout、生产 version/fresh smoke 复验、固定 publisher checksum、GitHub OIDC、幂等/冲突判断、官方 API polling 与 `mcp_registry_publication_evidence.v1` 上传；针对成功 `all-v0.6.3` 的 runs `29269587581`、`29269680290` 先后暴露 checkout 前下载缺少显式仓库、以及 checkout 清理未跟踪证据目录的问题。run `29269874017` 已通过 GitHub OIDC 实际发布 `io.github.zation/agent-radar@0.6.3`，官方 API 返回 `active` / latest，但 evidence poll 因官方 `publishedAt` 使用 6 位小数而被本地三位小数校验拒绝；生产和已发布记录不受影响，修复后使用同一成功 Release All run ID 幂等重放并补齐证据。
 - 本地 Vite dev server 将 `/api/*` 同源代理到 Wrangler Worker，UI 与完整 API 均支持热重载。
 - 推荐路径已从本地关键词/规则排序改为 BYOK LLM-backed 推荐；本地代码负责组装 Tool Card/Rating 上下文、调用 provider、校验已知 `tool_id`、保留风险边界并归一化输出。
 - 当前支持的 LLM provider/model 选项：
