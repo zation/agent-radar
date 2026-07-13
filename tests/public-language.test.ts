@@ -4,9 +4,11 @@ import { resolve } from "node:path";
 import test from "node:test";
 import {
   PUBLIC_DOCUMENT_PATHS,
+  findGoldenQueryLanguageViolations,
   findPublicLanguageViolations,
   formatPublicLanguageViolation,
 } from "../src/validation/public-language.js";
+import type { EvalCase } from "../src/schema.js";
 
 test("public document scope contains exactly the approved P1 files", () => {
   const paths = new Set<string>(PUBLIC_DOCUMENT_PATHS);
@@ -36,6 +38,25 @@ test("validator allows normal English technical Unicode", () => {
     path: "docs/01-requirements.md",
     content: "Coverage must be ≥ 90%. Use an en dash – only when needed.\n",
   }]), []);
+});
+
+test("validator scans only public Golden Query text fields with stable paths", () => {
+  const evalCase: EvalCase = {
+    id: "gq-example",
+    schema_version: "eval_case.v1",
+    category: "safety",
+    query: { task: "删除 production data", risk_tolerance: "low" },
+    expected: { recommended_action: "ask_human" },
+    review_notes: "Require human confirmation.",
+    severity: "critical",
+    owner: "agent-radar",
+    updated_at: "2026-07-13T00:00:00Z",
+  };
+
+  const violations = findGoldenQueryLanguageViolations([evalCase]);
+  assert.equal(violations[0]?.path, "src/eval/golden-queries.ts:gq-example.query.task");
+  assert.equal(violations[0]?.character, "删");
+  assert.ok(violations.every((violation) => !violation.path.includes("expected")));
 });
 
 test("diagnostics contain file, line, column, character, and trimmed context", () => {

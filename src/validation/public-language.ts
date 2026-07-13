@@ -1,3 +1,5 @@
+import type { EvalCase } from "../schema.js";
+
 export const PUBLIC_DOCUMENT_PATHS = [
   "README.md",
   "AGENTS.md",
@@ -45,6 +47,21 @@ export function findPublicLanguageViolations(
       context: line.trim(),
     }] : []),
   ));
+}
+
+export function findGoldenQueryLanguageViolations(
+  cases: readonly EvalCase[],
+): PublicLanguageViolation[] {
+  return findPublicLanguageViolations(cases.flatMap((evalCase) => [
+    {
+      path: `src/eval/golden-queries.ts:${evalCase.id}.query.task`,
+      content: evalCase.query.task,
+    },
+    {
+      path: `src/eval/golden-queries.ts:${evalCase.id}.review_notes`,
+      content: evalCase.review_notes,
+    },
+  ]));
 }
 
 export function formatPublicLanguageViolation(violation: PublicLanguageViolation): string {
