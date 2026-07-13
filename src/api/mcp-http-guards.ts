@@ -32,13 +32,17 @@ export async function guardMcpRequest(
 
 function isAllowedHost(request: Request, allowedHosts: string[]): boolean {
   const rawHost = request.headers.get("host") ?? new URL(request.url).host;
+  if (/[@/?#\\]/.test(rawHost)) return false;
   let hostname: string;
   try {
-    hostname = new URL(`http://${rawHost}`).hostname.toLowerCase();
+    const authority = new URL(`http://${rawHost}`);
+    if (authority.username || authority.password || authority.pathname !== "/") return false;
+    hostname = authority.hostname.toLowerCase();
   } catch {
     return false;
   }
-  return allowedHosts.some((allowed) => allowed.toLowerCase() === hostname);
+  const requestHostname = new URL(request.url).hostname.toLowerCase();
+  return hostname === requestHostname && allowedHosts.some((allowed) => allowed.toLowerCase() === hostname);
 }
 
 function isAllowedOrigin(request: Request, allowedOrigins: string[]): boolean {

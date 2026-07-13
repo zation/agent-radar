@@ -126,6 +126,7 @@ test("MCP Registry workflow publishes only evidence-bound Release All runs throu
   const downloadEvidence = workflow.indexOf("Download source production evidence");
   const checkout = workflow.indexOf("Checkout evidence SHA");
   const validate = workflow.indexOf("mcp-publisher validate server.json");
+  const validateReleaseInputs = workflow.indexOf("validate-mcp-registry-release.js");
   const login = workflow.indexOf("mcp-publisher login github-oidc");
   const publish = workflow.indexOf("mcp-publisher publish server.json");
 
@@ -139,11 +140,15 @@ test("MCP Registry workflow publishes only evidence-bound Release All runs throu
   assert.match(workflow, /\[\[ "\$SOURCE_TAG" != all-v\* \]\]/);
   assert.match(workflow, /ref:\s*\$\{\{ env\.SOURCE_SHA \}\}/);
   assert.ok(downloadEvidence >= 0 && checkout > downloadEvidence);
+  assert.ok(validateReleaseInputs > checkout && validateReleaseInputs < login);
 
   assert.match(workflow, /agent-radar-mcp-smoke-\$\{SOURCE_RUN_ID\}/);
+  assert.match(workflow, /agent-radar-all-\$\{SOURCE_RUN_ID\}/);
+  assert.match(workflow, /source-reviewed-bundle\/dist-pages\/artifact-manifest\.json/);
   assert.match(workflow, /production-release-evidence\.json/);
   assert.match(workflow, /\/api\/version/);
   assert.match(workflow, /AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);
+  assert.match(workflow, /server\.json.*remotes\[0\]\.url|remotes\[0\]\.url.*server\.json/s);
   assert.match(workflow, /classifyMcpRegistryRecord/);
   assert.match(workflow, /registry\/releases\/download\/v1\.8\.0\/mcp-publisher_linux_amd64\.tar\.gz/);
   assert.match(workflow, /1370446bbe74d562608e8005a6ccce02d146a661fbd78674e11cc70b9618d6cf/);

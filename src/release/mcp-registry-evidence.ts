@@ -17,6 +17,7 @@ interface RegistryRecord {
   official: {
     status: string;
     publishedAt: string;
+    isLatest: boolean;
   };
 }
 
@@ -52,6 +53,7 @@ export interface McpRegistryPublicationEvidence {
     name: string;
     version: string;
     status: string;
+    is_latest: true;
     published_at: string;
     transport: string;
     remote_url: string;
@@ -92,6 +94,12 @@ export function classifyMcpRegistryRecord(
   }
 
   const record = matching[0];
+  if (record.official.status !== "active") {
+    throw new Error("MCP Registry record must be active before it can be treated as identical");
+  }
+  if (!record.official.isLatest) {
+    throw new Error("MCP Registry record must be latest before it can be treated as identical");
+  }
   const expectedRemote = firstRemote(metadata.remotes, "metadata");
   const actualRemote = firstRemote(record.server.remotes, "Registry record");
   const repositoryMatches = JSON.stringify(record.server.repository) === JSON.stringify(metadata.repository);
@@ -139,6 +147,7 @@ export async function buildMcpRegistryPublicationEvidence(
       name: metadata.name,
       version: metadata.version,
       status: record.official.status,
+      is_latest: true,
       published_at: record.official.publishedAt,
       transport: remote.type,
       remote_url: remote.url,
@@ -213,12 +222,13 @@ function registryEntries(response: unknown): RegistryRecord[] {
       || typeof official.status !== "string" || !official.status
       || typeof official.publishedAt !== "string"
       || !UTC_TIMESTAMP_PATTERN.test(official.publishedAt)
-      || Number.isNaN(Date.parse(official.publishedAt))) {
+      || Number.isNaN(Date.parse(official.publishedAt))
+      || typeof official.isLatest !== "boolean") {
       throw new Error("MCP Registry official publication metadata is invalid");
     }
     return {
       server: entry.server,
-      official: { status: official.status, publishedAt: official.publishedAt }
+      official: { status: official.status, publishedAt: official.publishedAt, isLatest: official.isLatest }
     };
   });
 }

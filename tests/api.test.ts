@@ -89,6 +89,34 @@ test("search_tools returns summaries with match reasons", async () => {
   assert.ok(body.results[0].matched_fields.length > 0);
 });
 
+test("HTTP tool routes enforce the shared strict contracts", async () => {
+  const cases = [
+    ["/api/search_tools", { query: "browser", top_k: 0 }],
+    ["/api/search_tools", { query: "browser", filters: { type: "not-a-tool-type" } }],
+    ["/api/get_tool_card", { tool_id: "skill-openai-docs", extra: "secret-extra" }],
+    ["/api/explain_rating", { tool_id: "skill-openai-docs", extra: true }]
+  ] as const;
+  for (const [path, input] of cases) {
+    const response = await handler(new Request(`https://agent-radar.test${path}`, {
+      method: "POST",
+      body: JSON.stringify(input)
+    }));
+    assert.equal(response.status, 400);
+    const body = await response.text();
+    assert.match(body, /invalid_tool_input/);
+    assert.doesNotMatch(body, /secret-extra/);
+  }
+});
+
+test("GET search coerces only its canonical numeric top_k query value", async () => {
+  const response = await handler(new Request("https://agent-radar.test/api/search_tools?query=browser&top_k=2"));
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.results.length <= 2, true);
+  const invalid = await handler(new Request("https://agent-radar.test/api/search_tools?query=browser&top_k=2x"));
+  assert.equal(invalid.status, 400);
+});
+
 test("get_tool_card returns card and rating", async () => {
   const response = await handler(new Request("https://agent-radar.test/api/get_tool_card?tool_id=skill-openai-docs"));
 
@@ -192,7 +220,7 @@ test("recommend_tools maps provider failures to stable API errors", async () => 
       recommend() {
         throw new RecommendationProviderError({
           code: "provider_auth_failed",
-          message: "Provider rejected the API key.",
+          message: "Provider rejected leaked-secret-value.",
           provider: "openai",
           status: 401
         });
@@ -211,9 +239,29 @@ test("recommend_tools maps provider failures to stable API errors", async () => 
   assert.equal(response.status, 502);
   const body = (await response.json()) as { error: string; message: string; provider?: string; provider_status?: number };
   assert.equal(body.error, "provider_auth_failed");
-  assert.equal(body.message, "Provider rejected the API key.");
+  assert.equal(body.message, "Provider rejected the API key or authorization scope.");
+  assert.equal(JSON.stringify(body).includes("leaked-secret-value"), false);
   assert.equal(body.provider, "openai");
   assert.equal(body.provider_status, 401);
+});
+
+test("HTTP unknown errors return a generic message without exception details", async () => {
+  const erroringHandler = createApiHandler(repository, {
+    recommendationClient: {
+      recommend() {
+        throw new Error("upstream leaked-secret-value");
+      }
+    }
+  });
+  const response = await erroringHandler(new Request("https://agent-radar.test/api/recommend_tools", {
+    method: "POST",
+    headers: { "X-Agent-Radar-LLM-API-Key": "request-secret" },
+    body: JSON.stringify({ task: "pick a safe tool" })
+  }));
+  assert.equal(response.status, 500);
+  const body = await response.text();
+  assert.match(body, /internal_error/);
+  assert.doesNotMatch(body, /leaked-secret-value|request-secret/);
 });
 
 test("explain_rating returns dimension explanations", async () => {

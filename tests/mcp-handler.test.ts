@@ -154,6 +154,12 @@ test("MCP guards enforce method, host, origin, CORS, and body size", async () =>
   }
 
   assert.equal((await handler(rpcRequest({}, { host: "evil.test" }))).status, 403);
+  assert.equal((await handler(rpcRequest({}, { host: "user@agent-radar.test" }))).status, 403);
+  assert.equal((await handler(new Request("https://evil.test/api/mcp", {
+    method: "POST",
+    headers: { host: "agent-radar.test", "content-type": "application/json" },
+    body: "{}"
+  }))).status, 403);
   assert.equal((await handler(rpcRequest({}, { origin: "https://evil.test" }))).status, 403);
   assert.notEqual((await handler(rpcRequest({}, { origin: "https://agent-radar.test" }))).status, 403);
   assert.notEqual((await handler(rpcRequest({}, { origin: "https://console.agent-radar.test" }))).status, 403);

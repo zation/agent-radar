@@ -146,13 +146,21 @@ async function recommend(
     if (error instanceof RecommendationProviderError) {
       throw new ToolServiceError({
         code: error.code,
-        message: error.message,
+        message: publicProviderErrorMessage(error.code),
         provider: error.provider,
         status: error.status
       }, 502);
     }
     throw error;
   }
+}
+
+function publicProviderErrorMessage(code: RecommendationProviderError["code"]): string {
+  if (code === "provider_auth_failed") return "Provider rejected the API key or authorization scope.";
+  if (code === "provider_rate_limited") return "Provider rate limit was reached. Try again later or use another model.";
+  if (code === "provider_model_unavailable") return "Provider model or endpoint was not available.";
+  if (code === "provider_schema_error") return "Provider response did not match the recommendation schema.";
+  return "Provider request failed. Check the provider configuration and try again.";
 }
 
 function explainRating(repository: ToolRepository, toolId: string): Record<string, unknown> {

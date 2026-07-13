@@ -63,8 +63,13 @@ jobs:
           gh run download "$SOURCE_RUN_ID" \
             --name "agent-radar-mcp-smoke-${SOURCE_RUN_ID}" \
             --dir source-evidence
+          gh run download "$SOURCE_RUN_ID" \
+            --name "agent-radar-all-${SOURCE_RUN_ID}" \
+            --dir source-reviewed-bundle
           test -f source-evidence/production-release-evidence.json
           test -f source-evidence/mcp-smoke-result.json
+          test -f source-reviewed-bundle/dist-pages/artifact-manifest.json
+          test -f source-reviewed-bundle/dist-pages/data/d1_seed.sql
 
       - name: Validate source production evidence before checkout
         run: |
@@ -97,7 +102,6 @@ jobs:
             echo "Production evidence MCP endpoint is invalid." >&2
             exit 1
           fi
-          echo "WORKER_BASE_URL=${MCP_ENDPOINT%/api/mcp}" >> "$GITHUB_ENV"
 
       - name: Checkout evidence SHA
         uses: actions/checkout@v6
@@ -115,6 +119,22 @@ jobs:
 
       - name: Validate immutable Registry metadata
         run: npm run validate:mcp-registry -- --release-tag "$SOURCE_TAG"
+
+      - name: Bind production evidence to Registry metadata
+        run: |
+          set -euo pipefail
+          node dist/src/cli/validate-mcp-registry-release.js \
+            --production-evidence source-evidence/production-release-evidence.json \
+            --smoke-result source-evidence/mcp-smoke-result.json \
+            --metadata server.json \
+            --manifest source-reviewed-bundle/dist-pages/artifact-manifest.json \
+            --d1-seed source-reviewed-bundle/dist-pages/data/d1_seed.sql \
+            --repository "$GITHUB_REPOSITORY" \
+            --run-id "$SOURCE_RUN_ID" \
+            --release-tag "$SOURCE_TAG" \
+            --git-sha "$SOURCE_SHA"
+          MCP_ENDPOINT="$(jq -r '.remotes[0].url' server.json)"
+          echo "WORKER_BASE_URL=${MCP_ENDPOINT%/api/mcp}" >> "$GITHUB_ENV"
 
       - name: Revalidate deployed version
         run: |

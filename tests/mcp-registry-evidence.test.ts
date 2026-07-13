@@ -77,6 +77,7 @@ test("builds publication evidence bound to the exact production release and Regi
       name: "io.github.zation/agent-radar",
       version: "0.6.0",
       status: "active",
+      is_latest: true,
       published_at: "2026-07-13T08:00:00Z",
       transport: "streamable-http",
       remote_url: "https://agent-radar.zation1.workers.dev/api/mcp",
@@ -110,6 +111,20 @@ test("rejects an immutable Registry conflict or ambiguous exact records", () => 
     registryServer(),
     registryServer()
   ]), metadata), /ambiguous/i);
+});
+
+test("rejects inactive or non-latest Registry records", () => {
+  const inactive = registryResponse();
+  const inactiveMeta = ((inactive.servers as Array<Record<string, unknown>>)[0]._meta as Record<string, Record<string, unknown>>)
+    ["io.modelcontextprotocol.registry/official"];
+  inactiveMeta.status = "deleted";
+  assert.throws(() => classifyMcpRegistryRecord(inactive, metadata), /active/i);
+
+  const notLatest = registryResponse();
+  const latestMeta = ((notLatest.servers as Array<Record<string, unknown>>)[0]._meta as Record<string, Record<string, unknown>>)
+    ["io.modelcontextprotocol.registry/official"];
+  latestMeta.isLatest = false;
+  assert.throws(() => classifyMcpRegistryRecord(notLatest, metadata), /latest/i);
 });
 
 test("rejects Registry remote drift", () => {

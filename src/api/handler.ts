@@ -36,10 +36,10 @@ export function createApiHandler(repository: ToolRepository, options: ApiHandler
       if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders() });
 
       if (url.pathname === "/api/version") return json(buildVersionInfo(options.versionInfo));
-      if (url.pathname === "/api/search_tools") return json(await callSearch(service, await readInput(request, url)));
-      if (url.pathname === "/api/get_tool_card") return json(await service.execute("get_tool_card", { tool_id: getRequiredToolId(await readInput(request, url)) }));
+      if (url.pathname === "/api/search_tools") return json(await callTool(service, "search_tools", await readInput(request, url)));
+      if (url.pathname === "/api/get_tool_card") return json(await callTool(service, "get_tool_card", await readInput(request, url)));
       if (url.pathname === "/api/recommend_tools") return json(await callRecommendation(service, await readInput(request, url), request));
-      if (url.pathname === "/api/explain_rating") return json(await service.execute("explain_rating", { tool_id: getRequiredToolId(await readInput(request, url)) }));
+      if (url.pathname === "/api/explain_rating") return json(await callTool(service, "explain_rating", await readInput(request, url)));
       if (url.pathname === "/api/mcp_manifest") return json(buildMcpToolManifest());
       return json({ error: "not_found", message: "Unknown route." }, 404);
     } catch (error) {
@@ -47,8 +47,7 @@ export function createApiHandler(repository: ToolRepository, options: ApiHandler
         const { status: providerStatus, ...body } = error.body;
         return json({ error: body.code, ...body, provider_status: providerStatus }, error.httpStatus);
       }
-      const message = error instanceof Error ? error.message : "Unknown error";
-      return json({ error: "bad_request", message }, 400);
+      return json({ error: "internal_error", message: "Agent Radar could not complete the request." }, 500);
     }
   };
 }
@@ -65,12 +64,12 @@ function buildVersionInfo(versionInfo: Partial<ApiVersionInfo> = {}): ApiVersion
   };
 }
 
-function callSearch(service: ToolService, input: Record<string, unknown>) {
-  return service.execute("search_tools", {
-    query: readString(input.query),
-    top_k: Number(input.top_k ?? 5),
-    filters: input.filters ?? undefined
-  });
+function callTool<Name extends Exclude<keyof typeof toolContracts, "recommend_tools">>(
+  service: ToolService,
+  name: Name,
+  input: Record<string, unknown>
+) {
+  return service.execute(name, parseToolInput(name, normalizeHttpInput(name, input)));
 }
 
 function callRecommendation(service: ToolService, input: Record<string, unknown>, request: Request) {
@@ -88,15 +87,31 @@ function parseRecommendationInput(input: Record<string, unknown>): ToolInput<"re
       recovery: "Send the key in the X-Agent-Radar-LLM-API-Key request header."
     }, 400);
   }
-  const parsed = toolContracts.recommend_tools.input.safeParse(input);
+  return parseToolInput("recommend_tools", input);
+}
+
+function parseToolInput<Name extends keyof typeof toolContracts>(
+  name: Name,
+  input: Record<string, unknown>
+): ToolInput<Name> {
+  const parsed = toolContracts[name].input.safeParse(input);
   if (!parsed.success) {
     throw new ToolServiceError({
       code: "invalid_tool_input",
-      message: "recommend_tools input is invalid.",
-      recovery: "Send a non-empty task and supported recommendation fields."
+      message: `${name} input is invalid.`,
+      recovery: "Send only fields accepted by the published tool contract."
     }, 400);
   }
-  return parsed.data;
+  return parsed.data as ToolInput<Name>;
+}
+
+function normalizeHttpInput(
+  name: keyof typeof toolContracts,
+  input: Record<string, unknown>
+): Record<string, unknown> {
+  if (name !== "search_tools" || typeof input.top_k !== "string") return input;
+  if (!/^[1-9][0-9]*$/.test(input.top_k)) return input;
+  return { ...input, top_k: Number(input.top_k) };
 }
 
 async function readInput(request: Request, url: URL): Promise<Record<string, unknown>> {
@@ -104,13 +119,17 @@ async function readInput(request: Request, url: URL): Promise<Record<string, unk
   if (request.method === "GET") return queryInput;
   if (request.headers.get("content-length") === "0") return queryInput;
   const rawBody = await request.text();
-  return rawBody ? { ...queryInput, ...(JSON.parse(rawBody) as Record<string, unknown>) } : queryInput;
-}
-
-function getRequiredToolId(input: Record<string, unknown>): string {
-  const toolId = readString(input.tool_id);
-  if (!toolId) throw new Error("tool_id is required");
-  return toolId;
+  if (!rawBody) return queryInput;
+  let body: unknown;
+  try {
+    body = JSON.parse(rawBody);
+  } catch {
+    throw new ToolServiceError({ code: "invalid_json", message: "Request body must be valid JSON." }, 400);
+  }
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    throw new ToolServiceError({ code: "invalid_tool_input", message: "Tool input must be a JSON object." }, 400);
+  }
+  return { ...queryInput, ...(body as Record<string, unknown>) };
 }
 
 function json(body: unknown, status = 200): Response {
@@ -118,10 +137,6 @@ function json(body: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json; charset=utf-8", ...corsHeaders() }
   });
-}
-
-function readString(value: unknown): string {
-  return typeof value === "string" ? value : "";
 }
 
 function corsHeaders(): Record<string, string> {
