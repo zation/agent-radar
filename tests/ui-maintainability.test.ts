@@ -86,6 +86,15 @@ test("evaluation index renders its item gap", async () => {
   assert.match(source, /evaluation-index[^\"]*grid[^\"]*gap-2/, "src/ui/evaluation-page.tsx");
 });
 
+test("evaluation rows preserve padding around two lines of task text", async () => {
+  const source = await readSource("src/ui/evaluation-page.tsx");
+  assert.match(
+    source,
+    /evaluation-index[\s\S]*?<Button[\s\S]*?className="min-h-22"[\s\S]*?size=\{null\} variant="row"/,
+    "src/ui/evaluation-page.tsx",
+  );
+});
+
 test("shared outline filter toggles expose a distinct pressed state", async () => {
   const source = await readFile("src/components/ui/toggle.tsx", "utf8");
   assert.match(source, /outline:[\s\S]*data-pressed:border-primary/);
