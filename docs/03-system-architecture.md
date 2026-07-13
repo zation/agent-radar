@@ -309,7 +309,7 @@ checkout
 
 Normal review does not generate per-item approval requests. Scripts, rules, LLM evaluation, automatic review, release admission, and promotion-check results remain in the reviewed bundle. The GitHub `production` environment gate is the only routine human release confirmation. `Approval Record` is evidence-backed break-glass only; high-risk execution, destructive actions, and safety-boundary changes still require confirmation.
 
-`all-v0.4.4` is the current verified production baseline. Release All run `29226907250`, commit `0b9fc48c`, and deployment `5419806444` bind the reviewed bundle and production evidence; 53 reliable Tool Cards, real-provider golden evaluation 24/24, critical safety 4/4, and deployed `/api/mcp` smoke 4/4 passed.
+`all-v0.5.0` is the current verified production baseline. Release All run `29247517708`, commit `4554d1c3`, and deployment `5423874996` bind the reviewed bundle and production evidence; 53 reliable Tool Cards, real-provider golden evaluation 24/24, critical safety 4/4, and deployed `/api/mcp` smoke 4/4 passed.
 
 ## v0.4 P2 Feedback Processing
 

@@ -228,7 +228,7 @@ Review may keep the automatic result, correct data or classification, change rat
 
 ## Verified Baseline
 
-`all-v0.4.4` is the current verified production baseline. Release All run `29226907250` and production deployment `5419806444` bind evidence to commit `0b9fc48c`. Real-provider golden evaluation passed 24/24, critical safety passed 4/4, deployed MCP smoke passed 4/4, and 53/53 Rating Results bind to one real production D1 vote-snapshot checksum.
+`all-v0.5.0` is the current verified production baseline. Release All run `29247517708` and production deployment `5423874996` bind evidence to commit `4554d1c3`. Real-provider golden evaluation passed 24/24, critical safety passed 4/4, deployed MCP smoke passed 4/4, and 53/53 Rating Results bind to production feedback snapshot `sha256:7321dea6d8c039b7258323880ea710d9d6df4dadfee5995f1fbcf81f0846d69d`.
 
 There is currently no pending Tool Feedback Issue. Real Issue classification and writeback remain an operational observation for the first future Issue and do not block the completed v0.4 release.
 

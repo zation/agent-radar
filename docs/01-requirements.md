@@ -311,7 +311,7 @@ The feedback loop is not part of the MVP reliable release path. Future feedback 
 | FR-08 | Agent output | JSON schema implemented; Markdown not systematic | Recommendation Result | JSON/Markdown | Schema validation |
 | FR-09 | MCP query | `/api/mcp` deployed with smoke | MCP/API call | Query response | Contracts + 4/4 smoke |
 | FR-10 | Web UI | Tools and Evaluation served by Worker Static Assets; Recommend is integrated into Tools | Index and task | Browse/recommend/evaluate | Manual + `pages:build` |
-| FR-11 | Evaluation | `all-v0.4.4`: provider 24/24, critical safety 4/4, MCP 4/4 | Data, ratings, provider | Eval Report | CI release gate |
+| FR-11 | Evaluation | `all-v0.5.0`: provider 24/24, critical safety 4/4, MCP 4/4 | Data, ratings, provider | Eval Report | CI release gate |
 | FR-12 | Reports | Eval report implemented; ecosystem report absent | Structured data | Markdown | Source-citation check |
 | FR-13 | Corrections | Override and break-glass approval implemented | Request and public evidence | Override Record | Provenance and audit |
 
@@ -323,7 +323,7 @@ The feedback loop is not part of the MVP reliable release path. Future feedback 
 - `npm run ingest` implements the minimal draft path; `npm run pipeline` consumes candidates that pass release admission and promotion checks.
 - Without `AGENT_RADAR_LLM_API_KEY`, recommendation evaluation emits a blocked summary; this is not a recommendation-quality pass.
 - `all-v0.3.3` established the 53-card, 24/24 provider-evaluation, critical-safety 4/4 baseline.
-- `all-v0.4.4` passed production release and verification with feedback processing/rating, provider evaluation 24/24, critical safety 4/4, and MCP smoke 4/4; all 53 Rating Results bind to the same real production vote snapshot checksum.
+- `all-v0.5.0` passed production release and verification with feedback processing/rating, provider evaluation 24/24, critical safety 4/4, and MCP smoke 4/4; all 53 Rating Results bind to production feedback snapshot `sha256:7321dea6d8c039b7258323880ea710d9d6df4dadfee5995f1fbcf81f0846d69d`.
 
 ## Maintenance Rules
 

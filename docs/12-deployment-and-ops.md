@@ -67,7 +67,7 @@ Historical Cloudflare Pages workflows are not part of production and have no dua
 
 `all-vX.Y.Z` represents one complete data, Web, API, and MCP release attempt. Never reuse a failed or superseded tag; increment the patch version. A tag becomes a verified production release only after reviewed-bundle checks, production approval, deployment, smoke checks, and production evidence all succeed.
 
-`all-v0.4.4` is the current verified baseline. Release All run `29226907250` and production deployment `5419806444` bind commit `0b9fc48c`, the reviewed bundle, production feedback snapshot checksum, and Worker endpoint. Provider evaluation passed 24/24, critical safety passed 4/4, and MCP smoke passed 4/4. One production up vote adjusted `mcp-browser-automation` from 84 to 84.2, and all 53 Rating Results bind to the same real D1 snapshot checksum.
+`all-v0.5.0` is the current verified baseline. Release All run `29247517708` and production deployment `5423874996` bind commit `4554d1c3`, reviewed bundle `agent-radar-all-29247517708`, production feedback snapshot `sha256:7321dea6d8c039b7258323880ea710d9d6df4dadfee5995f1fbcf81f0846d69d`, and the Worker endpoint. Provider evaluation passed 24/24, critical safety passed 4/4, and MCP smoke passed 4/4 for all 53 Tool Cards and Rating Results.
 
 Until separate tracks are intentionally introduced, `all-v*` is the only production release entry point.
 
