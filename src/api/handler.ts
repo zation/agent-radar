@@ -1,6 +1,6 @@
-import type { RecommendationQuery } from "../schema.js";
 import { buildMcpToolManifest } from "./mcp-manifest.js";
 import type { ToolRepository } from "./repository.js";
+import { toolContracts, type ToolInput } from "./tool-contracts.js";
 import {
   createToolService,
   ToolServiceError,
@@ -13,16 +13,9 @@ export type { ApiVersionInfo } from "./tool-service.js";
 
 export interface ApiHandlerOptions extends ToolServiceOptions {}
 
-interface RecommendToolsInput extends RecommendationQuery {
-  api_key?: string;
-  model?: string;
-}
-
 export function createApiHandler(repository: ToolRepository, options: ApiHandlerOptions = {}): (request: Request) => Promise<Response> {
   const service = createToolService(repository, {
-    ...options,
-    fallbackLlmApiKey: options.fallbackLlmApiKey ?? readEnv("AGENT_RADAR_LLM_API_KEY"),
-    fallbackModel: options.fallbackModel ?? readEnv("AGENT_RADAR_LLM_MODEL")
+    ...options
   });
 
   return async (request: Request) => {
@@ -37,7 +30,7 @@ export function createApiHandler(repository: ToolRepository, options: ApiHandler
       if (url.pathname === "/api/version") return json(buildVersionInfo(options.versionInfo));
       if (url.pathname === "/api/search_tools") return json(await callSearch(service, await readInput(request, url)));
       if (url.pathname === "/api/get_tool_card") return json(await service.execute("get_tool_card", { tool_id: getRequiredToolId(await readInput(request, url)) }));
-      if (url.pathname === "/api/recommend_tools") return json(await callRecommendation(service, (await readInput(request, url)) as unknown as RecommendToolsInput));
+      if (url.pathname === "/api/recommend_tools") return json(await callRecommendation(service, await readInput(request, url), request));
       if (url.pathname === "/api/explain_rating") return json(await service.execute("explain_rating", { tool_id: getRequiredToolId(await readInput(request, url)) }));
       if (url.pathname === "/api/mcp_manifest") return json(buildMcpToolManifest());
       if (url.pathname === "/api/mcp") return json(await handleMcpJsonRpc(service, request));
@@ -96,7 +89,7 @@ async function handleMcpJsonRpc(service: ToolService, request: Request): Promise
       });
     }
     if (rpc.method === "tools/call") {
-      const result = await callMcpTool(service, rpc.params ?? {});
+      const result = await callMcpTool(service, rpc.params ?? {}, request);
       return jsonRpcResult(rpc.id ?? null, { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] });
     }
     return jsonRpcError(rpc.id ?? null, -32601, `Unknown MCP method: ${rpc.method}`);
@@ -106,12 +99,12 @@ async function handleMcpJsonRpc(service: ToolService, request: Request): Promise
   }
 }
 
-async function callMcpTool(service: ToolService, params: Record<string, unknown>): Promise<Record<string, unknown>> {
+async function callMcpTool(service: ToolService, params: Record<string, unknown>, request: Request): Promise<Record<string, unknown>> {
   const name = readString(params.name);
   const input = (params.arguments ?? {}) as Record<string, unknown>;
   if (name === "search_tools") return callSearch(service, input);
   if (name === "get_tool_card") return service.execute("get_tool_card", { tool_id: getRequiredToolId(input) });
-  if (name === "recommend_tools") return callRecommendation(service, input as unknown as RecommendToolsInput);
+  if (name === "recommend_tools") return callRecommendation(service, input, request);
   if (name === "explain_rating") return service.execute("explain_rating", { tool_id: getRequiredToolId(input) });
   throw new ToolServiceError({ code: "unknown_tool", message: `Unknown MCP tool: ${name}` }, 404);
 }
@@ -124,10 +117,30 @@ function callSearch(service: ToolService, input: Record<string, unknown>) {
   });
 }
 
-function callRecommendation(service: ToolService, input: RecommendToolsInput) {
-  if (!input.task) throw new Error("recommend_tools requires task");
-  const { api_key: apiKey, ...toolInput } = input;
-  return service.execute("recommend_tools", toolInput, { llmApiKey: apiKey });
+function callRecommendation(service: ToolService, input: Record<string, unknown>, request: Request) {
+  const toolInput = parseRecommendationInput(input);
+  return service.execute("recommend_tools", toolInput, {
+    llmApiKey: request.headers.get("X-Agent-Radar-LLM-API-Key") ?? undefined
+  });
+}
+
+function parseRecommendationInput(input: Record<string, unknown>): ToolInput<"recommend_tools"> {
+  if (Object.hasOwn(input, "api_key")) {
+    throw new ToolServiceError({
+      code: "legacy_credential_field",
+      message: "api_key is not accepted in the request body or MCP tool arguments.",
+      recovery: "Send the key in the X-Agent-Radar-LLM-API-Key request header."
+    }, 400);
+  }
+  const parsed = toolContracts.recommend_tools.input.safeParse(input);
+  if (!parsed.success) {
+    throw new ToolServiceError({
+      code: "invalid_tool_input",
+      message: "recommend_tools input is invalid.",
+      recovery: "Send a non-empty task and supported recommendation fields."
+    }, 400);
+  }
+  return parsed.data;
 }
 
 function jsonRpcResult(id: string | number | null, result: unknown): Record<string, unknown> {
@@ -163,14 +176,10 @@ function readString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-function readEnv(name: string): string | undefined {
-  return typeof process === "undefined" ? undefined : process.env[name];
-}
-
 function corsHeaders(): Record<string, string> {
   return {
     "access-control-allow-origin": "*",
     "access-control-allow-methods": "GET,POST,OPTIONS",
-    "access-control-allow-headers": "content-type"
+    "access-control-allow-headers": "content-type,x-agent-radar-llm-api-key"
   };
 }

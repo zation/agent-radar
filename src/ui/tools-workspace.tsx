@@ -8,6 +8,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { RecommendationResult } from "../schema.js";
 import type { ToolViewModel } from "./data.js";
 import { getRecommendationUiState } from "./recommendation-form.js";
+import { buildRecommendationRequest } from "./recommendation-client.js";
 import { createRankedToolRows, formatRecommendationApiError, getTaskReason, parseRecommendationApiResponse, type RecommendationApiErrorBody } from "./recommendation-view.js";
 import { listUiRecommendationModelOptions } from "./provider-options.js";
 import { ToolDetail } from "./tool-detail.js";
@@ -38,7 +39,7 @@ export function ToolsWorkspace({ tools }: { tools: ToolViewModel[] }) {
     if (!apiKey.trim()) { setError("API key is required to run a recommendation."); return; }
     setSubmitting(true); setError(""); setManualExpanded(false);
     try {
-      const response = await fetch("/api/recommend_tools", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ task: query.trim(), risk_tolerance: risk, top_k: 4, api_key: apiKey.trim(), model }) });
+      const response = await fetch(buildRecommendationRequest("/api/recommend_tools", { task: query.trim(), risk_tolerance: risk, top_k: 4, model }, apiKey));
       const body = await parseRecommendationApiResponse(response);
       if (!response.ok) throw new Error(formatRecommendationApiError(body as RecommendationApiErrorBody));
       const next = body as RecommendationResult; setResult(next); setSelectedId(next.candidates[0]?.tool_id ?? tools[0]?.card.id ?? "");

@@ -13,6 +13,8 @@ interface Env {
   AGENT_RADAR_COMMIT_SHA?: string;
   AGENT_RADAR_API_VERSION?: string;
   AGENT_RADAR_WEB_VERSION?: string;
+  AGENT_RADAR_LLM_API_KEY?: string;
+  AGENT_RADAR_LLM_MODEL?: string;
   DB?: D1Database;
   GITHUB_OAUTH_CLIENT_ID?: string;
   GITHUB_OAUTH_CLIENT_SECRET?: string;
@@ -45,6 +47,8 @@ export default {
     })(request);
     if (feedbackResponse) return feedbackResponse;
     const handleRequest = createApiHandler(repository, {
+      fallbackLlmApiKey: env.AGENT_RADAR_LLM_API_KEY,
+      fallbackModel: env.AGENT_RADAR_LLM_MODEL,
       versionInfo: {
         release_id: env.AGENT_RADAR_RELEASE_ID ?? "unknown",
         commit_sha: env.AGENT_RADAR_COMMIT_SHA ?? "unknown",

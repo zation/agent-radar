@@ -125,7 +125,8 @@ test("recommend_tools returns recommendation result", async () => {
   const response = await handler(
     new Request("https://agent-radar.test/api/recommend_tools", {
       method: "POST",
-      body: JSON.stringify({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low", api_key: "sk-test-secret", model: "gpt-4.1" })
+      headers: { "X-Agent-Radar-LLM-API-Key": "sk-test-secret" },
+      body: JSON.stringify({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low", model: "gpt-4.1" })
     })
   );
 
@@ -134,6 +135,20 @@ test("recommend_tools returns recommendation result", async () => {
   assert.equal(body.schema_version, "recommendation_result.v2");
   assert.deepEqual(body.release, { release_id: "all-v0.2.1", commit_sha: "0123456789abcdef" });
   assert.equal(body.recommended_action, "ask_human");
+});
+
+test("recommend_tools rejects legacy body credentials without echoing them", async () => {
+  const response = await handler(
+    new Request("https://agent-radar.test/api/recommend_tools", {
+      method: "POST",
+      body: JSON.stringify({ task: "choose", api_key: "legacy-secret" })
+    })
+  );
+
+  assert.equal(response.status, 400);
+  const body = await response.text();
+  assert.match(body, /X-Agent-Radar-LLM-API-Key/);
+  assert.equal(body.includes("legacy-secret"), false);
 });
 
 test("recommend_tools requires BYOK credentials", async () => {
@@ -163,49 +178,35 @@ test("recommend_tools requires BYOK credentials", async () => {
   }
 });
 
-test("recommend_tools falls back to local environment credentials when api_key is omitted", async () => {
-  const originalApiKey = process.env.AGENT_RADAR_LLM_API_KEY;
-  const originalModel = process.env.AGENT_RADAR_LLM_MODEL;
+test("recommend_tools falls back to explicitly configured environment credentials", async () => {
   const calls: Array<{ apiKey: string; model: string }> = [];
-
-  try {
-    process.env.AGENT_RADAR_LLM_API_KEY = "env-secret";
-    process.env.AGENT_RADAR_LLM_MODEL = "MiniMax M3";
-    const envHandler = createApiHandler(repository, {
-      recommendationClient: {
-        recommend(input) {
-          calls.push({ apiKey: input.apiKey, model: input.model });
-          return Promise.resolve({
-            recommended_action: "compare",
-            candidates: [
-              {
-                tool_id: "skill-gmail-triage",
-                fit_score: 82,
-                why: ["Matches communication task."],
-                risks: ["Requires email access."],
-                next_steps: ["Ask the user to confirm Gmail scope."]
-              }
-            ]
-          });
-        }
+  const envHandler = createApiHandler(repository, {
+    fallbackLlmApiKey: "env-secret",
+    fallbackModel: "MiniMax M3",
+    recommendationClient: {
+      recommend(input) {
+        calls.push({ apiKey: input.apiKey, model: input.model });
+        return Promise.resolve({
+          recommended_action: "compare",
+          candidates: [{
+            tool_id: "skill-gmail-triage",
+            fit_score: 82,
+            why: ["Matches communication task."],
+            risks: ["Requires email access."],
+            next_steps: ["Ask the user to confirm Gmail scope."]
+          }]
+        });
       }
-    });
+    }
+  });
 
-    const response = await envHandler(
-      new Request("https://example.com/api/recommend_tools", {
-        method: "POST",
-        body: JSON.stringify({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low" })
-      })
-    );
+  const response = await envHandler(new Request("https://example.com/api/recommend_tools", {
+    method: "POST",
+    body: JSON.stringify({ task: "在 Codex 中读取 Gmail 并总结待办", risk_tolerance: "low" })
+  }));
 
-    assert.equal(response.status, 200);
-    assert.deepEqual(calls, [{ apiKey: "env-secret", model: "MiniMax M3" }]);
-  } finally {
-    if (originalApiKey === undefined) delete process.env.AGENT_RADAR_LLM_API_KEY;
-    else process.env.AGENT_RADAR_LLM_API_KEY = originalApiKey;
-    if (originalModel === undefined) delete process.env.AGENT_RADAR_LLM_MODEL;
-    else process.env.AGENT_RADAR_LLM_MODEL = originalModel;
-  }
+  assert.equal(response.status, 200);
+  assert.deepEqual(calls, [{ apiKey: "env-secret", model: "MiniMax M3" }]);
 });
 
 test("recommend_tools maps provider failures to stable API errors", async () => {
@@ -225,7 +226,8 @@ test("recommend_tools maps provider failures to stable API errors", async () => 
   const response = await erroringHandler(
     new Request("https://agent-radar.test/api/recommend_tools", {
       method: "POST",
-      body: JSON.stringify({ task: "pick a safe tool", api_key: "sk-test-secret", model: "gpt-4.1" })
+      headers: { "X-Agent-Radar-LLM-API-Key": "sk-test-secret" },
+      body: JSON.stringify({ task: "pick a safe tool", model: "gpt-4.1" })
     })
   );
 
