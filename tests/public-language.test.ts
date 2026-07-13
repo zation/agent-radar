@@ -44,7 +44,7 @@ test("diagnostics contain file, line, column, character, and trimmed context", (
     content: "  Reject 中文 text.  \n",
   }]);
   assert.equal(
-    formatPublicLanguageViolation(violation!),
+    formatPublicLanguageViolation(violation),
     'AGENTS.md:1:10 prohibited CJK character "中" in Reject 中文 text.',
   );
 });

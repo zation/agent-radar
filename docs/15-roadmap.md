@@ -365,12 +365,14 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 ### 启动状态
 
-v0.5 已启动，采用 docs-first 的两个独立阶段：P1 先完成 `README.md`、`AGENTS.md` 与 `docs/00-14` 英文化和严格语言检查；P2 再迁移 24 条 Golden Query 源数据，并以不变量测试和真实 provider eval 保护推荐安全语义。P1 完成前不修改 Golden Query，P2 完成前不宣称 v0.5 完成。
+v0.5 已启动，采用 docs-first 的两个独立阶段。P1 已完成 `README.md`、`AGENTS.md` 与 `docs/00-14` 英文化和严格语言检查；当前进入 P2，迁移 24 条 Golden Query 源数据，并以不变量测试和真实 provider eval 保护推荐安全语义。P2 完成前不宣称 v0.5 完成。
 
 阶段 Spec：
 
-- [`v0.5 P1：公开文档英文化`](superpowers/specs/2026-07-13-v0.5-p1-public-docs-english-design.md)（已批准，待实施）。
-- [`v0.5 P2：Golden Query 英文化`](superpowers/specs/2026-07-13-v0.5-p2-golden-query-english-design.md)（已批准，待 P1 完成后实施）。
+- [`v0.5 P1：公开文档英文化`](superpowers/specs/2026-07-13-v0.5-p1-public-docs-english-design.md)（已完成）；对应 [`实施 Plan`](superpowers/plans/2026-07-13-v0.5-p1-public-docs-english.md) 已冻结。
+- [`v0.5 P2：Golden Query 英文化`](superpowers/specs/2026-07-13-v0.5-p2-golden-query-english-design.md)（已批准，当前阶段）。
+
+P1 实现证据：17 个目标文档已通过严格语言检查；`npm test` 已集成同一门禁并通过 317/317。实现提交为 `257f9531`、`61a8e36c`、`1e49c236`、`cba949de`、`5f42ccdc`、`5eb85c7c` 和 `00da30f7`。
 
 ### 目标
 
