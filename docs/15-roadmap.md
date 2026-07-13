@@ -363,6 +363,15 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 ## v0.5
 
+### 启动状态
+
+v0.5 已启动，采用 docs-first 的两个独立阶段：P1 先完成 `README.md`、`AGENTS.md` 与 `docs/00-14` 英文化和严格语言检查；P2 再迁移 24 条 Golden Query 源数据，并以不变量测试和真实 provider eval 保护推荐安全语义。P1 完成前不修改 Golden Query，P2 完成前不宣称 v0.5 完成。
+
+阶段 Spec：
+
+- [`v0.5 P1：公开文档英文化`](superpowers/specs/2026-07-13-v0.5-p1-public-docs-english-design.md)（已批准，待实施）。
+- [`v0.5 P2：Golden Query 英文化`](superpowers/specs/2026-07-13-v0.5-p2-golden-query-english-design.md)（已批准，待 P1 完成后实施）。
+
 ### 目标
 
 把 Agent Radar 面向公开用户、外部维护者和 coding agent 的产品说明与评测数据统一为英文，消除 UI chrome 已英文化但 Golden Query 源数据和仓库入口文档仍为中文的割裂。
@@ -372,7 +381,7 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 - 将 24 条 Golden Queries 的 `query.task` 和 `review_notes` 源数据改为英文，不在 UI 层维护临时翻译副本。
 - 更新对应 eval fixtures、快照、报告和文档示例，保证 case ID、期望动作、安全断言和 release gate 语义不变。
 - 将 `README.md` 改为英文，并保留准确的产品定位、快速开始、数据可信度、推荐安全和部署说明。
-- 将面向外部用户与贡献者的公开文档改为英文；内部历史 Spec/Plan 和项目级 coding-agent 指令不做机械翻译。
+- 将面向外部用户与贡献者的公开文档改为英文；范围为 `README.md`、`AGENTS.md` 和 `docs/00-14`。内部历史 Spec/Plan 与 `docs/15-roadmap.md` 不做机械翻译。
 - 建立公开文档语言检查，避免 README、UI chrome 和公开接口示例重新混入未审查的中文文案。
 
 ### 验收标准
@@ -513,9 +522,9 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 ### v0.5：公开内容与评测数据英文化
 
-- 独立设计 Golden Query 英文化迁移，保持 24 条 case ID、期望动作和 critical safety 断言稳定。
-- 将 `README.md` 与面向外部用户、贡献者和 API/MCP 消费者的文档改为英文。
-- 明确公开文档与内部历史文档边界，避免批量重写已冻结 Spec/Plan。
+- P1 Spec：[`v0.5 P1：公开文档英文化`](superpowers/specs/2026-07-13-v0.5-p1-public-docs-english-design.md)（已批准，待实施）。
+- P2 Spec：[`v0.5 P2：Golden Query 英文化`](superpowers/specs/2026-07-13-v0.5-p2-golden-query-english-design.md)（已批准，待 P1 完成后实施）。
+- 执行顺序为 docs-first；P1 明确公开文档边界并建立严格语言检查，P2 保持 24 条 case ID、期望动作和 critical safety 断言稳定。
 
 ### Backlog
 
