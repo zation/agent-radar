@@ -116,7 +116,7 @@ The LLM emits a `fit_score` from 0 through 100 by considering task fit, Rating R
 - Top results should include useful type diversity unless the task asks for one type.
 - When a high-permission MCP is preferred, include a lower-permission documentation or manual alternative when available.
 
-The implementation may recover catalog-backed candidates when an LLM over-rejects a covered task, but recovered candidates still pass all deterministic safety constraints. A low-tolerance task that combines payment and production database operations remains `no_reliable_match`.
+The implementation may recover catalog-backed candidates when an LLM over-rejects a covered task, but recovered candidates still pass all deterministic safety constraints. A low-tolerance task that combines payment and production database operations remains `no_reliable_match`. Explicit unknown-source code execution remains `avoid` even when the provider returns no candidates.
 
 ## Recommendation Result v2
 

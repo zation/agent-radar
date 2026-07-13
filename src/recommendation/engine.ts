@@ -513,6 +513,7 @@ function normalizeQueryUnderstanding(
 }
 
 function chooseSafeAction(action: RecommendedAction, candidates: RecommendationCandidate[], maximumAllowedAction: RecommendedAction, recoveredCatalogCandidates: boolean): RecommendedAction {
+  if (maximumAllowedAction === "avoid") return "avoid";
   if (candidates.length === 0) return "no_reliable_match";
   const normalizedAction = allowedActions.includes(action) ? action : "compare";
   const actionRank: Record<RecommendedAction, number> = { use: 1, compare: 2, ask_human: 3, avoid: 4, no_reliable_match: 5 };
@@ -558,7 +559,7 @@ function inferQueryPermissions(query: RecommendationQuery): string[] {
   if (/(github|pull request|\\bpr\\b|issue|code review|monitoring|sentry|production|线上|cloud|云平台|云资源|postgres|neon)/i.test(text)) permissions.push("cloud");
   if (/(stripe|payment|refund|checkout|支付|退款|收款)/i.test(text)) permissions.push("payment", "network", "secrets");
   if (/(api key|apikey|token|secret|密钥|凭证|生产|线上)/i.test(text)) permissions.push("secrets");
-  if (/(shell|command|命令|执行脚本|代码执行|运行.*代码|远程代码)/i.test(text)) permissions.push("shell", "code_execution");
+  if (/(shell|command|script|execute code|run .*code|命令|执行脚本|代码执行|运行.*代码|远程代码)/i.test(text)) permissions.push("shell", "code_execution");
   return mergeStrings(permissions);
 }
 

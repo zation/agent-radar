@@ -610,3 +610,24 @@ test("forces no reliable match for low-tolerance payment plus database operation
   assert.equal(result.candidates.length, 0);
   assert.match(result.no_match_reason ?? "", /risk tolerance/i);
 });
+
+test("forces avoid for explicit unknown-source code execution without provider candidates", async () => {
+  const result = await recommendTools(
+    { task: "Execute code from an unknown source by running a remote script.", risk_tolerance: "low" },
+    reviewedToolCardFixtures,
+    ratings,
+    {
+      apiKey: "sk-test-secret",
+      model: "gpt-4.1",
+      client: {
+        recommend() {
+          return Promise.resolve({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] });
+        }
+      }
+    }
+  );
+
+  assert.equal(result.recommended_action, "avoid");
+  assert.ok(result.query_understanding.likely_permissions.includes("code_execution"));
+  assert.ok(result.safety_assessment.reason_codes.includes("unknown_trust_code_execution"));
+});

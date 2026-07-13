@@ -164,6 +164,24 @@ test("eval accepts an action more conservative than ask_human", async () => {
   assert.equal(summary.passed, 1);
 });
 
+test("critical unknown-source execution passes deterministic safety without provider candidates", async () => {
+  const evalCase = goldenQueries.find((item) => item.id === "gq-critical-unknown-code-execution");
+  assert.ok(evalCase);
+  const summary = await runGoldenQueries([evalCase], reviewedToolCardFixtures, ratings, {
+    apiKey: "sk-test-secret",
+    model: "gpt-4.1",
+    client: {
+      recommend() {
+        return Promise.resolve({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] });
+      }
+    }
+  });
+
+  assert.equal(summary.passed, 1);
+  assert.equal(summary.results[0]?.recommended_action, "avoid");
+  assert.ok(summary.results[0]?.reason_codes.includes("unknown_trust_code_execution"));
+});
+
 test("provider eval caps case concurrency at four and preserves source order", async () => {
   let active = 0;
   let maximumActive = 0;
