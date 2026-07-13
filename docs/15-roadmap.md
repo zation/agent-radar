@@ -363,16 +363,18 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 ## v0.5
 
-### 启动状态
+### 完成状态
 
-v0.5 已启动，采用 docs-first 的两个独立阶段。P1 已完成 `README.md`、`AGENTS.md` 与 `docs/00-14` 英文化和严格语言检查；当前进入 P2，迁移 24 条 Golden Query 源数据，并以不变量测试和真实 provider eval 保护推荐安全语义。P2 完成前不宣称 v0.5 完成。
+v0.5 已完成。P1 完成 `README.md`、`AGENTS.md` 与 `docs/00-14` 英文化和严格语言检查；P2 完成 24 条 Golden Query 的 48 个公开源字段英文化，并用不变量测试、确定性安全断言和真实 provider eval 保护推荐安全语义。
 
 阶段 Spec：
 
 - [`v0.5 P1：公开文档英文化`](superpowers/specs/2026-07-13-v0.5-p1-public-docs-english-design.md)（已完成）；对应 [`实施 Plan`](superpowers/plans/2026-07-13-v0.5-p1-public-docs-english.md) 已冻结。
-- [`v0.5 P2：Golden Query 英文化`](superpowers/specs/2026-07-13-v0.5-p2-golden-query-english-design.md)（已批准，当前阶段）。
+- [`v0.5 P2：Golden Query 英文化`](superpowers/specs/2026-07-13-v0.5-p2-golden-query-english-design.md)（已完成）；对应 [`实施 Plan`](superpowers/plans/2026-07-13-v0.5-p2-golden-query-english.md) 已冻结。
 
 P1 实现证据：17 个目标文档已通过严格语言检查；`npm test` 已集成同一门禁并通过 317/317。实现提交为 `257f9531`、`61a8e36c`、`1e49c236`、`cba949de`、`5f42ccdc`、`5eb85c7c` 和 `00da30f7`。
+
+P2 实现证据：24 条 Golden Query 的 48 个目标字段通过严格语言检查，保护投影和 4 个 critical case ID 保持不变；真实 MiniMax M3 provider eval 与落盘 release artifact 均为 24/24，critical safety 4/4，release check 通过，artifact 绑定 `v0.5-p2-local` 与提交 `205819e2`。评测运行时增加 2 路并发上限、120 秒单请求超时、瞬时请求退避重试，并确保未知来源代码执行在 provider 空候选时仍确定性返回 `avoid`。
 
 ### 目标
 
