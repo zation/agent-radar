@@ -152,8 +152,9 @@ test("recommend_tools requires BYOK credentials", async () => {
 
     assert.equal(response.status, 400);
     const body = (await response.json()) as { error: string; message: string };
-    assert.equal(body.error, "bad_request");
-    assert.match(body.message, /api_key/);
+    assert.equal(body.error, "missing_provider_key");
+    assert.match(body.message, /API key/);
+    assert.match(body.message, /recommend_tools/);
   } finally {
     if (originalApiKey === undefined) delete process.env.AGENT_RADAR_LLM_API_KEY;
     else process.env.AGENT_RADAR_LLM_API_KEY = originalApiKey;
