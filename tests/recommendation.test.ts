@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
-import { createOpenAiRecommendationClient, normalizeApiKey, recommendTools, resolveModelRequest, type RecommendationLlmClient } from "../src/recommendation/engine.js";
+import { createOpenAiRecommendationClient, normalizeApiKey, RecommendationProviderError, recommendTools, resolveModelRequest, type RecommendationLlmClient } from "../src/recommendation/engine.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 
 const ratings = rateAllToolCards(reviewedToolCardFixtures);
@@ -109,6 +109,22 @@ test("does not send MiniMax thinking controls to non-MiniMax providers", async (
   await client.recommend({ apiKey: "openai-secret", model: "OpenAI GPT-4.1", prompt: "{}" });
 
   assert.equal(calls[0]?.body.thinking, undefined);
+});
+
+test("aborts provider requests that exceed the configured timeout", async () => {
+  const fetchImpl: typeof fetch = (_url, init) =>
+    new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener("abort", () => reject(new DOMException("The operation was aborted.", "AbortError")));
+    });
+  const client = createOpenAiRecommendationClient(fetchImpl, 5);
+
+  await assert.rejects(
+    client.recommend({ apiKey: "sk-test", model: "OpenAI GPT-4.1", prompt: "{}" }),
+    (error: unknown) =>
+      error instanceof RecommendationProviderError
+      && error.code === "provider_request_failed"
+      && /timed out/i.test(error.message)
+  );
 });
 
 test("parses fenced JSON provider responses", async () => {

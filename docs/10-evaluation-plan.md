@@ -46,6 +46,7 @@ The BYOK provider generates recommendation content. Local code assembles context
 - High-risk candidates cannot normalize to `recommended_action: use`.
 - OpenAI, MiniMax, and DeepSeek model labels route to the correct endpoint and model ID.
 - API keys appear only in authorization headers, including normalized pasted `Bearer` values.
+- Provider calls time out after 60 seconds and surface as typed request failures.
 - Recoverable errors are returned when required recommendation credentials or model configuration are missing.
 - Safety recovery never bypasses permission, trust, or action ceilings.
 
@@ -58,13 +59,11 @@ AGENT_RADAR_LLM_API_KEY=... AGENT_RADAR_LLM_MODEL=gpt-4.1 npm run eval
 | Category | Meaning | Response |
 | --- | --- | --- |
 | `blocked_no_key` | No provider key exists | Do not claim recommendation quality passed |
-| `provider_auth_error` | Provider rejected credentials | Correct configuration, not expectations |
-| `provider_rate_limit` | Rate or quota limit | Retry or select another provider |
-| `provider_model_error` | Model or endpoint mismatch | Correct provider registry |
+| `provider_error` | Provider authentication, rate, model, network, or timeout failure | Inspect the typed provider error, then correct configuration or retry |
 | `schema_error` | Provider JSON cannot normalize | Fix prompt, parsing, or validation |
 | `quality_failure` | Valid output fails a golden expectation | Fix data, prompt, or safety behavior |
 
-Current reports retain a stable `failure_category` for each case. A release-quality claim must come from Provider Evaluation, not only Contract Evaluation.
+Current reports retain a stable `failure_category` for each case. Provider evaluation runs no more than four cases concurrently, preserves source order in its report, retries one schema error, and applies a 60-second timeout to each provider request. A release-quality claim must come from Provider Evaluation, not only Contract Evaluation.
 
 ## Eval Case Contract
 

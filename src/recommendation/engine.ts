@@ -77,6 +77,7 @@ export interface RecommendToolsRuntime {
 
 const allowedActions: RecommendedAction[] = ["use", "compare", "ask_human", "avoid", "no_reliable_match"];
 const allowedConfidences: Confidence[] = ["high", "medium", "low", "unknown"];
+const DEFAULT_PROVIDER_TIMEOUT_MS = 60_000;
 
 export async function recommendTools(
   query: RecommendationQuery,
@@ -133,7 +134,10 @@ export async function recommendTools(
   };
 }
 
-export function createOpenAiRecommendationClient(fetchImpl: typeof fetch = fetch): RecommendationLlmClient {
+export function createOpenAiRecommendationClient(
+  fetchImpl: typeof fetch = fetch,
+  timeoutMs = DEFAULT_PROVIDER_TIMEOUT_MS
+): RecommendationLlmClient {
   return {
     async recommend(input) {
       const modelRequest = resolveModelRequest(input.model);
@@ -143,14 +147,30 @@ export function createOpenAiRecommendationClient(fetchImpl: typeof fetch = fetch
         model: modelRequest.model,
         instructionRole: modelRequest.instructionRole
       });
-      const response = await fetchImpl(modelRequest.endpoint, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${normalizeApiKey(input.apiKey)}`,
-          "content-type": "application/json"
-        },
-        body: JSON.stringify(buildProviderRequestBody(modelRequest, input.prompt))
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      let response: Response;
+      try {
+        response = await fetchImpl(modelRequest.endpoint, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${normalizeApiKey(input.apiKey)}`,
+            "content-type": "application/json"
+          },
+          body: JSON.stringify(buildProviderRequestBody(modelRequest, input.prompt)),
+          signal: controller.signal
+        });
+      } catch (error) {
+        throw new RecommendationProviderError({
+          code: "provider_request_failed",
+          message: controller.signal.aborted
+            ? `Provider request timed out after ${timeoutMs} ms.`
+            : `Provider request failed: ${error instanceof Error ? error.message : String(error)}`,
+          provider: modelRequest.provider
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
 
       if (!response.ok) {
         const errorBody = await response.text();
