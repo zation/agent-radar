@@ -31,7 +31,7 @@
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP、v0.2、v0.3 和 v0.4 P1 均已完成。v0.4 P2 已由 `all-v0.4.3` 部署到生产；线上收口核验发现零调整 Rating Result 使用占位投票快照 checksum，修复与回归测试已完成，待下一次 production release 后完成 v0.4 验收。
+实际情况：MVP、v0.2、v0.3 和 v0.4 均已完成。`all-v0.4.4` 已通过生产发布与线上核验，Web UI、GitHub OAuth、D1 投票、Issue Form、反馈处理 artifacts 和反馈评分均已投入生产；下一阶段进入 v0.5。
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
@@ -334,7 +334,7 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 阶段 Plan：[`v0.4 P2：反馈处理与评级接入实施计划`](superpowers/plans/2026-07-12-v0.4-p2-feedback-processing-rating.md)（已完成并冻结）。
 
-实现状态：代码、workflow、contract tests 与权威文档已完成，`all-v0.4.3` 已通过 production deployment、24/24 golden eval、MCP smoke 与 production evidence。生产 D1 当前已有 `mcp-browser-automation` 的一条 up vote，可用于下一次发布验证非空投票评分；零调整 Rating Result 的真实快照 checksum 修复待发布，真实 Issue 分类与回写仍需在出现首条 Issue 后验收。
+实现状态：已完成并由 `all-v0.4.4` 发布。Release All run `29226907250`、production deployment `5419806444`、24/24 golden eval、MCP smoke 4/4 和 production evidence 全部通过；生产 D1 的 `mcp-browser-automation` 一条 up vote 已产生 `+0.2` 调整，53/53 条 Rating Result 均绑定同一真实投票快照 checksum。当前没有待处理 Tool Feedback Issue，因此真实 Issue 分类与回写保留为首条 Issue 出现时的运行期观察项，不阻塞 v0.4 完成。
 
 - `Release All` 的 reviewed bundle 构建阶段读取并处理带 `tool-feedback` 标签的 open Issue。
 - 确定性校验后，由受限 LLM 输出 `accepted`、`rejected` 或 `needs-human-review`。

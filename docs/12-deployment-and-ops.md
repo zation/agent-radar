@@ -155,7 +155,8 @@ all-v0.2.5
 ### v0.2 发布状态
 
 - `all-v0.2.4` 是上一版已验证基线：发布 29 张 Tool Cards，真实 provider golden eval 10/10 通过，promotion candidates 29/29 通过，完成 GitHub `production` environment confirmation 与生产部署，线上 `/api/mcp` smoke 4/4 通过。
-- `all-v0.4.1` 是当前已验证 production baseline。GitHub Actions run `29194345806` 已完成 production confirmation、生产 D1 migrations 和 Worker 部署；`production-release-evidence.json` 绑定 commit `930a6d00`、reviewed bundle、manifest/D1 checksums 与线上 endpoint，部署后 MCP smoke 为 4/4。线上 `/api/version`、session、匿名 feedback、OAuth authorize 和 GitHub Issue Form 均已核验。
+- `all-v0.4.1` 是上一版反馈采集 production baseline。GitHub Actions run `29194345806` 已完成 production confirmation、生产 D1 migrations 和 Worker 部署；线上 `/api/version`、session、匿名 feedback、OAuth authorize 和 GitHub Issue Form 均已核验。
+- `all-v0.4.4` 是当前已验证 production baseline。GitHub Actions run `29226907250` 和 production deployment `5419806444` 绑定 commit `0b9fc48c`、reviewed bundle、真实 feedback vote snapshot checksum 与 Worker endpoint；24/24 golden eval、MCP smoke 4/4 均通过。生产中的一条 up vote 已使 `mcp-browser-automation` 从 base score `84` 调整为 `84.2`，53/53 条 Rating Result 均绑定同一真实快照 checksum。
 
 后续需要更细粒度发布时再增加：
 
