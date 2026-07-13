@@ -84,7 +84,7 @@ The data-model authority is `docs/04-data-model.md`. Case IDs are stable release
 
 ## Golden Queries
 
-`src/eval/golden-queries.ts` implements the current 24-case suite. v0.5 P2 translates only `query.task` and `review_notes`; it must preserve all IDs, severities, expected actions, permissions, tags, and critical designations.
+`src/eval/golden-queries.ts` implements the current 24-case suite. All 24 `query.task` and 24 `review_notes` fields are English. The strict language gate checks those 48 public fields, while `tests/fixtures/golden-query-invariants.json` freezes every non-text query constraint, expected value, ID, category, severity, and owner.
 
 ### Primary Recommendation Cases
 

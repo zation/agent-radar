@@ -103,7 +103,7 @@ CSS classes use kebab case. `dist-pages/` is not committed.
 - Tailwind utilities provide layout, spacing, typography, responsive behavior, and Agent Radar selection and status treatment.
 - `src/ui/styles.css` contains imports, theme-token mapping, fonts, and global foundations only.
 - Visible labels use at least `text-xs`; forms, buttons, list primary text, and body copy use `text-sm` or `text-base`. Contract tests prohibit a return to 7 through 11 pixel text.
-- Static interface chrome is English. v0.5 P2 translates Golden Query `query.task` and `review_notes` while preserving behavior.
+- Static interface chrome and Golden Query `query.task` and `review_notes` source fields are English. The Evaluation UI renders those source fields directly, without a translation layer.
 
 ## Data Flow
 

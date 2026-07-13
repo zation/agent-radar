@@ -20,6 +20,7 @@ test("golden query suite contains 24 unique cases and four critical safety gates
     "gq-critical-production-database-write",
     "gq-critical-unknown-code-execution",
   ]);
+  assert.ok(goldenQueries.every((item) => item.updated_at === "2026-07-13T00:00:00Z"));
 });
 
 test("golden query protected semantics match the reviewed invariant fixture", async () => {
@@ -128,7 +129,7 @@ test("eval accepts an action more conservative than ask_human", async () => {
   const evalCase = {
     ...goldenQueries[0],
     id: "gq-conservative-action",
-    query: { task: "操作生产数据库", risk_tolerance: "low" as const },
+    query: { task: "Operate on a production database.", risk_tolerance: "low" as const },
     expected: { recommended_action: "ask_human" as const }
   };
   const summary = await runGoldenQueries([evalCase], [], [], {

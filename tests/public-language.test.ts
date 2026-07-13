@@ -9,6 +9,7 @@ import {
   formatPublicLanguageViolation,
 } from "../src/validation/public-language.js";
 import type { EvalCase } from "../src/schema.js";
+import { goldenQueries } from "../src/eval/golden-queries.js";
 
 test("public document scope contains exactly the approved P1 files", () => {
   const paths = new Set<string>(PUBLIC_DOCUMENT_PATHS);
@@ -77,4 +78,9 @@ test("all approved public documents satisfy the strict language rule", async () 
   })));
 
   assert.deepEqual(findPublicLanguageViolations(documents), []);
+});
+
+test("all 48 public Golden Query fields satisfy the strict language rule", () => {
+  assert.equal(goldenQueries.length * 2, 48);
+  assert.deepEqual(findGoldenQueryLanguageViolations(goldenQueries), []);
 });
