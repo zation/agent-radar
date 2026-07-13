@@ -25,13 +25,24 @@ export interface EvalSummary {
   release: { release_id: string; commit_sha: string };
 }
 
+const GOLDEN_QUERY_CONCURRENCY = 4;
+
 export async function runGoldenQueries(
   cases: EvalCase[],
   cards: ToolCard[],
   ratings: RatingResult[],
   runtime: RecommendToolsRuntime
 ): Promise<EvalSummary> {
-  const results = await Promise.all(cases.map(async (evalCase) => evaluateGoldenQuery(evalCase, cards, ratings, runtime)));
+  const results = new Array<EvalResult>(cases.length);
+  let nextIndex = 0;
+  const workers = Array.from({ length: Math.min(GOLDEN_QUERY_CONCURRENCY, cases.length) }, async () => {
+    while (nextIndex < cases.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await evaluateGoldenQuery(cases[index], cards, ratings, runtime);
+    }
+  });
+  await Promise.all(workers);
   return buildSummary(results, runtime.release);
 }
 

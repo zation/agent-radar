@@ -139,3 +139,29 @@ test("eval accepts an action more conservative than ask_human", async () => {
   assert.equal(summary.results[0]?.recommended_action, "no_reliable_match");
   assert.equal(summary.passed, 1);
 });
+
+test("provider eval caps case concurrency at four and preserves source order", async () => {
+  let active = 0;
+  let maximumActive = 0;
+  const cases = Array.from({ length: 8 }, (_, index) => ({
+    ...goldenQueries[0],
+    id: `gq-concurrency-${index}`,
+    expected: {},
+  }));
+  const summary = await runGoldenQueries(cases, [], [], {
+    apiKey: "sk-test-secret",
+    model: "gpt-4.1",
+    client: {
+      async recommend() {
+        active += 1;
+        maximumActive = Math.max(maximumActive, active);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        active -= 1;
+        return { recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] };
+      },
+    },
+  });
+
+  assert.equal(maximumActive, 4);
+  assert.deepEqual(summary.results.map((result) => result.case_id), cases.map((item) => item.id));
+});
