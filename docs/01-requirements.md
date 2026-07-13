@@ -1,336 +1,333 @@
-# 01 需求文档
+# 01 Requirements
 
-## v0.3 P2 推荐安全增量
+## v0.3 P2 Recommendation-Safety Increment
 
-所有动态推荐入口必须输出 Recommendation Result v2，包含 release ID、commit SHA 和不可被 LLM 解除的结构化安全评估。Golden queries 为 24 条，其中 4 条 critical safety cases；正式发布时任一 critical case 失败、缺失或未执行均阻断发布。Web 只读展示确认事项，不保存回答或执行授权。
+Every dynamic recommendation entry point must return Recommendation Result v2 with a release ID, commit SHA, and structured safety assessment that the LLM cannot override. The suite contains 24 golden queries, including four critical safety cases; any failed, missing, or unexecuted critical case blocks a production release. The Web UI displays confirmation requirements read-only and stores neither answers nor execution authorization.
 
-## 文档用途
+## Document Purpose
 
-本文件记录 Agent Radar 的功能需求、非功能需求、MVP 范围和延期范围。它用于指导开发计划、验收标准和后续路线图。
+This document records Agent Radar's functional requirements, non-functional requirements, MVP scope, and deferred scope. It guides implementation plans, acceptance criteria, and the Roadmap.
 
-Agent Radar 的需求判断应回到 `docs/00-product-brief.md`：系统的核心价值是帮助人类开发者和 coding agent 基于结构化证据选择 AI Agent、Skill、MCP Server、CLI、Framework 和 Prompt/Rules。
+Requirement decisions must return to `docs/00-product-brief.md`: the system's core value is helping human developers and coding agents select AI Agents, Skills, MCP Servers, CLIs, Frameworks, and Prompts/Rules from structured evidence.
 
-## 需求原则
+## Requirement Principles
 
-- 需求必须服务“根据开发任务推荐合适 AI 工具”的主路径。
-- MVP 优先保证数据可信、字段清晰、评分可解释，而不是追求覆盖数量。
-- 每个功能都要有机器可读输出，不能只服务人类浏览。
-- 推荐结果必须能说明来源、理由、风险和不确定性。
-- 高风险动作只给建议，不自动安装、不自动授权、不绕过人类审批。
-- MVP 技术栈固定为 TypeScript、JSON + Cloudflare D1 SQLite，以及启用 Static Assets 的单个 Cloudflare Worker 免费额度。
+- Requirements must serve the primary path of recommending appropriate AI tools for development tasks.
+- MVP prioritizes trusted data, clear fields, and explainable ratings over coverage volume.
+- Every capability needs machine-readable output; human browsing alone is insufficient.
+- Recommendations must explain sources, rationale, risk, and uncertainty.
+- High-risk actions receive advice only: no automatic installation, authorization, or human-approval bypass.
+- The MVP stack is fixed to TypeScript, JSON plus Cloudflare D1 SQLite, and one Cloudflare Worker with Static Assets within free-tier limits.
 
-## 角色与目标
+## Roles and Goals
 
-### 人类开发者
+### Human Developer
 
-目标：输入一个开发需求，快速获得可用工具候选、推荐理由、风险提示和替代方案。
+Goal: enter a development need and quickly receive usable candidates, rationale, risks, and alternatives.
 
-验收标准：
+Acceptance criteria:
 
-- 能用自然语言描述任务并得到候选工具列表。
-- 每个候选包含适用原因、不适用条件、安装或接入方式、来源链接和置信度。
-- 当没有可靠工具时，系统返回“暂无可靠推荐”，而不是强行推荐。
+- Natural-language task input returns candidate tools.
+- Every candidate includes fit, unsuitable conditions, installation/integration, source links, and confidence.
+- When no reliable tool exists, return "No reliable recommendation" rather than forcing a result.
 
-### Coding agent
+### Coding Agent
 
-目标：在执行任务前查询 Agent Radar，获取可放入上下文的结构化建议，并据此选择工具或请求用户确认。
+Goal: query Agent Radar before execution and receive structured context for choosing a tool or requesting confirmation.
 
-验收标准：
+Acceptance criteria:
 
-- 支持 JSON 或 MCP 查询输出。
-- 输出包含推荐等级、风险等级、权限提示、证据字段和下一步建议。
-- 对高风险工具明确要求人类确认。
+- JSON or MCP query output is available.
+- Output includes recommendation level, risk level, permissions, evidence, and next steps.
+- High-risk tools explicitly require human confirmation.
 
-### 项目维护者
+### Project Maintainer
 
-目标：维护采集源、工具卡片、评分规则、评测样例和发布流程。
+Goal: maintain sources, Tool Cards, rating rules, evaluation cases, and releases.
 
-验收标准：
+Acceptance criteria:
 
-- 能新增低风险公开来源并记录来源可信度、采集方式和限制。
-- 能审查工具卡片的字段完整性、来源质量和评分解释。
-- 能运行评测，对评分或推荐变化进行前后对比。
+- A low-risk public source can be added with trust, collection method, and constraints recorded.
+- Tool Card completeness, source quality, and rating explanation can be reviewed.
+- Evaluations can compare rating or recommendation changes.
 
-### 工具维护者
+### Tool Maintainer
 
-目标：让工具被准确收录、分类和解释。
+Goal: have a tool represented, classified, and explained accurately.
 
-验收标准：
+Acceptance criteria:
 
-- 工具卡片可标注官方来源、仓库、文档、许可、安装方式和适用场景。
-- 对争议字段可以通过来源证据修正。
-- 不把作者宣传语直接当作评分结论。
+- Tool Cards can identify official sources, repository, documentation, license, installation, and use cases.
+- Disputed fields can be corrected with source evidence.
+- Vendor marketing claims are not rating conclusions.
 
-## 功能需求
+## Functional Requirements
 
-### FR-01 来源注册与管理
+### FR-01 Source Registration and Management
 
-系统应维护可采集来源注册表，用于记录官方 registry、官方 GitHub 组织、官方文档站，以及经过访问边界审核的 GitHub topic 和包管理 metadata sources。社区目录、awesome list 和新闻来源不进入 MVP 自动采集范围。
+Maintain a Source Registry for official registries, official GitHub organizations, official documentation sites, and GitHub topic/package metadata sources whose access boundaries were reviewed. Community directories, awesome lists, and news are not automatically ingested in MVP.
 
-验收标准：
+Acceptance criteria:
 
-- 每个来源包含名称、URL、来源类型、工具类型覆盖、采集方式、建议频率、可信度、速率限制和使用限制。
-- 新增来源必须说明用途、预期字段、合法性边界和失败处理。
-- enabled source 必须有已实现 parser、owner、访问条款记录和保守 failure policy；当前受控 GitHub topic 与 npm package metadata 仍须经过 validation、auto review 和 promotion gates。
-- 不采集社区目录、新闻、需要绕过登录、付费墙、验证码或服务条款限制的数据。
+- Each source has name, URL, source type, covered tool types, collection method, suggested frequency, trust level, rate limit, and usage restrictions.
+- A new source states purpose, expected fields, legal boundary, and failure behavior.
+- An enabled source has an implemented parser, owner, access-terms record, and conservative failure policy. Controlled GitHub topic and npm metadata still pass validation, automatic review, and promotion gates.
+- Never collect sources requiring bypass of login, paywall, CAPTCHA, service terms, or the exclusion of community/news sources.
 
-### FR-02 原始快照保存
+### FR-02 Raw Snapshot Retention
 
-系统应保存来源原始数据快照，避免解析逻辑变化导致不可回放。
+Save immutable source snapshots so parser changes remain replayable.
 
-验收标准：
+Acceptance criteria:
 
-- 每次采集生成不可变 `Raw Source Snapshot`，包含来源 ID、采集时间、请求元数据、原始内容引用和内容哈希。
-- 解析失败时仍保留快照和错误信息。
-- 支持基于同一快照重新运行 parser 和 normalizer。
+- Every collection creates a `Raw Source Snapshot` with source ID, collection time, request metadata, raw-content reference, and content hash.
+- Parser failures preserve the snapshot and error.
+- Parser and normalizer can rerun against the same snapshot.
 
-### FR-03 标准化 Tool Card
+### FR-03 Normalized Tool Card
 
-系统应把不同来源的工具信息标准化为 Tool Card。
+Normalize heterogeneous source data into Tool Cards.
 
-验收标准：
+Acceptance criteria:
 
-- Tool Card 至少包含 `id`、`name`、`type`、`summary`、`source_urls`、`use_cases`、`not_for`、`install_methods`、`permissions`、`maintenance`、`security`、`last_checked_at`、`confidence`。
-- 字段来源和置信度可追溯到 Source Record、字段 provenance 或有公开证据的 break-glass override。
-- 缺少关键字段时不能进入“可靠推荐”结果，只能作为低置信候选或待补全记录。
+- At minimum: `id`, `name`, `type`, `summary`, `source_urls`, `use_cases`, `not_for`, `install_methods`, `permissions`, `maintenance`, `security`, `last_checked_at`, and `confidence`.
+- Field sources and confidence trace to a Source Record, field provenance, or public-evidence-backed break-glass override.
+- Missing critical fields exclude a record from reliable recommendations; it remains low-confidence or incomplete.
 
-### FR-04 分类体系
+### FR-04 Taxonomy
 
-系统应支持多维分类，包括工具类型、使用目的、使用方式、来源可信度、权限风险、成熟度和适用 agent。
+Support tool type, purpose, usage, source trust, permission risk, maturity, and applicable-agent dimensions.
 
-验收标准：
+Acceptance criteria:
 
-- 一个工具可以有一个主类型和多个标签。
-- 分类必须能用于筛选、评分和推荐解释。
-- 分类冲突时记录判断依据和置信度。
+- One primary type and multiple tags per tool.
+- Taxonomy supports filtering, rating, and recommendation explanations.
+- Conflicts record rationale and confidence.
 
-### FR-05 评分系统
+### FR-05 Rating System
 
-系统应根据统一规则和类型专属规则生成可解释评分。
+Generate explainable ratings from shared and type-specific rules.
 
-验收标准：
+Acceptance criteria:
 
-- 每个评分包含总分、分项分、推荐等级、风险等级、解释、证据字段和规则版本。
-- 不同工具类型支持不同权重，例如 MCP 更重视权限范围和工具描述质量，Skill 更重视触发条件和边界说明。
-- 评分变化可通过评测集回归检查。
+- Each rating includes total score, dimension scores, recommendation level, risk level, explanation, evidence, and rules version.
+- Weights may differ by type: MCP emphasizes permission scope and tool-description quality; Skill emphasizes triggers and boundaries.
+- Evaluation regression detects rating changes.
 
-### FR-06 搜索与筛选
+### FR-06 Search and Filtering
 
-系统应支持按名称、类型、标签、任务、生态、权限、维护状态、来源可信度和风险等级检索工具。
+Search by name, type, tag, task, ecosystem, permission, maintenance, source trust, and risk.
 
-验收标准：
+Acceptance criteria:
 
-- 支持关键词检索和结构化过滤。
-- 检索结果显示匹配字段、基础评分、风险提示和更新时间。
-- 搜索结果不应默认按热度排序，应综合任务匹配和可信度。
+- Keyword search and structured filters.
+- Results show matching fields, base rating, risk warning, and update time.
+- Default ordering combines task fit and trust rather than popularity alone.
 
-### FR-07 推荐引擎
+### FR-07 Recommendation Engine
 
-系统应根据用户任务和上下文推荐工具。
+Recommend tools from user task and context.
 
-验收标准：
+Acceptance criteria:
 
-- 输入支持自然语言任务、技术栈、运行环境、允许权限、风险偏好、已有工具和输出格式。
-- 输出包含 Top N 候选、推荐等级、推荐理由、风险、替代方案、反推荐理由和来源证据。
-- 当候选证据不足或风险超过偏好时，返回保守建议。
+- Input supports task, stack, runtime, allowed permissions, risk preference, existing tools, and output format.
+- Output includes Top N candidates, recommendation level, rationale, risks, alternatives, reasons against use, and source evidence.
+- Insufficient evidence or excessive risk produces conservative advice.
 
-### FR-08 AI 友好输出
+### FR-08 Agent-Friendly Output
 
-系统应提供适合 coding agent 使用的结构化输出。
+Provide structured output suitable for coding agents.
 
-验收标准：
+Acceptance criteria:
 
-- 支持 JSON 输出和 Markdown 摘要。
-- JSON 字段稳定，适合被 agent 放入上下文或后续工具调用。
-- 输出包含 `recommended_action`，例如 `use`、`compare`、`ask_human`、`avoid`、`no_reliable_match`。
+- JSON and Markdown summary.
+- Stable JSON fields usable as context or subsequent tool input.
+- `recommended_action` supports `use`, `compare`, `ask_human`, `avoid`, and `no_reliable_match`.
 
-### FR-09 MCP 查询接口
+### FR-09 MCP Query Interface
 
-MVP 应由同一个启用 Static Assets 的 Cloudflare Worker 在 `/api/mcp` 提供标准轻量 MCP JSON-RPC API，供 coding agent 查询工具卡片和推荐结果。
+The same Cloudflare Worker with Static Assets serves a lightweight MCP JSON-RPC API at `/api/mcp`.
 
-验收标准：
+Acceptance criteria:
 
-- 支持 `initialize`、`tools/list` 和只读 `tools/call`，后者至少暴露 `search_tools`、`get_tool_card`、`recommend_tools`、`explain_rating`。
-- 接口只读，v0.2 从同一 Worker deployment 的静态 JSON artifacts 读取数据，不执行第三方工具安装或授权。
-- 错误返回包含可读原因和可恢复建议。
+- Support `initialize`, `tools/list`, and read-only `tools/call` exposing at least `search_tools`, `get_tool_card`, `recommend_tools`, and `explain_rating`.
+- v0.2 reads static JSON artifacts from the same Worker deployment and never installs or authorizes third-party tools.
+- Errors include a readable cause and recovery advice.
 
 ### FR-10 Web UI
 
-系统应提供基础 Web UI，服务人工浏览、比较和审核。
+Provide a basic Web UI for human browsing, comparison, and review.
 
-验收标准：
+Acceptance criteria:
 
-- 支持工具列表、详情页、筛选、比较和推荐结果展示。
-- 工具详情页显示来源、更新时间、评分解释和风险说明。
-- UI 不隐藏低置信或高风险原因。
+- Tool list, detail, filtering, comparison, and recommendation display.
+- Details show sources, update time, rating explanation, and risk.
+- Low confidence and high-risk rationale remain visible.
 
-### FR-11 评测系统
+### FR-11 Evaluation System
 
-系统应维护 golden queries、数据质量检查、评分回归和推荐解释质量评测。
+Maintain golden queries, data-quality checks, rating regression, and explanation-quality evaluation.
 
-验收标准：
+Acceptance criteria:
 
-- 修改评分或推荐逻辑后能输出 eval diff。
-- 评测失败必须说明影响范围，不能只修改 expected result。
-- 至少覆盖常见开发任务、无可靠工具任务、高风险权限任务和同类工具比较任务。
+- Rating or recommendation changes can produce an eval diff.
+- Failures explain impact; do not merely edit expected results.
+- Cover common development tasks, no-match tasks, high-risk permissions, and peer comparison.
 
-### FR-12 报告生成
+### FR-12 Report Generation
 
-系统可基于结构化数据生成生态报告，但报告是推荐系统的副产品。
+Structured data may generate ecosystem reports as a byproduct.
 
-验收标准：
+Acceptance criteria:
 
-- 报告必须引用 Tool Card、评分结果和来源记录。
-- 不把新闻摘要作为 MVP 主路径。
-- 报告应明确样本范围、更新时间和局限性。
+- Reports cite Tool Cards, Rating Results, and Source Records.
+- News summaries are not the MVP primary path.
+- Reports state sample, update time, and limitations.
 
-### FR-13 异常修正与发布审核
+### FR-13 Corrections and Release Review
 
-系统应支持有证据的字段 override、评分例外和误判样例修正；正常 draft 审核由脚本、规则、LLM eval、auto review、release admission 和 promotion check 完成，不要求逐条人工 approval。
+Support evidence-backed field overrides, rating exceptions, and misclassification corrections. Normal draft review uses scripts, rules, LLM evaluation, automatic review, release admission, and promotion checks rather than per-item human approval.
 
-验收标准：
+Acceptance criteria:
 
-- Override Record 包含修改人、时间、原因、来源证据和影响字段，只作为 break-glass 输入。
-- Override Record 不覆盖原始快照，只作为标准化层或评分层覆盖。
-- 自动审核结果持久化到 reviewed bundle，常规人工确认只发生在 GitHub `production` environment gate。
-- 关键 schema 语义变化必须同步更新数据模型、采集、评分、推荐和评测文档。
+- Override Records contain actor, time, reason, source evidence, and affected field and are break-glass inputs only.
+- Overrides do not replace raw snapshots; they apply at normalization or rating.
+- Automatic-review evidence persists in the reviewed bundle; routine human confirmation occurs only at the GitHub `production` environment gate.
+- Core schema semantic changes update data model, ingestion, rating, recommendation, and evaluation docs together.
 
-### FR-14 用户与 Agent 反馈闭环
+### FR-14 User and Agent Feedback Loop
 
-系统在 v0.4 应支持从 Web UI 收集 GitHub 身份绑定的结构化 Tool Card 投票，并通过用户主动提交的 GitHub Issue Form 收集具体原因；反馈在 `Release All` 的 reviewed bundle 构建阶段处理，用于改进 Tool Card、评分、安全提示和 golden queries。
+v0.4 collects GitHub-identity-bound Tool Card votes in Web and detailed reasons through a user-submitted GitHub Issue Form. `Release All` processes feedback while building the reviewed bundle to improve Tool Cards, ratings, safety notes, and golden queries.
 
-验收标准：
+Acceptance criteria:
 
-- 使用最小 GitHub OAuth 获取稳定 user ID 和公开用户名，不申请邮箱、仓库或组织权限；同一用户对同一 Tool Card 只保留一条可变的 `up` 或 `down` 投票。
-- 聚合赞踩数公开，个人投票状态仅本人可见，不公开投票用户列表。
-- 支持从 Tool Card 打开 `zation/agent-radar` 的 GitHub Issue Form；页面只预填 Tool Card key、投票类型、数据版本和 Tool Card URL，不直接创建 Issue，具体原因必填且不存入 Agent Radar D1。
-- 反馈记录不得包含用户私有代码、邮件内容、token、secret、完整 prompt 或浏览器内容。
-- reviewed bundle 构建对合法 open feedback Issue 执行确定性校验和受限 LLM 三态分类：`accepted`、`rejected`、`needs-human-review`；前两者记录处理 Comment 和 build 信息后关闭，后者保持 open。
-- `feedback_rules.v0.1` 在每次构建统一计算反馈调整：同一用户与 Tool Card 有 accepted Issue 时使用 `+1/-1`，否则裸投票使用 `+0.2/-0.2`，单卡总调整限制为 `-3` 到 `+3`；反馈不能降低安全风险等级或提升来源 trust level。
-- `unsafe`、权限遗漏、生产数据、支付、邮件、数据库和云账号相关反馈必须进入人工异常队列。
-- MVP/v0.2 的 MCP/API 主路径保持只读；v0.4 只新增受 GitHub 登录、唯一约束、Origin 检查和基础限流保护的投票写接口。
+- Minimal GitHub OAuth requests only stable user ID and public username, with no email, repository, or organization scopes. One mutable `up` or `down` vote exists per user and Tool Card.
+- Aggregate counts are public; an individual's vote state is visible only to that user and voter lists are never public.
+- Tool Card pages open the `zation/agent-radar` Issue Form with Tool Card key, vote, data version, and Tool Card URL prefilled. The page does not create the Issue; reason is required and is not stored in Agent Radar D1.
+- Feedback never contains private code, email, tokens, secrets, full prompts, or browser content.
+- The reviewed-bundle build deterministically validates legal open feedback Issues, then performs constrained LLM classification as `accepted`, `rejected`, or `needs-human-review`. Accepted/rejected Issues receive a processing comment/build information and close; human-review Issues remain open.
+- `feedback_rules.v0.1` computes each build consistently: an accepted Issue contributes `+1/-1`; otherwise a bare vote contributes `+0.2/-0.2`; per-card adjustment is clamped from `-3` to `+3`. Feedback cannot lower security risk or raise source trust.
+- Feedback classified as `unsafe`, or involving missing permissions, production data, payments, email, databases, or cloud accounts, enters the human intervention queue.
+- The MVP/v0.2 MCP/API path stays read-only. v0.4 adds only a vote endpoint protected by GitHub login, uniqueness, Origin checks, and basic rate limiting.
 
-## 非功能需求
+## Non-Functional Requirements
 
-### NFR-01 可维护性
+### NFR-01 Maintainability
 
-模块边界应清晰，数据 schema、评分规则、来源 parser 和推荐策略可独立演进。
+Module boundaries are clear; schemas, rating rules, source parsers, and recommendation policy evolve independently.
 
-验收标准：新增低风险来源时不需要修改评分核心；新增评分维度时能通过规则版本追踪影响。
+Acceptance: a low-risk source does not require rating-core changes; a new dimension is traceable by rules version.
 
-### NFR-02 可解释性
+### NFR-02 Explainability
 
-所有推荐和评分必须可解释。
+Every recommendation and rating is explainable.
 
-验收标准：任一推荐结果都能追溯到任务匹配字段、评分分项、风险字段和来源证据。
+Acceptance: any result traces to task-fit fields, dimensions, risk fields, and source evidence.
 
-### NFR-03 数据新鲜度
+### NFR-03 Data Freshness
 
-系统应记录来源检查时间和数据更新时间。
+Record source-check and data-update times.
 
-验收标准：工具卡片显示 `last_checked_at`；超过新鲜度阈值时降低置信度或提示过期。
+Acceptance: Tool Cards display `last_checked_at`; stale cards lose confidence or show a warning.
 
-### NFR-04 成本控制
+### NFR-04 Cost Control
 
-MVP 应使用 TypeScript、JSON 文件、Cloudflare D1 SQLite 和启用 Static Assets 的单个 Cloudflare Worker 免费额度。
+MVP uses TypeScript, JSON, Cloudflare D1 SQLite, and one Worker with Static Assets within free-tier limits.
 
-验收标准：在无付费基础设施的情况下可以手动触发数据更新、运行评测、写入 D1、发布静态 JSON artifacts 和公开站点。
+Acceptance: without paid infrastructure, maintainers can manually update data, run evaluation, write D1, and publish JSON artifacts and the public site.
 
-### NFR-05 性能
+### NFR-05 Performance
 
-MVP 查询性能应满足交互式使用。
+MVP queries support interactive use.
 
-验收标准：本地或静态索引下，常见搜索和推荐查询在小规模数据集内可在 1 秒级返回；大规模优化延后。
+Acceptance: common search and recommendation queries return in roughly one second on the small local/static dataset; large-scale optimization is deferred.
 
-### NFR-06 安全与隐私
+### NFR-06 Security and Privacy
 
-系统只采集公开来源，不处理用户私密代码、邮件或浏览器数据。Recommend 的 BYOK API key 只用于当前 LLM provider 请求，不进入 artifacts、eval report 或持久化存储。
+Collect public sources only; do not process private code, email, or browser data. A Recommend BYOK API key is used only for the current provider request and never enters artifacts, eval reports, or persistence.
 
-验收标准：采集流程不要求用户提交 secret；推荐流程如使用 BYOK secret，必须只在当前请求内使用并脱敏日志；高风险工具推荐必须提示权限边界和人工确认。
+Acceptance: ingestion requests no user secret; a BYOK secret remains request-scoped with redacted logs; high-risk recommendations state permissions and human confirmation.
 
-### NFR-07 可回放与可回滚
+### NFR-07 Replay and Rollback
 
-数据生成、评分和推荐应可回放。
+Data generation, rating, and recommendation are replayable.
 
-验收标准：每次发布记录数据版本、规则版本、索引版本和评测结果；发现问题可回滚到上一版本。
+Acceptance: releases record data, rules, index versions, and evaluation results and can roll back.
 
-## MVP 范围
+## MVP Scope
 
-MVP 必须实现：
+MVP must implement:
 
-- 完整文档体系。
-- 最小 Tool Card schema。
-- 初始分类体系。
-- MCP、Skill 和 Agent 三类首批工具范围。
-- 少量高质量官方来源和受控公开 metadata sources 注册。
-- 手动触发、可回放且带自动审核证据的采集与标准化流程。
-- JSON 数据集、Cloudflare D1 SQLite 存储和基础搜索。
-- `rating_rules.v0.1-draft` 基础评分规则和解释模板。
-- 面向开发任务的推荐输出。
-- 同一 Cloudflare Worker 上的只读 HTTP API、MCP JSON-RPC endpoint 和 Static Assets 公开站点。
-- Golden queries 和推荐质量评测。
+- Complete documentation.
+- Minimal Tool Card schema and initial taxonomy.
+- First-party scope for MCP, Skill, and Agent.
+- A small set of high-quality official and controlled public metadata sources.
+- A manually triggered, replayable ingestion/normalization flow with automatic-review evidence.
+- JSON datasets, Cloudflare D1 SQLite storage, and basic search.
+- `rating_rules.v0.1-draft` base ratings and explanation templates.
+- Task-oriented recommendations.
+- Read-only HTTP API, MCP JSON-RPC endpoint, and Static Assets site on the same Worker.
+- Golden queries and recommendation-quality evaluation.
 
-MVP 使用人工复核和手动触发更新，不做自动定时采集。
+MVP uses manual review and manually triggered updates, not scheduled ingestion.
 
-当前可靠发布路径已改为采集优先：`npm run pipeline` 默认读取 enabled Source Registry，抓取公开来源，生成 Source Records、Tool Card drafts、最小 normalizer/deduper、人工 override artifact、intervention requests、auto review、release admission、promotion candidates 和 promotion plan，并把通过 promotion check 的候选生成可靠发布 artifacts。源码内的 seed Tool Cards 不再作为生产发布输入。
+The reliable release path is ingestion-first: `npm run pipeline` reads enabled Source Registry entries, collects public sources, creates Source Records, Tool Card drafts, minimal normalizer/deduper output, manual override artifacts, intervention requests, automatic review, release admission, promotion candidates, and a promotion plan, then generates release artifacts only from candidates that pass promotion checks. Source-code seed Tool Cards are not production release inputs.
 
-反馈闭环不进入 MVP 可靠发布路径。后续引入反馈写接口时，应先输出反馈 records 和汇总报告，再进入 Review Summary 和评测；不得直接改写发布 artifacts。
+The feedback loop is not part of the MVP reliable release path. Future feedback writes first produce feedback records and summary reports, then enter Review Summary and evaluation; they never directly rewrite release artifacts.
 
-## 延期范围
+## Deferred Scope
 
-以下能力不进入 MVP：
+- Complex accounts and multi-tenant access.
+- Online installation marketplace or one-click third-party execution.
+- Enterprise procurement, approval, and fine-grained governance.
+- Large-scale real-time crawling and whole-Web monitoring.
+- Advanced visualization dashboards.
+- Complete security audits of third-party tools.
+- Closed-source paid data dependencies.
+- Paid services or long-running infrastructure beyond free tiers.
+- Automatic collection from community directories, awesome lists, or news.
+- User feedback loop.
+- Full Provider runtime configuration UI, browser loading of `provider_registry.json`, and direct-to-provider/proxy decisions; these remain Backlog.
 
-- 复杂账号系统和多租户权限。
-- 在线安装市场或一键执行第三方工具。
-- 企业采购、审批流和细粒度组织治理。
-- 大规模实时爬虫和全网监控。
-- 高级可视化大屏。
-- 对第三方工具进行完整安全审计。
-- 闭源付费数据源依赖。
-- 任何付费服务或超出免费额度的长期运行基础设施。
-- 社区目录、awesome list 和新闻来源自动采集。
-- 用户反馈闭环。
-- 更完整的 Provider 运行时配置 UI、浏览器运行时读取 `provider_registry.json`，以及 direct-to-provider/proxy 模式决策；这些进入 Backlog。
+## Prohibited Product Directions
 
-## 不应做的内容
+- Do not turn popularity rankings into recommendations.
+- Do not trust unknown sources to increase coverage.
+- Do not automatically install or run high-risk tools.
+- Do not guess critical fields.
+- Do not make news summaries, trends, or marketing copy the core product.
 
-- 不把热度榜单直接当作推荐系统。
-- 不为提高覆盖数自动信任未知来源。
-- 不自动安装或运行高风险工具。
-- 不用猜测补齐关键字段。
-- 不把新闻摘要、趋势文章或营销文案当作核心产品。
+## Requirements Acceptance Matrix
 
-## 需求验收总表
-
-| 编号 | 能力 | 当前状态 | 主要输入 | 主要输出 | 验收方式 |
+| ID | Capability | Current status | Primary input | Primary output | Verification |
 | --- | --- | --- | --- | --- | --- |
-| FR-01 | 来源注册 | 受控 GitHub topic/npm metadata 与官方来源已接入 | 来源 URL 与元数据 | Source Registry | validator、auto review、promotion gate |
-| FR-02 | 原始快照 | v0.2 草稿链路已实现本地写入 | 来源响应 | Raw Snapshot | 哈希、时间戳、可回放 |
-| FR-03 | Tool Card | v0.2 默认由采集候选生成 | Source Record/自动审核证据/override | 标准化卡片 | schema、provenance、promotion 校验 |
-| FR-04 | 分类 | MVP 标签体系已用于 Tool Cards | Tool Card 字段 | 多维标签 | 分类规则测试 |
-| FR-05 | 评分 | `rating_rules.v0.1-draft` 已实现 | Tool Card、规则版本 | Rating Result | 单元测试、eval diff |
-| FR-06 | 搜索 | 已实现基础搜索/API/UI | 查询词、过滤器 | 搜索结果 | golden search cases |
-| FR-07 | 推荐 | BYOK LLM-backed 推荐已通过 MVP golden eval baseline | 任务上下文、API key、model | Recommendation Result | golden queries |
-| FR-08 | AI 输出 | JSON schema 已实现，Markdown 摘要未系统化 | 推荐结果 | JSON/Markdown | schema 校验 |
-| FR-09 | MCP 查询 | `/api/mcp` JSON-RPC 已部署并完成 deploy-output smoke | MCP/API tool call | 查询响应 | contract tests + 4/4 deployed smoke |
-| FR-10 | Web UI | Tools/Recommend/Compare/Review 已由 Worker Static Assets 承载 | 数据索引、用户任务 | 浏览、比较、推荐页面 | 手工验收 + `pages:build` |
-| FR-11 | 评测 | `all-v0.2.5` 真实 provider golden eval 10/10，production promotion 29/29，部署后 MCP smoke 4/4 | 数据、评分、LLM provider | Eval Report | CI release gate |
-| FR-12 | 报告 | Eval report 已实现，生态报告未实现 | 结构化数据 | Markdown 报告 | 来源引用检查 |
-| FR-13 | 异常修正 | Override Record 与 break-glass approval override 已实现 | 修正请求、公开证据 | Override Record | provenance 与审计检查 |
+| FR-01 | Source registration | Controlled GitHub topic/npm metadata and official sources integrated | Source URL and metadata | Source Registry | Validator, automatic review, promotion gate |
+| FR-02 | Raw snapshot | v0.2 draft path writes locally | Source response | Raw Snapshot | Hash, timestamp, replay |
+| FR-03 | Tool Card | v0.2 defaults to ingested candidates | Source Record/review evidence/override | Normalized card | Schema, provenance, promotion |
+| FR-04 | Taxonomy | MVP tags used by Tool Cards | Tool Card fields | Multidimensional tags | Taxonomy tests |
+| FR-05 | Rating | `rating_rules.v0.1-draft` implemented | Tool Card, rules version | Rating Result | Unit tests, eval diff |
+| FR-06 | Search | Basic search/API/UI implemented | Query and filters | Results | Golden search cases |
+| FR-07 | Recommendation | BYOK LLM-backed baseline passed | Task context, API key, model | Recommendation Result | Golden queries |
+| FR-08 | Agent output | JSON schema implemented; Markdown not systematic | Recommendation Result | JSON/Markdown | Schema validation |
+| FR-09 | MCP query | `/api/mcp` deployed with smoke | MCP/API call | Query response | Contracts + 4/4 smoke |
+| FR-10 | Web UI | Tools and Evaluation served by Worker Static Assets; Recommend is integrated into Tools | Index and task | Browse/recommend/evaluate | Manual + `pages:build` |
+| FR-11 | Evaluation | `all-v0.4.4`: provider 24/24, critical safety 4/4, MCP 4/4 | Data, ratings, provider | Eval Report | CI release gate |
+| FR-12 | Reports | Eval report implemented; ecosystem report absent | Structured data | Markdown | Source-citation check |
+| FR-13 | Corrections | Override and break-glass approval implemented | Request and public evidence | Override Record | Provenance and audit |
 
-## 当前实现备注
+## Current Implementation Notes
 
-- 推荐能力不再维护本地关键词召回/排序引擎。`recommend_tools` 使用 BYOK LLM provider 生成推荐，本地代码负责 provider routing、prompt 上下文、schema 归一化、已知工具 ID 校验和高风险动作保护。
-- 当前支持 OpenAI、MiniMax 和 DeepSeek 的 OpenAI-compatible Chat Completions 路由。
-- 本地开发时 Vite dev server 已挂载 `/api/*`，与 Workers API 使用同一套 handler。
-- `npm run ingest` 已落地最小采集草稿链路；`npm run pipeline` 默认消费通过 release admission 和 promotion check 的采集候选，生成可靠 Tool Card artifacts。
-- 没有 `AGENT_RADAR_LLM_API_KEY` 时，推荐 eval 输出 blocked summary；这不是推荐质量通过，只表示缺少真实 provider 运行条件。
-- `all-v0.2.4` 已验证 29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 和部署后 MCP 4/4 smoke checks。
-- `all-v0.2.5` 已完成本地门禁、GitHub `production` approval、Cloudflare Worker 部署和线上核验；29 张 Tool Cards、真实 provider golden eval 10/10、production promotion 29/29 和 MCP smoke 4/4 均通过。
+- `recommend_tools` uses a BYOK LLM provider; local code handles provider routing, prompt context, schema normalization, known Tool ID validation, and high-risk action protection. No local keyword recommender remains.
+- OpenAI, MiniMax, and DeepSeek use OpenAI-compatible Chat Completions routing.
+- Vite development mounts `/api/*` through the same handler as the Workers API.
+- `npm run ingest` implements the minimal draft path; `npm run pipeline` consumes candidates that pass release admission and promotion checks.
+- Without `AGENT_RADAR_LLM_API_KEY`, recommendation evaluation emits a blocked summary; this is not a recommendation-quality pass.
+- `all-v0.3.3` established the 53-card, 24/24 provider-evaluation, critical-safety 4/4 baseline.
+- `all-v0.4.4` passed production release and verification with feedback processing/rating, provider evaluation 24/24, critical safety 4/4, and MCP smoke 4/4; all 53 Rating Results bind to the same real production vote snapshot checksum.
 
-## 维护规则
+## Maintenance Rules
 
-- 新增需求必须说明目标用户、触发场景和验收方式。
-- 不要把“未来可能有用”的想法直接塞入 MVP。
-- 涉及 schema、评分、推荐或安全边界的需求变更，必须同步更新相关文档。
-- 需求文档和路线图冲突时，先回到产品简报确认范围，再调整路线图。
+- New requirements state target user, trigger, and acceptance method.
+- Do not place merely possible future ideas directly into MVP.
+- Schema, rating, recommendation, or safety-boundary changes update related docs together.
+- If Requirements and Roadmap conflict, return to Product Brief for scope, then adjust Roadmap.

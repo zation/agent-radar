@@ -1,264 +1,222 @@
-# 02 用户流程
+# 02 User Workflows
 
-## 文档用途
+## Document Purpose
 
-本文件描述人类开发者、coding agent、项目维护者和工具维护者如何使用 Agent Radar。它用于校准产品体验、Workers MCP API 设计、数据字段和安全边界。
+This document describes how human developers, coding agents, project maintainers, and tool maintainers use Agent Radar. It aligns the product experience, Workers MCP API design, data fields, and safety boundaries.
 
-所有流程都服务 `docs/00-product-brief.md` 中的主路径：给定开发需求，找到合适 AI 工具，并解释为什么推荐、什么时候不推荐、风险在哪里。
+Every workflow serves the primary path in `docs/00-product-brief.md`: given a development need, find an appropriate AI tool and explain why it is recommended, when it should not be used, and where the risks lie.
 
-## 角色总览
+## Role Overview
 
-| 角色 | 主要目标 | 主要入口 | 成功结果 |
+| Role | Primary goal | Primary entry point | Successful outcome |
 | --- | --- | --- | --- |
-| 人类开发者 | 为当前开发任务选择工具 | Web UI、CLI、Markdown 报告 | 得到可解释候选并能行动 |
-| Coding agent | 执行任务前选择或排除工具 | MCP 查询、JSON API、本地索引 | 得到结构化决策上下文 |
-| 项目维护者 | 维护数据、评分和评测 | Git、采集脚本、审核界面 | 数据可信、推荐稳定 |
-| 工具维护者 | 修正工具卡片和来源证据 | Issue、PR、表单 | 工具被准确分类和解释 |
+| Human developer | Select a tool for the current development task | Web UI, CLI, Markdown report | Receives explainable candidates and can act |
+| Coding agent | Select or exclude tools before execution | MCP query, JSON API, local index | Receives structured decision context |
+| Project maintainer | Maintain data, ratings, and evaluations | Git, ingestion scripts, review UI | Trusted data and stable recommendations |
+| Tool maintainer | Correct Tool Cards and source evidence | Issue, PR, form | Tool is classified and explained accurately |
 
-## 流程一：人类开发者寻找工具
+## Workflow 1: A Human Developer Finds a Tool
 
-### 触发条件
+### Trigger
 
-用户有一个具体开发需求，例如：
+The user has a concrete development need, for example:
 
-- “我想给 Next.js 应用接入 Stripe Checkout。”
-- “我需要在 coding agent 中读取 Gmail 并总结待办。”
-- “我想找一个适合 Python 项目自动补测试的 agent 或 CLI。”
+- "I want to integrate Stripe Checkout into a Next.js application."
+- "I need a coding agent to read Gmail and summarize action items."
+- "I want an agent or CLI that can add tests to a Python project."
 
-### 正常路径
+### Normal Path
 
-1. 用户输入任务描述、技术栈、运行环境和风险偏好。
-2. 系统解析任务意图，提取领域、工具类型偏好、权限需求和约束。
-3. 系统检索候选工具，按分类、评分、风险和维护状态排序。
-4. 用户查看推荐列表：
-   - 首选推荐。
-   - 可选替代。
-   - 不建议使用或证据不足的候选。
-5. 用户打开工具详情，查看：
-   - Tool Card 摘要。
-   - 推荐理由。
-   - 不适用场景。
-   - 安装或接入方式。
-   - 权限和安全风险。
-   - 来源与更新时间。
-6. 用户选择工具，或把推荐结果交给 coding agent 执行。
+1. The user enters a task description, technology stack, runtime environment, and risk preference.
+2. The system parses intent and extracts domain, preferred tool types, required permissions, and constraints.
+3. The system retrieves candidates and ranks them by taxonomy, rating, risk, and maintenance status.
+4. The user reviews preferred recommendations, alternatives, and candidates that are discouraged or lack evidence.
+5. The user opens Tool details and reviews the Tool Card summary, recommendation rationale, unsuitable scenarios, installation or integration method, permissions and security risks, sources, and update time.
+6. The user selects a tool or passes the result to a coding agent.
 
-### 输出要求
+### Output Requirements
 
-推荐页至少包含：
+The recommendation page must include:
 
-- `recommendation_level`：`recommended`、`consider`、`avoid`、`no_reliable_match`。
-- `fit_summary`：为什么适合当前任务。
-- `risk_summary`：主要风险和权限。
-- `evidence`：来源 URL、更新时间、字段证据。
-- `next_action`：阅读文档、请求确认、安装前检查、换用替代方案。
+- `recommendation_level`: `recommended`, `consider`, `avoid`, or `no_reliable_match`.
+- `fit_summary`: why the tool fits the current task.
+- `risk_summary`: primary risks and permissions.
+- `evidence`: source URLs, update time, and field evidence.
+- `next_action`: read documentation, request confirmation, perform pre-installation checks, or choose an alternative.
 
-### 失败路径
+### Failure Paths
 
-| 情况 | 系统行为 |
+| Condition | System behavior |
 | --- | --- |
-| 没有可靠候选 | 返回“暂无可靠推荐”，给出原因和可搜索方向 |
-| 候选过期 | 降低置信度，提示重新检查来源 |
-| 风险超过偏好 | 推荐人工确认或选择低权限替代 |
-| 工具类型冲突 | 展示分类依据和不确定性 |
-| 来源证据不足 | 标记低置信，不进入首选推荐 |
+| No reliable candidate | Return "No reliable recommendation," with reasons and search directions |
+| Candidate is stale | Lower confidence and request a source recheck |
+| Risk exceeds preference | Recommend human confirmation or a lower-permission alternative |
+| Tool-type conflict | Show classification evidence and uncertainty |
+| Insufficient source evidence | Mark low confidence and exclude from preferred recommendations |
 
-## 流程二：Coding agent 做工具选择
+## Workflow 2: A Coding Agent Selects a Tool
 
-### 触发条件
+### Trigger
 
-Coding agent 在执行用户任务前，需要判断是否应使用已有工具、skill、MCP server、CLI 或 framework。
+Before executing a user task, a coding agent must decide whether to use an existing tool, Skill, MCP Server, CLI, or Framework.
 
-### 正常路径
+### Normal Path
 
-1. Agent 从用户任务中提取查询上下文：
-   - `task`
-   - `language_or_stack`
-   - `runtime_environment`
-   - `allowed_permissions`
-   - `risk_tolerance`
-   - `existing_tools`
-2. Agent 调用 `recommend_tools`。
-3. Agent 读取结构化结果：
-   - 候选工具。
-   - 推荐等级。
-   - 适配理由。
-   - 权限风险。
-   - 不适用条件。
-   - 是否需要人类确认。
-4. Agent 决策：
-   - 使用低风险且高匹配工具。
-   - 对中高风险工具先询问用户。
-   - 无可靠工具时直接实现或请求更多信息。
-5. Agent 在最终回复或执行计划中引用推荐依据。
+1. Extract `task`, `language_or_stack`, `runtime_environment`, `allowed_permissions`, `risk_tolerance`, and `existing_tools`.
+2. Call `recommend_tools`.
+3. Read candidates, recommendation levels, fit reasons, permission risks, unsuitable conditions, and whether human confirmation is required.
+4. Use a low-risk, high-fit tool; ask first for medium/high-risk tools; or implement directly/request more context when no reliable tool exists.
+5. Cite the recommendation evidence in the final response or execution plan.
 
-### Agent 决策规则
+### Agent Decision Rules
 
-| 推荐输出 | Agent 行为 |
+| Recommendation output | Agent behavior |
 | --- | --- |
-| `recommended_action: use` | 可纳入计划，但仍遵守当前运行环境权限 |
-| `recommended_action: compare` | 向用户或自身计划展示权衡 |
-| `recommended_action: ask_human` | 先请求确认，不自动安装或授权 |
-| `recommended_action: avoid` | 不使用，并说明风险或不匹配 |
-| `recommended_action: no_reliable_match` | 不强行推荐，改用手写方案或继续搜索 |
+| `recommended_action: use` | May include it in the plan while still respecting runtime permissions |
+| `recommended_action: compare` | Present trade-offs to the user or in the plan |
+| `recommended_action: ask_human` | Request confirmation before installation or authorization |
+| `recommended_action: avoid` | Do not use it; explain risk or mismatch |
+| `recommended_action: no_reliable_match` | Do not force a recommendation; implement directly or continue searching |
 
-### 失败路径
+### Failure Paths
 
-| 情况 | Agent 应对 |
+| Condition | Agent response |
 | --- | --- |
-| MCP 查询失败 | 回退到本地静态索引或说明无法查询 |
-| 推荐结果缺少证据 | 不作为执行依据 |
-| 需要 secret 或账号授权 | 请求用户确认和提供安全路径 |
-| 工具安装方式不清晰 | 不自动安装，改为引用文档 |
-| 推荐与项目安全策略冲突 | 以项目安全策略为准 |
+| MCP query fails | Fall back to the local static index or report that lookup is unavailable |
+| Recommendation lacks evidence | Do not use it as execution authority |
+| Secret or account authorization required | Ask the user for confirmation and a safe path |
+| Installation method is unclear | Do not install automatically; cite documentation |
+| Recommendation conflicts with project security policy | Project security policy wins |
 
-## 流程三：项目维护者新增工具来源
+## Workflow 3: A Project Maintainer Adds a Source
 
-### 触发条件
+### Trigger
 
-维护者发现一个适合 Agent Radar 的公开来源，例如官方 registry、GitHub topic、包管理搜索或可信社区列表。
+A maintainer finds a suitable public source, such as an official registry, GitHub topic, package-manager search, or trusted community list.
 
-### 正常路径
+### Normal Path
 
-1. 维护者在 Source Registry 中新增来源草案。
-2. 记录来源类型、可信度、字段可得性、速率限制和使用限制。
-3. 实现或配置低风险采集方式。
-4. 运行采集，保存 Raw Snapshot。
-5. 运行 parser 和 normalizer，生成 Source Record 和 Tool Card 草案。
-6. 运行数据质量检查。
-7. 运行 auto review、release admission 和 promotion check，持久化审核结果与异常项。
-8. 运行推荐与评分评测，确认没有明显回归。
-9. 提交变更、eval diff 和 reviewed bundle；发布时由 GitHub `production` gate 对整批自动审核结果进行人工确认。
+1. Add a draft to the Source Registry.
+2. Record source type, trust level, available fields, rate limits, and usage restrictions.
+3. Implement or configure a low-risk collection method.
+4. Run ingestion and save a Raw Snapshot.
+5. Run parser and normalizer to produce a Source Record and Tool Card draft.
+6. Run data-quality checks.
+7. Run automatic review, release admission, and promotion checks; persist evidence and interventions.
+8. Run recommendation and rating evaluations and confirm there is no material regression.
+9. Submit the change, eval diff, and reviewed bundle. At release time, the GitHub `production` gate provides one human confirmation for the automatically reviewed batch.
 
-### 失败路径
+### Failure Paths
 
-| 情况 | 处理方式 |
+| Condition | Handling |
 | --- | --- |
-| 来源违反服务条款 | 不接入 |
-| 来源字段质量低 | 仅作为发现信号，不作为评分强证据 |
-| 限流频繁 | 降低频率或改为手动导入 |
-| 解析结构不稳定 | 保留快照，parser 标记不稳定 |
-| 引入大量重复工具 | 调整 dedupe 规则后再入库 |
+| Source violates terms | Do not integrate it |
+| Source field quality is low | Use only as a discovery signal, not strong rating evidence |
+| Frequent rate limiting | Reduce frequency or use manual import |
+| Unstable structure | Preserve snapshots and mark the parser unstable |
+| Many duplicates | Adjust deduplication before admission |
 
-## 流程四：项目维护者修正推荐误判
+## Workflow 4: A Project Maintainer Corrects a Bad Recommendation
 
-### 触发条件
+### Trigger
 
-用户、agent 或评测发现推荐结果不合理，例如高风险工具排在首位、同类工具排序反直觉、或无关工具被推荐。
+A user, agent, or evaluation finds an unreasonable result, such as a high-risk tool ranked first, unintuitive peer ordering, or an irrelevant recommendation.
 
-### 正常路径
+### Normal Path
 
-1. 记录误判样例，形成 Eval Case。
-2. 确认问题类型：
-   - Tool Card 字段错误。
-   - 分类错误。
-   - 评分权重不合理。
-   - 推荐解析失败。
-   - 数据过期。
-3. 优先修正数据或分类。
-4. 若需要改评分或推荐逻辑，先更新规则文档和评测预期。
-5. 运行 eval diff。
-6. 提交修正，说明变化前后的推荐差异。
+1. Record the case as an Eval Case.
+2. Classify the cause: incorrect Tool Card field, taxonomy error, unreasonable rating weight, recommendation parsing failure, or stale data.
+3. Correct data or taxonomy first.
+4. If rating or recommendation logic must change, update the rules and expected evaluation behavior first.
+5. Run eval diff.
+6. Submit the correction and explain the before/after recommendation difference.
 
-### 约束
+### Constraints
 
-- 不得只为通过单个评测样例硬编码排序。
-- 不得通过降低风险等级来提高推荐率。
-- 大幅调整评分权重需要人类确认。
+- Never hard-code ranking merely to pass one evaluation case.
+- Never lower a risk level to increase recommendation rate.
+- Large rating-weight changes require human confirmation.
 
-## 流程五：工具维护者修正 Tool Card
+## Workflow 5: A Tool Maintainer Corrects a Tool Card
 
-### 触发条件
+### Trigger
 
-工具维护者发现工具描述、分类、安装方式、维护状态或风险提示不准确。
+A tool maintainer finds inaccurate description, classification, installation, maintenance, or risk information.
 
-### 正常路径
+### Normal Path
 
-1. 工具维护者提交修正请求，并附上官方文档、仓库或 release 证据。
-2. Agent Radar 维护者核验证据。
-3. 更新 Source Record 或人工修正记录。
-4. 重新生成 Tool Card、评分和索引。
-5. 如果影响推荐排序，运行相关 golden queries。
+1. Submit a correction with official documentation, repository, or release evidence.
+2. Agent Radar maintainers verify the evidence.
+3. Update the Source Record or manual correction record.
+4. Regenerate the Tool Card, rating, and index.
+5. Run related golden queries if ranking may change.
 
-### 拒绝条件
+### Rejection Conditions
 
-- 只提供营销描述，没有可验证来源。
-- 要求删除合理风险提示但未提供证据。
-- 要求把热度、融资或宣传活动直接转化为高评分。
+- Marketing claims without verifiable sources.
+- Requests to remove justified risk warnings without evidence.
+- Requests to convert popularity, funding, or promotion directly into a high score.
 
-## 流程六：无合适工具时的保守输出
+## Workflow 6: Conservative Output When No Tool Fits
 
-### 触发条件
+### Trigger
 
-系统找不到满足任务、风险偏好和证据质量的工具。
+No tool satisfies the task, risk preference, and evidence-quality requirements.
 
-### 输出格式
+### Output
 
-系统应明确返回：
-
-- 当前没有可靠推荐。
-- 缺少的关键条件是什么。
-- 可以尝试的替代搜索方向。
-- 是否建议直接实现。
-- 是否需要人工补充上下文。
-
-### 示例
+State that there is no reliable recommendation, identify missing conditions, suggest alternative search directions, say whether direct implementation is appropriate, and request additional human context when needed.
 
 ```json
 {
   "recommended_action": "no_reliable_match",
-  "reason": "候选工具需要邮件和文件系统权限，但来源证据不足，且没有活跃维护信号。",
-  "fallback": "建议先使用项目内脚本实现最小功能，或人工指定已信任的邮件 MCP。"
+  "reason": "Candidate tools require email and filesystem permissions, but source evidence is insufficient and no active-maintenance signal is available.",
+  "fallback": "Implement the minimum behavior with a project-local script, or have a human name an already trusted email MCP Server."
 }
 ```
 
-## 流程七：高风险工具审批
+## Workflow 7: High-Risk Tool Approval
 
-### 高风险触发
+### High-Risk Triggers
 
-以下情况必须要求人类确认：
+Human confirmation is mandatory when:
 
-- 请求文件系统写入、shell 执行、浏览器控制、邮件读取、数据库写入、云账号、支付账号或 secret。
-- 来源未知或维护停滞但需要执行代码。
-- 安装脚本不透明。
-- 工具会把数据发送到第三方服务。
+- The request involves filesystem writes, shell execution, browser control, email reads, database writes, cloud accounts, payment accounts, or secrets.
+- An unknown or unmaintained source must execute code.
+- The installation script is opaque.
+- The tool sends data to a third party.
 
-### 审批输出
+### Approval Output
 
-系统和 agent 应说明：
+The system and agent must explain required permissions, why the task may need them, lower-permission alternatives, and that least privilege still applies after confirmation.
 
-- 工具需要哪些权限。
-- 为什么当前任务可能需要这些权限。
-- 有哪些低权限替代方案。
-- 用户确认后仍应遵守最小权限原则。
-
-## 流程图
+## Flow
 
 ```text
-任务输入
-  -> 意图解析
-  -> 候选检索
-  -> 分类过滤
-  -> 评分与风险合成
-  -> 推荐解释
-  -> 是否高风险？
-      -> 是：请求人类确认或给替代方案
-      -> 否：输出可执行建议
-  -> 用户或 agent 反馈
-  -> 形成评测样例或数据修正
+Task input
+  -> Intent parsing
+  -> Candidate retrieval
+  -> Taxonomy filtering
+  -> Rating and risk synthesis
+  -> Recommendation explanation
+  -> High risk?
+      -> Yes: request human confirmation or offer alternatives
+      -> No: return actionable guidance
+  -> User or agent feedback
+  -> Evaluation case or data correction
 ```
 
-## 与其他文档的关系
+## Relationship to Other Documents
 
-- 需求定义见 `docs/01-requirements.md`。
-- 架构模块见 `docs/03-system-architecture.md`。
-- Tool Card 字段见 `docs/04-data-model.md`。
-- 分类规则见 `docs/05-taxonomy.md`。
-- 评分和风险等级见 `docs/06-rating-rules.md` 与 `docs/11-security-and-trust.md`。
-- 推荐输入输出见 `docs/09-recommendation-engine.md`。
+- Requirements: `docs/01-requirements.md`.
+- Architecture modules: `docs/03-system-architecture.md`.
+- Tool Card fields: `docs/04-data-model.md`.
+- Taxonomy rules: `docs/05-taxonomy.md`.
+- Ratings and risk levels: `docs/06-rating-rules.md` and `docs/11-security-and-trust.md`.
+- Recommendation input and output: `docs/09-recommendation-engine.md`.
 
-## 维护规则
+## Maintenance Rules
 
-- 所有重要功能都应该能对应到至少一个用户流程。
-- 如果流程中出现高风险动作，必须链接到安全文档。
-- 新增流程必须说明触发条件、正常路径、失败路径和输出要求。
+- Every important capability should map to at least one user workflow.
+- A workflow containing a high-risk action must link to the security document.
+- New workflows must define trigger, normal path, failure path, and output requirements.
