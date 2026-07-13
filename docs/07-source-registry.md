@@ -1,22 +1,22 @@
-# 07 采集源注册表
+# 07 Source Registry
 
-## 文档用途
+## Purpose
 
-本文件记录 Agent Radar 的数据来源、采集方式、可信度、频率和限制。它用于管理来源扩展、采集优先级和数据质量。
+This document defines Agent Radar data sources, collection methods, trust levels, schedules, and operating constraints. It governs source expansion, collection priority, and data quality.
 
-来源注册表的目标不是“能抓就抓”，而是用合法、低成本、可解释的方式发现和验证 AI 工具。
+The goal is not to collect everything that is technically accessible. Agent Radar discovers and validates AI tools through lawful, low-cost, and explainable sources.
 
-## 来源原则
+## Source Principles
 
-- 优先官方来源和可验证公开来源。
-- 当前受控启用官方来源、人工维护来源，以及 `github-topic-mcp` 和 `npm-modelcontextprotocol-sdk` 两个公共元数据来源；其输出仍必须经过 parser、validation、dedup、auto review、release admission 和 promotion check。
-- 不采集需要绕过登录、验证码、付费墙或服务条款的数据。
-- 来源可信度影响字段置信度和评分，不等于工具质量。
-- 社区列表、awesome list、新闻、博客和发布帖当前不进入受控自动采集范围；如后续准入，仍须经过同一 parser、validation、dedup、auto review、release admission 和 promotion check。
-- 所有来源都必须记录频率、限制和失败处理。
-- 高风险或破坏性操作，包括扩大采集边界、启用未经准入的来源和发布不完整证据，必须保留人工确认，并在 GitHub `production` environment gate 前处理。
+- Prefer official and publicly verifiable sources.
+- Controlled automation currently includes official sources, manually maintained sources, `github-topic-mcp`, `npm-modelcontextprotocol-sdk`, and reviewed exact-repository sources. Every output must still pass parsing, validation, deduplication, automatic review, release admission, and the promotion check.
+- Never bypass authentication, CAPTCHAs, paywalls, access controls, or terms of service.
+- Source trust affects field confidence and rating inputs; it does not prove tool quality.
+- Community lists, Awesome lists, news, blogs, and launch posts remain outside controlled automatic collection. Any future admission must use the same release gates.
+- Every source must define its frequency, constraints, and failure policy.
+- High-risk or destructive changes, including expanding collection boundaries, enabling an unadmitted source, or publishing incomplete evidence, require human confirmation before the GitHub `production` environment gate is approved.
 
-## SourceDefinition Schema
+## `SourceDefinition` Schema
 
 ```yaml
 id:
@@ -44,41 +44,39 @@ owner:
 last_reviewed_at:
 ```
 
-字段说明：
-
-| 字段 | 类型 | 必填 | 说明 |
+| Field | Type | Required | Meaning |
 | --- | --- | --- | --- |
-| `id` | string | 是 | 来源稳定 ID |
-| `name` | string | 是 | 来源名称 |
-| `url` | string | 是 | 来源入口 |
-| `source_type` | enum | 是 | `official_registry`、`official_docs`、`github`、`package_registry`、`community_list`、`news`、`manual` |
-| `covered_tool_types` | array | 是 | 覆盖的工具类型 |
-| `collection_method` | enum | 是 | `api`、`http`、`git_clone`、`manual`、`rss` |
-| `recommended_frequency` | enum | 是 | `daily`、`weekly`、`monthly`、`manual` |
-| `trust_level` | enum | 是 | 与安全文档一致 |
-| `field_coverage` | array | 是 | 可获得字段 |
-| `rate_limits` | string | 否 | 速率限制说明 |
-| `terms_notes` | string | 是 | 使用条款和限制 |
-| `access_review` | object | enabled source 必填 | robots/terms 审核记录 |
-| `parser` | string | 否 | parser 名称 |
-| `profile` | object | 否 | 来源级结构化映射，用于补足 tag、权限、安全、用途和维护状态等不能从通用 metadata 可靠推断的字段 |
-| `failure_policy` | string | 是 | 失败处理 |
-| `enabled` | boolean | 是 | 是否启用自动采集 |
-| `owner` | string | 否 | 维护人或模块 |
-| `last_reviewed_at` | datetime | 是 | 来源审核时间 |
+| `id` | string | yes | Stable source ID |
+| `name` | string | yes | Source name |
+| `url` | string | yes | Source entry point |
+| `source_type` | enum | yes | `official_registry`, `official_docs`, `github`, `package_registry`, `community_list`, `news`, or `manual` |
+| `covered_tool_types` | array | yes | Tool types covered by the source |
+| `collection_method` | enum | yes | `api`, `http`, `git_clone`, `manual`, or `rss` |
+| `recommended_frequency` | enum | yes | `daily`, `weekly`, `monthly`, or `manual` |
+| `trust_level` | enum | yes | Trust level defined by the security model |
+| `field_coverage` | array | yes | Fields available from the source |
+| `rate_limits` | string | no | Rate-limit constraints |
+| `terms_notes` | string | yes | Terms and usage constraints |
+| `access_review` | object | for enabled sources | Robots and terms review record |
+| `parser` | string | no | Parser name |
+| `profile` | object | no | Reviewed source-level mapping for fields that generic metadata cannot infer reliably |
+| `failure_policy` | string | yes | Failure behavior |
+| `enabled` | boolean | yes | Whether automatic collection is enabled |
+| `owner` | string | no | Maintainer or owning module |
+| `last_reviewed_at` | datetime | yes | Most recent source review |
 
-`profile` 不是手工 Tool Card seed。它必须绑定一个具体公开来源，并只描述该来源能支撑的字段映射，例如：
+`profile` is not a manually seeded Tool Card. It must bind to one public source and describe only field mappings that the source can support, such as:
 
-- `tool_id`、`name`、`type`、`tags`。
-- `primary_purpose`、`use_cases`、`not_for`。
-- `permissions`、`security`、`auth_required`。
-- `docs_url`、`homepage_url`、`maintenance`。
+- `tool_id`, `name`, `type`, and `tags`.
+- `primary_purpose`, `use_cases`, and `not_for`.
+- `permissions`, `security`, and `auth_required`.
+- `docs_url`, `homepage_url`, and `maintenance`.
 
-profile 的用途是让官方文档、精确 GitHub repo 和 package metadata 能稳定进入 normalizer/deduper/release eval，而不是把 crawler 难以判断的权限和风险留给 LLM 临时猜测。修改 `profile` 会触发 source registry review requirement。
+Profiles let official pages, exact GitHub repositories, and package metadata enter normalization, deduplication, and release evaluation without asking an LLM to guess permissions or risks. A `profile` change creates a source-registry review requirement.
 
-## Source Registry Diff
+## Source Registry Diff and Review Persistence
 
-`source_registry_diff.json` 作为单 Worker reviewed bundle/release workflow 的来源配置变更输入。每个 changed source 必须列出 `changed_fields`；对会影响采集范围、访问边界、parser 行为或下游可信度的字段，还会输出 `review_requirements`：
+`source_registry_diff.json` is the source-configuration change input for the single-Worker reviewed-bundle release workflow. Every changed source lists `changed_fields`. Fields that affect collection scope, access boundaries, parser behavior, or downstream trust also create `review_requirements`:
 
 ```yaml
 changed:
@@ -90,128 +88,51 @@ changed:
         confirmation_required: true
 ```
 
-当前会生成 review requirement 的字段包括：`enabled`、`url`、`source_type`、`collection_method`、`recommended_frequency`、`trust_level`、`field_coverage`、`rate_limits`、`terms_notes`、`access_review`、`parser` 和 `profile`。单 Worker reviewed bundle/release workflow 会把这些字段级审核提示写入 reviewed bundle 的审核材料和 GitHub Actions Summary，供 reviewer 在 GitHub `production` environment gate 前确认高影响来源变更。该 artifact 只提供审核提示，不自动信任新来源，也不替代 production gate。
+Review requirements are generated for `enabled`, `url`, `source_type`, `collection_method`, `recommended_frequency`, `trust_level`, `field_coverage`, `rate_limits`, `terms_notes`, `access_review`, `parser`, and `profile`.
 
-审核持久化（review persistence）不采用逐字段确认 JSON，而是由 reviewed bundle artifacts、对应 checksums 以及 GitHub `production` environment approval 构成。reviewed bundle 和 GitHub Actions Summary 展示高影响变更及审核材料；production approval 不会自动信任新来源，也不会绕过来源准入或 promotion check。
+The reviewed bundle and GitHub Actions summary present these high-impact changes before the GitHub `production` environment gate. The artifact is a review aid: it neither trusts a new source automatically nor bypasses source admission or the promotion check.
 
-为保证可追溯性，reviewed bundle id 或 artifact name、commit SHA、manifest 及其 checksum、GitHub workflow run URL 和 deployment URL 共同构成稳定关联键；这些键必须随 production evidence 和 approval summary 持久化，使 production approval 可定位到唯一的 evidence bundle。
+Review persistence does not use per-field confirmation JSON. Persistence consists of the reviewed-bundle artifacts, their checksums, and GitHub `production` environment approval. The stable correlation keys are the reviewed-bundle ID or artifact name, commit SHA, manifest and checksum, workflow run URL, and deployment URL. Production evidence and the approval summary must preserve these keys so an approval resolves to exactly one evidence bundle.
 
-## 来源类型
+## Source Types
 
-### 官方 Registry
+### Official Registries
 
-定义：由协议、平台或工具生态官方维护的 registry、目录或 marketplace。
+Official protocol, platform, or ecosystem registries, directories, and marketplaces provide high-confidence lists and identity, documentation, installation, and maintainer evidence. Their trust is usually `official`, but official inclusion is not a security audit.
 
-用途：
+### Official Documentation and Repositories
 
-- 获取高可信工具列表。
-- 验证工具名称、文档、安装方式和维护者。
-
-可信度：通常为 `official`。
-
-限制：
-
-- 覆盖范围可能只限单一生态。
-- 官方收录不代表安全审计通过。
-
-### 官方文档和仓库
-
-定义：工具作者或维护组织发布的文档站、README、release 和 repo metadata。
-
-用途：
-
-- 验证安装方式、权限、适用场景、许可证和维护状态。
-
-可信度：`official` 或 `well_known_org`。
-
-限制：
-
-- 作者描述可能偏营销，需要结合实际字段判断。
+Documentation sites, READMEs, releases, and repository metadata published by a tool author or maintaining organization validate installation, permissions, use cases, license, and maintenance. Trust is normally `official` or `well_known_org`. Author descriptions may be promotional and still require field-level evidence.
 
 ### GitHub
 
-定义：GitHub repositories、organizations、releases、README 和受控的 topic 搜索。当前受控启用 `github-topic-mcp`，仅通过公开 GitHub Search API 发现 MCP 相关 repository metadata；其他 topic source 仍需完成来源准入后才可受控启用。
+Public repositories, organizations, releases, READMEs, and controlled topic searches provide discovery, maintenance, community, and license signals. `github-topic-mcp` is enabled through the public GitHub Search API; other topic sources require source admission first.
 
-用途：
+A topic, star count, repository, or package is only a discovery signal. It does not establish trust or permit release. Repository drafts must pass every standard release gate.
 
-- 发现开源工具。
-- 获取维护、社区和 license 信号。
+### Package Registries
 
-可信度：取决于组织、项目活跃度和证据完整性。
+npm, PyPI, Docker Hub, Homebrew, and similar registries validate package names, installation, versions, and release dates. Typical trust values are `active_open_source`, `commercial`, or `unknown`.
 
-限制：
+Package existence is not evidence of project trust and cannot independently support release or recommendation. Supply-chain risk is modeled separately.
 
-- topic、star、repository 或 package 的存在本身不构成可信证据，也不自动提高 trust level。所有 topic、star、package metadata 和 repository drafts 都必须经过 parser、validation、dedup、auto review、release admission 和 promotion check 后，才可进入可靠发布数据。
+### Community Directories and Awesome Lists
 
-### 包管理源
+These community-maintained lists can discover candidates and peer groups. They are disabled for the MVP because fields and update schedules are inconsistent, and they cannot independently support a high-confidence recommendation.
 
-定义：npm、PyPI、Docker Hub、Homebrew 等。
+### News, Blogs, and Launch Posts
 
-用途：
+Hacker News, Product Hunt, blogs, and announcements may reveal ecosystem changes. They are disabled for the MVP and may serve only as weak discovery signals, never as direct rating evidence.
 
-- 验证安装方式、版本、发布时间和包名。
+### Manual Sources
 
-可信度：`active_open_source`、`commercial` 或 `unknown`。
+Maintainers may add tools, correct fields, or record review results to fill gaps that a parser cannot determine safely. Trust depends on public evidence URLs, maintained provenance, and auditable override evidence. Every change must preserve its source and reason.
 
-限制：
+## Baseline Source Examples
 
-- package 存在本身不代表项目可信，也不单独支撑发布或推荐；package metadata 同样必须经过 parser、validation、dedup、auto review、release admission 和 promotion check。
-- 供应链风险需要单独建模。
+This document defines the source policy. The executable registry in `src/ingestion/source-registry.ts` implements the currently collected source set. The following examples document the principal source classes and controlled enablement policy.
 
-### 社区目录和 Awesome List
-
-定义：社区维护的工具列表、awesome repositories、curated lists。
-
-MVP 状态：不启用。
-
-用途：
-
-- 发现新工具。
-- 建立同类候选集合。
-
-可信度：通常为 `active_open_source`、`individual` 或 `unknown`。
-
-限制：
-
-- 字段不完整。
-- 更新频率不稳定。
-- 不能单独作为高置信推荐证据。
-
-### 新闻、博客和发布帖
-
-定义：Hacker News、Product Hunt、博客、发布公告等。
-
-MVP 状态：不启用。
-
-用途：
-
-- 发现新工具和生态变化。
-
-可信度：低到中。
-
-限制：
-
-- 新闻性强，长期可用性弱。
-- 仅作为发现信号，不直接支撑评分。
-
-### 人工来源
-
-定义：维护者手动添加的工具、字段修正或审核结果。
-
-用途：
-
-- 补齐关键字段。
-- 修正 parser 无法可靠判断的信息。
-
-可信度：取决于证据 URL、人工维护的 provenance 和可审计的 override evidence。
-
-限制：
-
-- 必须保留来源和修改原因。
-
-## 初始来源清单
-
-### Model Context Protocol 官方资源
+### Model Context Protocol Official Resources
 
 ```yaml
 id: mcp-official-resources
@@ -223,23 +144,21 @@ collection_method: http
 recommended_frequency: weekly
 trust_level: official
 field_coverage: [name, docs_url, usage, protocol_context]
-rate_limits: "遵守站点 robots 和合理请求频率"
-terms_notes: "只采集公开文档和链接"
+rate_limits: "Respect robots rules and use a reasonable request rate"
+terms_notes: "Collect public documentation and links only"
 access_review:
   robots_txt: reviewed
   terms: reviewed
   reviewed_by: agent-radar
   reviewed_at: 2026-07-06T00:00:00Z
-  notes: "只采集公开文档和链接"
+  notes: "Collect public documentation and links only"
 parser: mcp_docs_parser
-failure_policy: "失败时保留上一版本并标记 stale"
+failure_policy: "Preserve the previous version and mark it stale"
 enabled: true
 last_reviewed_at: 2026-07-06T00:00:00Z
 ```
 
-用途：验证 MCP 概念、官方 server 和协议相关字段。
-
-### GitHub Topics: MCP
+### GitHub Topic: MCP
 
 ```yaml
 id: github-topic-mcp
@@ -252,42 +171,33 @@ recommended_frequency: weekly
 trust_level: active_open_source
 field_coverage: [name, description, repo_url, stars, license, last_commit_at]
 rate_limits: "GitHub API rate limits"
-terms_notes: "使用公开 API，不采集私有仓库；结果进入自动审核和发布 gate"
+terms_notes: "Use the public API only; send results through automatic review and release gates"
 access_review:
   robots_txt: reviewed
   terms: reviewed
   reviewed_by: agent-radar
   reviewed_at: 2026-07-08T00:00:00Z
-  notes: "仅使用公开 topic/API surfaces；不发送 Authorization header、cookie 或私人 token"
+  notes: "Use public topic and API surfaces only; send no authorization header, cookie, or private token"
 parser: github_topic_parser
-failure_policy: "限流时跳过本次并保留上次结果"
+failure_policy: "Skip the run when rate-limited and preserve the previous stable data"
 enabled: true
 last_reviewed_at: 2026-07-08T00:00:00Z
 ```
 
-用途：用于发现开源 MCP 工具。crawler 会把 `https://github.com/topics/<topic>` 映射到 GitHub Search API，并保留 rate-limit response metadata 供审核。该来源生成的 repository drafts 会进入跨来源 normalizer、自动审核和 promotion candidate gate，通过 gate 后进入可靠发布数据。
+The crawler maps the topic URL to GitHub Search API repository metadata and preserves rate-limit response metadata. Resulting drafts enter cross-source normalization and all release gates.
 
-### GitHub Topics: AI Agent
+### GitHub Topic: AI Agent
 
 ```yaml
 id: github-topic-ai-agent
-name: GitHub topic ai-agent
-url: https://github.com/topics/ai-agent
 source_type: github
-covered_tool_types: [agent, framework, cli]
-collection_method: api
-recommended_frequency: weekly
-trust_level: active_open_source
-field_coverage: [name, description, repo_url, stars, license, last_commit_at]
-rate_limits: "GitHub API rate limits"
-terms_notes: "topic 噪声较大，只作为发现来源"
 parser: github_topic_parser
-failure_policy: "解析失败不阻断其他来源"
 enabled: false
-last_reviewed_at: 2026-07-06T00:00:00Z
 ```
 
-### npm Registry: Model Context Protocol SDK
+This topic remains disabled because its discovery noise is high.
+
+### npm Model Context Protocol SDK
 
 ```yaml
 id: npm-modelcontextprotocol-sdk
@@ -299,55 +209,28 @@ collection_method: api
 recommended_frequency: weekly
 trust_level: active_open_source
 field_coverage: [name, description, repo_url, homepage_url, package_url, license, latest_version, last_release_at]
-rate_limits: "遵守 npm registry 公共 API 限制"
-terms_notes: "只查询已确认包名，不做高频全量扫描；结果必须经过 parser、validation、dedup、auto review、release admission 和 promotion check"
+rate_limits: "Respect public npm registry API limits"
+terms_notes: "Query confirmed package names only and send results through every release gate"
 parser: npm_package_parser
-failure_policy: "包查询失败时保留旧版本并标记 stale"
+failure_policy: "Preserve the previous version and mark it stale"
 enabled: true
 last_reviewed_at: 2026-07-08T00:00:00Z
 ```
 
-### PyPI
+### Disabled Discovery Sources
 
 ```yaml
-id: pypi-ai-tools
-name: PyPI packages for AI tools
-url: https://pypi.org/
-source_type: package_registry
-covered_tool_types: [cli, framework, agent]
-collection_method: api
-recommended_frequency: weekly
-trust_level: active_open_source
-field_coverage: [package_name, version, release_time, install_method, repo_url, license]
-rate_limits: "遵守 PyPI API 使用限制"
-terms_notes: "只查询已发现包名"
-parser: pypi_package_parser
-failure_policy: "包查询失败时保留旧版本并标记 stale"
-enabled: false
-last_reviewed_at: 2026-07-06T00:00:00Z
+- id: pypi-ai-tools
+  source_type: package_registry
+  parser: pypi_package_parser
+  enabled: false
+- id: awesome-ai-agents
+  source_type: community_list
+  parser: awesome_list_parser
+  enabled: false
 ```
 
-### Awesome Lists
-
-```yaml
-id: awesome-ai-agents
-name: Curated awesome AI agent lists
-url: https://github.com/topics/awesome-ai-agents
-source_type: community_list
-covered_tool_types: [agent, framework, mcp, cli, prompt, rules]
-collection_method: api
-recommended_frequency: monthly
-trust_level: unknown
-field_coverage: [name, repo_url, description]
-rate_limits: "GitHub API rate limits"
-terms_notes: "只作为发现信号，不直接支撑高置信评分"
-parser: awesome_list_parser
-failure_policy: "解析失败时跳过该列表"
-enabled: false
-last_reviewed_at: 2026-07-06T00:00:00Z
-```
-
-### 手动审核来源
+### Manual Review
 
 ```yaml
 id: manual-review
@@ -359,89 +242,75 @@ collection_method: manual
 recommended_frequency: manual
 trust_level: well_known_org
 field_coverage: [all_reviewed_fields]
-rate_limits: "不适用"
-terms_notes: "必须附公开证据 URL"
+rate_limits: "Not applicable"
+terms_notes: "A public evidence URL is required"
 parser: manual_record_parser
-failure_policy: "缺证据时拒绝入库"
+failure_policy: "Reject records without evidence"
 enabled: true
 last_reviewed_at: 2026-07-06T00:00:00Z
 ```
 
-## 来源优先级
+## Source Priority and Conflicts
 
-字段冲突时按以下优先级处理：
+Resolve field conflicts in this order:
 
-1. 官方文档或官方仓库。
-2. 包管理源的版本和安装信息。
-3. 可信组织文档。
-4. 活跃开源仓库元数据。
-5. 人工审核记录。
-6. 社区目录。
-7. 新闻、博客和发布帖。
+1. Official documentation or repository.
+2. Package-registry version and installation data.
+3. Documentation from a trusted organization.
+4. Active open-source repository metadata.
+5. Manual review with public evidence.
+6. Community directory.
+7. News, blogs, and launch posts.
 
-说明：
+Manual review is not unconditionally authoritative. Package registries may be newer than a README for version and installation facts. Interpretive fields such as use cases should combine documentation and concrete examples.
 
-- 人工审核记录不是无条件最高优先级，必须引用公开证据。
-- 对版本、安装命令等事实字段，包管理源可能比 README 更及时。
-- 对“适用场景”等解释字段，应结合文档和实际示例。
-
-## 冲突解决规则
-
-| 冲突类型 | 处理 |
+| Conflict | Resolution |
 | --- | --- |
-| 名称不同 | 保留 canonical name 和 aliases |
-| license 冲突 | 优先官方仓库 LICENSE，其次包管理元数据 |
-| 安装命令冲突 | 优先最新官方文档和包管理源 |
-| 维护状态冲突 | 用最近 release、commit、issue 活动综合判断 |
-| 工具类型冲突 | 按分类文档主入口规则判断 |
-| 权限描述冲突 | 采用更保守风险解释，并标记需要审核 |
+| Different names | Preserve one canonical name and all aliases |
+| License disagreement | Prefer the official repository license, then package metadata |
+| Installation disagreement | Prefer the newest official documentation and package registry |
+| Maintenance disagreement | Combine recent releases, commits, and issue activity |
+| Type disagreement | Apply the taxonomy entry-point rule |
+| Permission disagreement | Use the more conservative risk interpretation and require review |
 
-## 采集频率
+## Collection Frequency
 
-| 来源类型 | 建议频率 |
+| Source type | Recommended frequency |
 | --- | --- |
-| 官方 registry | weekly |
-| 官方文档 | weekly 或 monthly |
-| GitHub topic sources | `github-topic-mcp` 受控启用，weekly；其他 topic source 默认关闭 |
-| 包管理源 | `npm-modelcontextprotocol-sdk` 受控启用，weekly；其他包源需先准入 |
-| 社区目录 | MVP 不启用 |
-| 新闻和发布帖 | MVP 不启用 |
-| 手动审核 | manual |
+| Official registry | weekly |
+| Official documentation | weekly or monthly |
+| GitHub topic | `github-topic-mcp` weekly; others disabled by default |
+| Package registry | `npm-modelcontextprotocol-sdk` weekly; others require admission |
+| Community directory | disabled for the MVP |
+| News and launch posts | disabled for the MVP |
+| Manual review | manual |
 
-高频采集只有在来源稳定、合法且成本低时才启用。
+High-frequency collection is allowed only for stable, lawful, low-cost sources.
 
-## 来源准入检查
+## Source Admission
 
-新增来源前必须回答：
+Before adding a source, answer:
 
-- 这个来源服务哪个工具类型或字段。
-- 是否公开可访问。
-- 是否允许自动采集。
-- 是否需要登录、cookie、token 或付费。
-- 字段质量如何。
-- 噪声和重复率预期如何。
-- 失败时是否影响主 pipeline。
-- 是否有 parser 维护成本。
+- Which tool types or fields does it serve?
+- Is it publicly accessible, and is automated collection allowed?
+- Does it require login, cookies, tokens, or payment?
+- What are its field quality, expected noise, and duplicate rates?
+- Can its failure affect the main pipeline?
+- What parser maintenance does it require?
 
-## 禁止来源
+Prohibited sources include pages that require bypassing authentication, CAPTCHAs, or access controls; sources that explicitly prohibit automation; leaked secrets, internal documents, or user data; unapproved paid sources; and oral claims without preservable evidence.
 
-- 需要绕过登录、验证码或访问控制的页面。
-- 明确禁止自动抓取的来源。
-- 泄露 token、私钥、内部文档或用户数据的来源。
-- 需要付费授权但项目未确认的来源。
-- 无法保存来源证据的口头信息。
+## Relationship to the Pipeline
 
-## 与后续流程的关系
+- The Source Registry defines crawler inputs.
+- `trust_level` contributes to Tool Card confidence and ratings.
+- `field_coverage` sets parser and normalizer expectations.
+- `failure_policy` governs ingestion fallback.
+- Source quality affects evaluation coverage and freshness.
 
-- Source Registry 决定 crawler 输入。
-- SourceDefinition 的 `trust_level` 进入 Tool Card 和评分。
-- `field_coverage` 决定 parser 和 normalizer 的字段期待。
-- 来源失败策略影响采集与入库文档。
-- 来源质量影响评测中的数据覆盖和新鲜度指标。
+## Maintenance Rules
 
-## 维护规则
-
-- 新增来源必须说明用途、可信度和速率限制。
-- 不采集需要绕过登录、付费墙或违反服务条款的数据。
-- 来源变更必须记录审核日期。
-- 删除来源前应评估受影响 Tool Card 和字段。
+- Every new source must document its purpose, trust, access review, and rate limits.
+- Every source change must update its review date and generate auditable diff evidence.
+- Before removing a source, assess affected Tool Cards and fields.
+- Treat source legality and high-risk permission evidence conservatively.

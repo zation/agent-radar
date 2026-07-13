@@ -1,25 +1,25 @@
-# 08 采集与入库
+# 08 Crawling and Ingestion
 
-## 文档用途
+## Purpose
 
-本文件定义数据采集、解析、去重、标准化、校验和入库流程。它用于指导 crawler、parser、normalizer、deduper、validator 和发布流水线的实现。
+This document defines collection, parsing, deduplication, normalization, validation, and storage. It guides crawler, parser, normalizer, deduper, validator, and release-pipeline implementation.
 
-采集与入库的目标是可回放、可解释、可审计，而不是最大化抓取量。
+The system optimizes for replayability, explainability, and auditability, not maximum crawl volume.
 
-## 当前实现状态
+## Current Implementation
 
-截至当前分支，采集与入库模块已完成 v0.3 P1 数据可信度基线：默认发布数据来自 enabled Source Registry 的抓取、解析、跨来源标准化、数据质量检查和发布准入结果。真实演练产出 53 张可靠 Tool Cards。
+The v0.3 P1 data-trust baseline is complete. Default release data is built from enabled Source Registry entries, cross-source normalization, data-quality checks, and release admission. The verified production exercise produced 53 reliable Tool Cards.
 
-当前发布流水线从采集候选生成发布 artifacts：
+The release pipeline is:
 
 ```text
 src/ingestion/source-registry.ts
-  -> crawl enabled source
+  -> crawl enabled sources
   -> parse Source Records
   -> normalize Tool Card drafts
   -> normalization evidence + provenance v2 + conflict report
-  -> validate + dedup + URL checker v2
-  -> auto review
+  -> validate + deduplicate + URL checker v2
+  -> automatic review
   -> release admission
   -> generate promotion candidates
   -> promotion check
@@ -31,158 +31,175 @@ src/ingestion/source-registry.ts
   -> public/data/d1_seed.sql
 ```
 
-也就是说，`npm run pipeline` 默认会读取 Source Registry 并执行采集、normalizer、deduper、release admission 和 promotion check。只有通过发布 gate 的候选会进入可靠 Tool Cards。源码内的 seed Tool Cards 不再作为生产发布输入。
+`npm run pipeline` reads the Source Registry and executes ingestion, normalization, deduplication, release admission, and the promotion check. Only candidates that pass release gates become reliable Tool Cards. Source-code seed cards are not production release inputs.
 
-本地采集链路是：
+`npm run ingest` produces:
 
 ```text
-npm run ingest
-  -> src/ingestion/source-registry.ts
-  -> data/crawl_plan/source_crawl_plan.json
-  -> crawl enabled source
-  -> data/crawl_audit/crawl_audit.json
-  -> data/raw/<source_id>/<YYYY-MM-DD>/<hash>.json
-  -> parse Source Records
-  -> data/source_records/<source_id>.jsonl
-  -> data/discovery_candidates/tool_repositories.json
-  -> data/tool_card_drafts/<source_id>.jsonl
-  -> data/approvals/approval_records.json            # break-glass override only
-  -> data/intervention_requests/tool_card_drafts.json
-  -> data/intervention_requests/tool_card_drafts.jsonl
-  -> data/field_provenance/tool_card_fields.json
-  -> data/field_provenance/tool_card_fields.v2.json
-  -> data/conflicts/tool_card_conflicts.json
-  -> data/dedup/tool_card_duplicates.json
-  -> data/review_queue/tool_card_drafts.json
-  -> data/release_admission/tool_card_drafts.json
-  -> data/promotion_candidates/tool_cards.json
-  -> data/promotion_candidates/promotion_plan.json
-  -> data/promotion_candidates/promotion_check.json
+data/crawl_plan/source_crawl_plan.json
+data/crawl_audit/crawl_audit.json
+data/raw/<source_id>/<YYYY-MM-DD>/<hash>.json
+data/source_records/<source_id>.jsonl
+data/discovery_candidates/tool_repositories.json
+data/tool_card_drafts/<source_id>.jsonl
+data/approvals/approval_records.json
+data/intervention_requests/tool_card_drafts.json
+data/intervention_requests/tool_card_drafts.jsonl
+data/field_provenance/tool_card_fields.json
+data/field_provenance/tool_card_fields.v2.json
+data/conflicts/tool_card_conflicts.json
+data/dedup/tool_card_duplicates.json
+data/review_queue/tool_card_drafts.json
+data/release_admission/tool_card_drafts.json
+data/promotion_candidates/tool_cards.json
+data/promotion_candidates/promotion_plan.json
+data/promotion_candidates/promotion_check.json
 ```
 
-当前默认 enabled sources 包括受控的 GitHub topic discovery、npm package metadata、精确 GitHub repository metadata 和官方 docs 页面。受控的 `github-topic-mcp` 和 npm metadata sources 已接入发布主链路，并已依次经过 parser、validation、dedup、auto review、release admission 和 promotion check。`github-topic-mcp` 使用 GitHub 公共 Search API 抓取 topic repository metadata，不发送 Authorization header、cookie 或私人 token；`github_topic_parser` 会把 API payload 解析为 repository Source Records，并记录 rate-limit response metadata。`github_repo_parser` 用于绑定到具体公开 repo 的来源，避免只依赖 topic 搜索的偶然覆盖。`npm_package_parser` 会解析 package name、package URL、repository URL、homepage、license、latest version 和 last release time。`official_docs_parser` 只抽取固定官方页面的标题/description，并把 SourceDefinition `profile` 写入 Source Record；它不把页面正文猜测成权限事实。`manual_seed_parser` 仍保留为测试和人工 fixture 能力，但不再作为默认发布来源。
+### Enabled Collection and Parsers
 
-repository/package Source Records 会进入 `tool_discovery_candidates.v2`，也会生成保守的 Tool Card drafts：这些 draft 只基于公开 repo/package metadata 填充 repo、package、license、stars、last commit/release、topic/keyword、维护状态和中等风险安全说明，不把社区仓库或包自动升级为官方或高信任工具。GitHub topic、star、repository 或 package 的存在都只是发现信号，不单独构成可信证据；结果仍必须经过 parser、validation、dedup、auto review、release admission 和 promotion check。最小跨来源 normalizer 会按 canonical repo/package key 合并同一工具的多来源 evidence refs、source URLs 和 package URLs；review queue 会标注与已发布 Tool Cards 以及同批 incoming drafts 的重复信号。intervention requests 会为自动审核无法闭合的 draft 输出 `resolve_before_release` 异常提示、重复信号和 validation 背景，并在 reviewed bundle review markdown 中区分 `published_duplicates` 和 `draft_duplicates`。
+Controlled enabled inputs include GitHub topic discovery, npm package metadata, exact GitHub repository metadata, and official documentation pages.
 
-自动审核会输出 `tool_card_auto_review.v1`，为每个 draft 生成建议动作、证据 URL、主要风险、缺失字段、人工复核原因和发布准入评分卡。精确来源的受审 profile 可以解释上游缺少 description/license 这类可选 metadata 提示，但 parser warning 仍计入质量报告；没有 profile 的 discovery 集合仓库（如 `awesome-*`）会被拒绝，不能作为单个工具发布，也不会制造待处理 intervention。release admission 的默认 gate 是自动审核建议 `promote` 且无未解决重复、关键冲突或缺字段等复核原因；`approval_record.v1` 仅作为 break-glass `approval_override`，不属于常规审核流程。discovery candidates 使用 `pending_production_gate` 和 `review_in_production_gate` 表达发布审核关注项，而不是逐条等待人工审核。高风险并不自动阻断 profile-backed Tool Card 进入 catalog；高风险工具实际执行时仍由 Tool Card `security.requires_human_approval` 和 recommendation engine 的 `ask_human`/`no_reliable_match` 要求人工确认。promotion candidates 会把 eligible drafts 连同 `auto_review` 或 `approval_override` evidence 复制到独立候选 artifact；promotion plan 会为这些候选输出目标 artifact、候选 artifact 路径、推荐发布动作和发布前检查项；promotion check 会 dry-run 校验候选是否与当前发布候选重复、是否仍通过 Tool Card validator。`npm run pipeline` 会消费通过 promotion check 的候选并生成可靠发布 artifacts。
+- `github_topic_parser` parses public GitHub Search API repository payloads and records rate-limit response metadata. Collection sends no authorization header, cookie, or private token.
+- `github_repo_parser` handles a reviewed exact public repository and avoids relying only on incidental topic-search coverage.
+- `npm_package_parser` extracts package name and URL, repository and homepage URLs, license, latest version, and last release time.
+- `official_docs_parser` extracts only the fixed page title and description and copies the reviewed `SourceDefinition.profile` into the Source Record. It does not infer permission facts from body text.
+- `manual_seed_parser` remains available for tests and manual fixtures but is not a default release source.
 
-`npm run ingest` 已支持最小 Override Record artifact：人工修正只作用于待审核 draft normalization，不覆盖 Raw Snapshot 或 Source Record，也不会自动发布到可靠 Tool Cards。Override Record 必须包含 `reason`、`created_by` 和至少一个 `evidence_urls`；被应用的 override id 会写入 draft `evidence_refs`，让后续 Tool Card validator 能审计 override record 上下文。
+Repository and package records enter `tool_discovery_candidates.v2` and generate conservative Tool Card drafts. Public metadata may support repository, package, license, stars, last commit or release, topics or keywords, maintenance, and medium-risk security notes. It never upgrades a community repository or package to official or high trust automatically.
 
-`npm run ingest` 也已支持最小 `approval_record.v1` artifact，但它是 break-glass override 输入：只有自动审核无法闭合且维护者明确要覆盖时，才记录 `approved`、`rejected` 或 `needs_changes`，并要求 `reviewer`、`reason`、`source_record_id` 和 `reviewed_at`。它不属于默认发布审核路径，也不会自动把 draft 发布为可靠 Tool Card。
+GitHub topics, stars, repositories, and packages are discovery signals only. Every candidate must pass parsing, validation, deduplication, automatic review, release admission, and promotion checks.
 
-`npm run ingest` 会为自动审核无法闭合的 draft 输出 `tool_card_intervention_requests.v1`，包含 `pending_intervention`、`duplicate_review_required` 和 `blocked_validation` summary。每个 item 包含 `suggested_action: resolve_before_release`、已发布 Tool Card duplicate ids、同批 draft duplicate ids、validation errors/warnings 和 Source Record id；同时会输出 `data/intervention_requests/tool_card_drafts.jsonl`，方便在 reviewed bundle 审核材料中快速定位异常。它不输出 approval record 模板，也不要求维护者逐条填写 JSON。
+### Normalization, Review, and Promotion
 
-`npm run ingest` 在迁移期并行输出 `tool_card_field_value_provenance.v1` 与 v2。v2 保存每个关键字段的全部候选 Source Record、字段路径、值摘要、parser/normalizer 版本、转换类型、选择状态与理由；跨来源 normalizer 按 override、官方直接证据、精确 repo/package、受控 discovery、confidence 和新鲜度顺序选择，并将无法解释的关键语义冲突写入 `tool_card_conflict_report.v1`。v1 继续保留原有单来源摘要语义。
+The minimum cross-source normalizer groups evidence by canonical repository or package key and merges evidence references, source URLs, and package URLs. The review queue reports duplicate signals against published Tool Cards and same-batch drafts. Intervention artifacts distinguish `published_duplicates` from `draft_duplicates` and include validation context.
 
-URL checker v2 从显式传入或 workflow 恢复的上一版 reviewed artifact 获取历史；没有历史时明确标记无基线，不会静默读取任意工作区旧文件。检查以有限并发对去重 URL 执行，单请求有超时和有限重试，HEAD 不支持时只回退一次最小 GET，且绝不发送 Cookie、Authorization 或 API key。redirect 逐跳手动校验，拒绝 HTTPS 降级、私网/非公网地址和未审核的跨站目标；少量已核验的官方迁移域名使用显式 allowlist。每个 Tool Card 字段路径仍保留独立结果与历史。
+Automatic review emits `tool_card_auto_review.v1` with a suggested action, evidence URLs, primary risks, missing fields, reasons for review, and a release-admission scorecard. A reviewed exact-source profile can explain optional upstream metadata gaps, such as description or license, but parser warnings still count in the quality report. Unprofiled discovery collections such as `awesome-*` are rejected as individual tools and do not create unresolved interventions.
 
-Release All 也会恢复上一 reviewed bundle 的 Source Registry、Data Quality Report 和 ingestion Source Records。某个声明 `preserve previous stable data` 的来源采集失败时，只回退该来源的上一版 Source Records，并在 crawl audit/Review Summary 保留失败信号；不得用空结果静默删除可靠卡片。Source Registry diff 和 Tool Card semantic diff 均与上一 reviewed bundle 比较，构建时间与 evidence ref 刷新不计作内容变化。
+Default release admission requires an automatic-review recommendation of `promote` and no unresolved duplicates, critical conflicts, missing required fields, or other review reasons. `approval_record.v1` is only a break-glass `approval_override`, never the normal review path.
 
-`npm run pipeline` 在评分、索引和 D1 seed 生成前检查 `data_quality_report.v1`：可靠卡片必须在 50–150，关键 provenance 为 100%，未解决关键冲突、重复、blocking URL、intervention 和 promotion blocked 均为 0。失败时输出稳定 reason code 和 bundle 内 evidence path。
+Discovery candidates use `pending_production_gate` and `review_in_production_gate` to describe bundle-level review concerns instead of requesting item-by-item approval. High risk alone does not prevent a profile-backed card from entering the catalog. Execution remains guarded by `security.requires_human_approval` and recommendation outcomes such as `ask_human` and `no_reliable_match`.
 
-`npm run ingest` 的终端 JSON summary 会包含 snapshots、source records、source ids、discovery candidates、intervention requests、field value provenance、auto review、release admission、promotion candidates 和 promotion plan 摘要，便于本地或 CI 快速判断采集审核状态。reviewed bundle 会把 discovery candidates、intervention requests 和 auto review summary 同步进 artifact manifest 与 review markdown，供单 Worker release workflow 审核。
+Promotion candidates copy eligible drafts and their `auto_review` or `approval_override` evidence into a separate artifact. The promotion plan identifies the target artifact, candidate path, recommended release action, and pre-release checks. The promotion check dry-runs duplicate-ID and Tool Card validation checks. `npm run pipeline` consumes only candidates that pass that check.
 
-`npm run ingest` 会输出 `<outputDir>/data/promotion_candidates/promotion_check.json`，记录 promotion candidates 的重复 id 检查和 Tool Card validator dry-run。release workflow 的 `npm run promotion:check -- dist-pages/data/promotion_candidates/promotion_check.json` 会显式检查 immutable reviewed bundle 内的同一 artifact；如果存在 blocked candidate，会以非零退出码失败。该命令只检查，不修改任何发布数据。
+### Overrides, Approval Records, and Interventions
 
-发布流水线会输出 `data/source_registry.json`，包含 `source_registry.v1`、当前 Source Registry 内容和基础 validator 结果，供 reviewed bundle 审核来源配置；同时输出 `data/source_registry_diff.json`，记录来源配置 added、removed 和 changed 摘要。changed source 会附带字段级 `review_requirements`，标出启用状态、访问边界、parser、频率、可信度等变更为何需要维护者在 production gate 中关注。发布流水线也会输出 `data/source_registry_review.json`，记录这些 requirements 的 pending summary；`data/source_registry_review_requests.json` 会为 pending requirement 输出 `suggested_action`，例如 `review_in_production_gate`。上述 artifacts 是 reviewed bundle 的审核证据，不会自动启用来源或提升可信度，也不要求维护者逐条生成 confirmation record。
+An Override Record may correct draft normalization only. It never overwrites a Raw Snapshot or Source Record and never publishes directly. It requires `reason`, `created_by`, and at least one `evidence_urls` entry. Applied override IDs enter draft `evidence_refs` so validation can audit their context.
 
-发布流水线也会输出 `data/tool_card_validation.json` 和 `data/tool_card_field_provenance.json`，并在 Tool Card validation 失败时阻断 artifacts 生成，避免低置信、缺证据或风险未知的 Tool Card 进入可靠发布数据。字段 provenance artifact 会按 `permissions`、`security` 和 `maintenance` 统计字段级证据、人工审核覆盖和缺失项。
+An `approval_record.v1` is a break-glass input. It records `approved`, `rejected`, or `needs_changes` only when automatic review cannot close a case and a maintainer explicitly overrides it. It requires `reviewer`, `reason`, `source_record_id`, and `reviewed_at`.
 
-尚未实现的采集能力包括：
+For unresolved drafts, ingestion emits `tool_card_intervention_requests.v1` with `pending_intervention`, `duplicate_review_required`, and `blocked_validation` summaries. Items include `suggested_action: resolve_before_release`, published and draft duplicate IDs, validation errors and warnings, and the Source Record ID. The JSONL form supports quick lookup from reviewed-bundle materials. The system does not emit approval templates or require per-item confirmation JSON.
 
-- 更完整的 Crawl Plan 生成；当前已输出 Source Registry sources 的最小 crawl plan artifact，并标注 ready、disabled 或 blocked。
-- 通用外部 HTTP/API crawler 的限流和重试；当前已输出最小 crawl audit log，并对显式 GitHub topic API 抓取记录 rate-limit metadata。
-- 更多来源专属 parser；当前已有 `manual_seed_parser`、`github_topic_parser`、`github_repo_parser`、`npm_package_parser` 和 `official_docs_parser`。
-- 更完整的跨来源 deduper、跨来源 normalizer 和人工 override 审计；当前已实现 repo/package key 的最小跨来源合并，以及 canonical URL/package URL 对已发布 Tool Cards 和同批 incoming drafts 的最小重复信号与发布阻断。
-- 更完整的 Source Registry validator；当前已检查 enabled source 的 parser 覆盖、owner、`last_reviewed_at` 和 robots/terms 审核记录，并输出带字段级 review requirements、pending summary 和 production gate action 的来源变更审核 artifacts。
-- 更完整的 promotion candidate 审核 artifact 与审核结果持久化流程；当前 reviewed bundle review markdown 已展示 discovery candidates、intervention requests、auto review summary、release admission blocked reasons、promotion candidate 明细、promotion plan 发布提示和 promotion check dry-run 结果。
-- 更细的字段语义和生态专属验证仍可继续扩展；当前已并行输出 schema 级 provenance、字段值 provenance v1/v2、冲突报告和 URL validation v1/v2，并以 `data_quality_report.v1` 统一阻断关键缺失。可通过 `AGENT_RADAR_CHECK_URLS=true` 执行真实 URL 检查。
+### Provenance, Conflicts, and URL Validation
 
-因此，下面的流程描述是目标实现契约，不代表当前代码已经具备完整采集能力。
+During migration, ingestion emits both `tool_card_field_value_provenance.v1` and v2. Version 2 preserves every candidate Source Record for each critical field, including field path, value summary, parser and normalizer versions, transformation type, selection state, and reason. Selection order is override, direct official evidence, exact repository or package, controlled discovery, confidence, then freshness. Unexplained critical semantic conflicts enter `tool_card_conflict_report.v1`. Version 1 preserves the original single-source summary semantics.
 
-## 目标审核闭环
+URL checker v2 receives history explicitly or restores it from the previous reviewed artifact. Without history it records that no baseline exists; it never silently reads arbitrary workspace files. Checks use bounded concurrency, per-request timeout, limited retry, and one minimal GET fallback when HEAD is unsupported. Requests never send cookies, authorization, or API keys.
 
-当前 `draft -> auto review -> release admission -> promotion candidates` 链路提供了可审计的发布护栏。审核本身由代码规则、LLM-backed eval、auto review、promotion check 和 GitHub `production` environment approval 共同完成；正常审核结果持久化到 reviewed bundle、其 artifact manifest 与 checksums、GitHub run/SHA/tag 以及 deployment evidence（包括 production approval 和生产部署 smoke evidence）。人工只在 GitHub `production` gate 审核整批 reviewed bundle，不逐条填写 review record 或 approval JSON。
+Redirects are validated one hop at a time. HTTPS downgrade, private or non-public addresses, and unreviewed cross-site targets are blocked. A small explicit allowlist covers reviewed official domain migrations. Each Tool Card field path retains its own result and history.
 
-目标流程：
+### Stable-Data Fallback and Semantic Diffs
+
+Release All restores the previous reviewed bundle's Source Registry, Data Quality Report, and ingestion Source Records. If a source with `preserve previous stable data` fails, only that source falls back to its prior records. The crawl audit and Review Summary retain the failure signal; an empty response must not silently remove reliable cards.
+
+Source Registry and Tool Card semantic diffs compare against the previous reviewed bundle. Build timestamps and refreshed evidence references are not treated as content changes.
+
+### Data-Quality and Immutable-Bundle Gates
+
+Before rating, indexing, or D1 seed generation, `npm run pipeline` requires `data_quality_report.v1` to meet all of these gates:
+
+- Reliable Tool Cards: 50 through 150.
+- Critical provenance coverage: 100 percent.
+- Unresolved critical conflicts: zero.
+- Unresolved duplicates: zero.
+- Blocking URLs: zero.
+- Pending interventions: zero.
+- Blocked promotion candidates: zero.
+
+Failures emit stable reason codes and evidence paths inside the bundle.
+
+The ingestion terminal JSON summary reports snapshots, Source Records and IDs, discovery candidates, interventions, field-value provenance, automatic review, release admission, promotion candidates, and the promotion plan. The reviewed-bundle manifest and review Markdown also include discovery, intervention, and automatic-review summaries.
+
+`npm run promotion:check -- dist-pages/data/promotion_candidates/promotion_check.json` checks the exact immutable reviewed-bundle artifact. A blocked candidate produces a nonzero exit code. The command reads only; it does not mutate release data.
+
+The release pipeline also emits:
+
+- `data/source_registry.json` with `source_registry.v1`, current definitions, and base validation.
+- `data/source_registry_diff.json` with added, removed, and changed sources plus field-level review requirements.
+- `data/source_registry_review.json` with pending requirement summaries.
+- `data/source_registry_review_requests.json` with actions such as `review_in_production_gate`.
+- `data/tool_card_validation.json` and `data/tool_card_field_provenance.json` with validation and evidence coverage.
+
+These are reviewed-bundle evidence. They do not enable sources, raise trust, or require per-field confirmation records. Failed Tool Card validation blocks artifact generation.
+
+## Current Limits
+
+The following capabilities remain partial:
+
+- Crawl Plan generation currently emits a minimum artifact with `ready`, `disabled`, or `blocked` state.
+- General external HTTP and API throttling and retry are incomplete; the GitHub topic path records rate-limit metadata.
+- Parser coverage currently centers on `manual_seed_parser`, `github_topic_parser`, `github_repo_parser`, `npm_package_parser`, and `official_docs_parser`.
+- Cross-source normalization, deduplication, and override auditing currently cover minimum repository and package keys and duplicate signals against published and same-batch drafts.
+- Source Registry validation checks enabled parser support, owner, `last_reviewed_at`, and robots and terms reviews, then emits field-level production-gate evidence.
+- Reviewed-bundle Markdown currently shows discovery, interventions, automatic review, blocked release-admission reasons, promotion details, the promotion plan, and promotion-check results.
+- Ecosystem-specific semantic validation can expand further. Current output already includes schema provenance, field-value provenance v1 and v2, conflict reports, and URL validation v1 and v2. Set `AGENT_RADAR_CHECK_URLS=true` for live URL checks.
+
+The remaining sections define the target contract. They do not claim that every capability is fully implemented.
+
+## Review Loop
+
+The auditable release guardrail is:
 
 ```text
 Source Records
-  -> 自动证据汇总
-  -> 规则审核和 LLM 审核摘要
+  -> automatic evidence summary
+  -> rules and LLM review summary
   -> Tool Card drafts
-  -> 用户反馈与推荐反馈汇总
-  -> 发布准入评分卡
+  -> user and recommendation feedback summary
+  -> release-admission scorecard
   -> promotion candidates
-  -> GitHub production gate 审核整批 reviewed bundle
+  -> whole-bundle review at the GitHub production gate
 ```
 
-### 自动证据审核
+Code rules, LLM-backed evaluation, automatic review, promotion checks, and GitHub `production` environment approval jointly perform review. Normal review persistence lives in the immutable reviewed bundle, manifest and checksums, GitHub run, SHA and tag, and deployment evidence. Humans review the whole bundle at the environment gate; they do not complete item-by-item approval JSON.
 
-系统应尽量用代码和 LLM 先完成初评；需关注的结论和异常随 reviewed bundle 一并进入 GitHub `production` gate。
+### Automatic Evidence Review
 
-自动证据包括：
+Automatic review may use:
 
-- 官方文档、README、registry entry、package metadata 和 release 信息。
-- GitHub stars、recent commits、release frequency、issue activity、license、topics。
-- 包管理源下载量、版本更新时间、维护信号。
-- 社区评价和引用，例如 issue、discussion、论坛或文章；这些只能作为弱信号，不能单独提升信任等级。
-- 已知风险信号，例如需要 token、文件写入、shell、邮箱、数据库、支付、云账号或生产环境权限。
+- Official documentation, READMEs, registry entries, package metadata, and releases.
+- GitHub stars, recent commits, release frequency, issue activity, licenses, and topics.
+- Package download, version, update, and maintenance signals.
+- Community references as weak signals only.
+- Known permission risks involving tokens, file writes, shell, email, databases, payments, cloud accounts, or production access.
 
-自动审核输出应生成 `review_summary`，至少包含：
+`review_summary` must include a suggested action from `promote`, `keep_draft`, `needs_review`, `reject`, or `retire`; primary evidence URLs; risks and missing fields; duplicates and parser or validator warnings; confidence; and reasons for production-gate attention.
 
-- 建议动作：`promote`、`keep_draft`、`needs_review`、`reject`、`retire`。
-- 主要证据和来源 URL。
-- 主要风险和缺失字段。
-- 重复项、parser warnings、validator warnings。
-- 置信度和需要在 production gate 关注的原因。
+An LLM may reason only from collected Source Records, the draft, ratings, and feedback summary. It must not present uncited external knowledge as fact, waive high-risk execution approval, or replace the production gate.
 
-LLM 审核只能基于已采集 Source Records、Tool Card draft、评分结果和反馈摘要生成判断，不得把未引用的外部知识写成事实。LLM 结论不得直接解除高风险工具执行所需的人工确认，也不替代 production gate。
+### User Feedback
 
-### 用户反馈闭环
+Future Web UI and MCP or API feedback should support recommendation votes, unsuitable-result reports, Tool Card corrections, installation or documentation failures, unexpected permissions, and structured outcomes such as `worked`, `failed`, `partial`, or `unsafe`.
 
-推荐质量应从使用端持续回流，而不是只靠维护者一次性审核。Web UI 和 MCP/API 后续应支持反馈入口：
+Feedback never mutates a Tool Card, rating, or recommendation rule directly. It first enters review material and evaluation reports to reveal errors, create intervention evidence, adjust fields, or add golden queries.
 
-- 对推荐结果点赞、点踩或标记“不适合”。
-- 对单个 Tool Card 反馈字段错误、安装失败、文档过期、权限超出预期。
-- 对实际使用结果标记 `worked`、`failed`、`partial`、`unsafe`。
-- 让 agent 在使用推荐后提交结构化 outcome，例如推荐是否有用、风险提示是否准确、实际遇到的权限或安装问题。
+### Release-Admission Scorecard
 
-反馈数据默认不直接修改 Tool Card、评分或推荐规则。它应先进入点评材料和 eval/report，用于发现误判、生成异常材料、调整字段或新增 golden query。
+The scorecard combines evidence quality and completeness, maintenance freshness, security and permission clarity, feedback usefulness and failure rates, recommendation errors, duplicates, and source conflicts.
 
-### 发布准入评分卡
-
-promotion candidates 不应只依赖人工 approval。后续应为每个候选生成发布准入评分卡，综合：
-
-- 证据质量和字段完整率。
-- 维护健康度和新鲜度。
-- 安全风险和权限明确度。
-- 用户反馈有用率、失败率、投诉原因。
-- 推荐命中/误判记录。
-- 重复项和来源冲突。
-
-建议动作：
-
-| 动作 | 含义 | 是否可自动进入可靠发布 |
+| Action | Meaning | Reliable release |
 | --- | --- | --- |
-| `promote` | 证据充分、风险可解释、反馈健康 | 低/中风险可进入候选，但仍走发布 gate |
-| `keep_draft` | 信息基本可用但证据不足 | 否 |
-| `needs_review` | 风险、重复、反馈或来源存在争议 | 否；默认阻断 promotion，将原因持久化到 reviewed bundle，并在 GitHub `production` gate 展示 |
-| `reject` | 不符合范围或风险不可接受 | 否 |
-| `retire` | 已发布工具失效或长期负反馈 | 否，作为破坏性操作需在 production gate 人工确认下线 |
+| `promote` | Evidence is sufficient, risk is explainable, and feedback is healthy | Low or medium risk may enter candidates, still behind the release gate |
+| `keep_draft` | Basic information exists but evidence is insufficient | no |
+| `needs_review` | Risk, duplication, feedback, or sources are disputed | no; fail closed and preserve reasons in the bundle |
+| `reject` | Out of scope or unacceptable risk | no |
+| `retire` | A released tool is unavailable or has sustained negative evidence | no; removal requires human confirmation |
 
-`needs_review` 采用 fail-closed 语义：GitHub `production` gate 只展示并审核阻断原因，不能直接解除 promotion 阻断。只有有效的 `approval_record.v1` 可以作为 break-glass override 覆盖该结果；它不是常规审核路径。
+`needs_review` is fail closed. The production gate can inspect the blocker but cannot clear it. Only a valid `approval_record.v1` can act as a break-glass override.
 
-GitHub `production` gate 的审核重点应为：
+The production gate emphasizes high-risk permissions, reduced risk levels, raised source trust, sharp negative-feedback increases, disagreement between LLM and rule review, conflict between community and official evidence, and large automatic promotion or retirement batches.
 
-- 高风险权限或风险等级降低。
-- 来源 trust level 提升。
-- 负反馈明显上升。
-- LLM 审核和规则审核结论冲突。
-- 社区信号与官方来源冲突。
-- 大规模自动 promotion 或 retire。
-
-## 流程总览
+## Target Process
 
 ```text
 Source Registry
@@ -200,57 +217,16 @@ Source Registry
   -> Publish
 ```
 
-## 运行模式
+## Run Modes
 
-### 每日增量
+Daily incremental and weekly full runs are not scheduled in the MVP. Maintainers trigger collection, import, rating, indexing, and release manually.
 
-用途：
+- Daily incremental is intended for high-priority official sources, known repository and package updates, stale links, and retries.
+- Weekly full is intended for official and manual sources plus controlled `github-topic-mcp` and `npm-modelcontextprotocol-sdk` metadata. Community directories stay disabled.
+- Monthly quality review samples automatic-review and bundle evidence, retires stale sources, and produces quality reports.
+- Manual runs add sources, fix parsers, investigate recommendation errors, and verify releases.
 
-- 检查高优先级官方来源。
-- 更新已知工具的 release、维护状态和失效链接。
-
-MVP 状态：不启用。MVP 只使用手动触发更新。
-
-范围：
-
-- 官方 registry。
-- 已收录工具的 repo 和 package metadata。
-- 最近失败后需要重试的来源。
-
-### 每周全量
-
-用途：
-
-- 扫描官方来源、人工维护来源，以及受控启用的 `github-topic-mcp` 和 `npm-modelcontextprotocol-sdk` 公共 metadata source；社区目录仍默认不启用。
-- 发现新增工具。
-- 重新构建索引和评分。
-
-MVP 状态：不启用自动定时。需要时由维护者手动触发。
-
-### 每月质量检查
-
-用途：
-
-- 抽样检查自动审核结果和 reviewed bundle 证据。
-- 清理过期来源。
-- 生成数据质量报告。
-
-### 手动运行
-
-用途：
-
-- 新增来源。
-- 修复 parser。
-- 处理推荐误判。
-- 发布前验证。
-
-MVP 默认更新方式：所有采集、导入、评分、索引和发布流程均手动触发。
-
-## Crawl Plan
-
-Crawl Plan 是每次运行的采集计划。
-
-字段：
+## Crawl Plan and Crawler
 
 ```yaml
 id:
@@ -263,43 +239,19 @@ rules:
   retry_policy:
 ```
 
-要求：
+Every run records a data version, may select a subset of sources, and must exclude disabled sources.
 
-- 每次运行记录数据版本。
-- 可以只跑部分来源。
-- 计划中不得包含禁用来源。
+The crawler stores public content as immutable Raw Snapshots. It respects Source Registry limits, sends no user secret, cookie, or private token, records failures, and performs no field inference.
 
-## Crawler
-
-职责：从公开来源抓取原始内容并保存 Raw Snapshot。
-
-要求：
-
-- 遵守 Source Registry 中的频率和限制。
-- 不携带用户 secret、cookie 或私人 token。
-- 失败也要记录错误快照。
-- 不在 crawler 阶段做字段推断。
-
-失败处理：
-
-| 错误 | 处理 |
+| Failure | Behavior |
 | --- | --- |
-| 网络超时 | 指数退避重试 |
-| 429 限流 | 停止该来源本轮采集，记录 rate_limited |
-| 404 | 标记来源或工具可能失效 |
-| 5xx | 重试后保留旧数据 |
-| 内容类型变化 | 保存快照，交给 parser 报错 |
+| Network timeout | Retry with exponential backoff |
+| HTTP 429 | Stop that source for the run and record `rate_limited` |
+| HTTP 404 | Mark the source or tool as potentially unavailable |
+| HTTP 5xx | Retry, then retain stable prior data |
+| Content-type change | Store the snapshot and let the parser report the incompatibility |
 
-## Raw Snapshot 保存
-
-要求：
-
-- 原始内容不可变。
-- 文件名包含 source_id、日期和 hash。
-- 内容 hash 写入 metadata。
-- 请求 metadata 不包含敏感信息。
-
-建议路径：
+Raw content is immutable, includes source ID, date, and content hash in its path, stores the hash in metadata, and excludes sensitive request metadata:
 
 ```text
 data/raw/<source_id>/<YYYY-MM-DD>/<content_hash>.json
@@ -307,112 +259,40 @@ data/raw/<source_id>/<YYYY-MM-DD>/<content_hash>.html
 data/raw/<source_id>/<YYYY-MM-DD>/<content_hash>.meta.json
 ```
 
-## Parser
+## Parser, Deduper, and Normalizer
 
-职责：将 Raw Snapshot 转换为 Source Record。
+A source-specific parser converts Raw Snapshots to Source Records. It preserves original fields, performs no cross-source merge or rating, never represents guesses as facts, emits warnings and errors, and records its version. Every parser requires fixtures, and source-shape changes must fail clearly.
 
-原则：
+Deduplication signals, in order, are canonical repository URL, package name plus registry, homepage URL, reciprocal official links, similar name plus maintainer, and similar name plus description. Strong matches may merge automatically. Weak matches emit `possible_duplicates`, block promotion, and enter production-gate review. Uncertain records remain separate drafts.
 
-- parser 是来源专属的。
-- 尽量保留原始字段。
-- 不做跨来源合并。
-- 不做评分。
-- 不把 parser 猜测当作事实。
+Canonical URLs remove trailing slashes, normalize GitHub casing and `.git` suffixes, and retain the validated canonical redirect target.
 
-Parser 输出：
+The normalizer merges Source Records into Tool Cards:
 
-- Source Record。
-- parse warnings。
-- parse errors。
-
-质量要求：
-
-- 每个 parser 有 fixture 测试。
-- 结构变化应导致清晰错误，而不是生成错误字段。
-- parser 版本写入 Source Record。
-
-## Deduper
-
-职责：识别来自不同来源的同一工具。
-
-匹配信号优先级：
-
-1. 相同 canonical repo URL。
-2. 相同 package name + registry。
-3. 相同 homepage URL。
-4. 官方文档互相链接。
-5. 名称相似 + 维护者相同。
-6. 名称相似 + 描述相似。
-
-去重规则：
-
-- 强匹配可自动合并。
-- 弱匹配生成 `possible_duplicates`，阻断 promotion 并作为 production gate 关注项。
-- 不确定时保留独立 Tool Card 草案，避免误合并。
-
-Canonical URL 规则：
-
-- 去掉 trailing slash。
-- 统一 GitHub URL 大小写和 `.git` 后缀。
-- 解析 redirect 后保留 canonical。
-
-## Normalizer
-
-职责：将一个或多个 Source Record 合并为 Tool Card。
-
-字段合成规则：
-
-| 字段 | 合成方式 |
+| Field | Merge rule |
 | --- | --- |
-| `name` | 优先官方名称，保留 aliases |
-| `summary` | 优先官方文档，必要时人工改写并留证据 |
-| `type` | 按分类体系判断 |
-| `source_urls` | 合并所有支撑来源 |
-| `license` | 优先官方仓库 LICENSE |
-| `install_methods` | 优先官方文档和包管理源 |
-| `permissions` | 采用保守合并，未知不降风险 |
-| `maintenance` | 来自 repo、release、package metadata |
-| `security` | 来自权限、来源可信度和安全规则 |
-| `confidence` | 综合字段完整性和来源质量 |
+| `name` | Prefer the official name and preserve aliases |
+| `summary` | Prefer official documentation; preserve evidence for manual rewriting |
+| `type` | Apply the taxonomy |
+| `source_urls` | Merge all supporting sources |
+| `license` | Prefer the official repository license |
+| `install_methods` | Prefer official documentation and package registries |
+| `permissions` | Merge conservatively; unknown evidence never lowers risk |
+| `maintenance` | Combine repository, release, and package metadata |
+| `security` | Derive from permissions, source trust, and security rules |
+| `confidence` | Combine completeness and source quality |
 
-冲突处理：
+Factual conflicts preserve all sources, select by source priority, and emit warnings. Risk conflicts use the more conservative conclusion. Classification conflicts become `needs_review`.
 
-- 事实字段冲突：记录所有来源，选择最高优先级并写 warnings。
-- 风险字段冲突：采用更保守结论。
-- 分类冲突：标记 `needs_review`。
+## Tool Card Validation
 
-## Tool Card Validator
+Schema validation checks required fields, enum values, URLs, and timestamps. Quality validation requires nonempty `source_urls`, `use_cases`, and `not_for`; at least one installation method or explicit `unknown`; an explicit permissions array; and acceptable freshness.
 
-校验类型：
+Reliable recommendation eligibility requires at least `medium` overall confidence, complete critical fields, a known risk level, at least one trusted source, and no `deprecated` or `needs_review` status unless the query explicitly asks for it.
 
-### Schema 校验
+## Storage and Incremental Updates
 
-- 必填字段存在。
-- 枚举值合法。
-- URL 格式合法。
-- 时间戳合法。
-
-### 质量校验
-
-- `source_urls` 非空。
-- `use_cases` 和 `not_for` 非空。
-- `install_methods` 至少有一种，或明确 `unknown`。
-- `permissions` 不为空；无权限也要写空数组并说明。
-- `last_checked_at` 不超过新鲜度阈值。
-
-### 推荐资格校验
-
-进入可靠推荐前必须满足：
-
-- 整体置信度至少 `medium`。
-- 关键字段齐全。
-- 风险等级不是 `unknown`。
-- 至少一个可信来源。
-- 未标记 `deprecated` 或 `needs_review`，除非查询明确要求。
-
-## 入库策略
-
-MVP 使用 JSON 文件和 Cloudflare D1 SQLite：
+MVP storage uses JSON artifacts and Cloudflare D1 SQLite:
 
 ```text
 data/source_records/*.jsonl
@@ -423,151 +303,59 @@ data/evals/*.json
 migrations/*.sql
 ```
 
-入库要求：
+JSON and JSONL remain source and release artifacts. D1 is the query store for the public site and Worker MCP API. Each run creates a new version, a release pointer selects the stable version, and rollback to the prior version remains possible.
 
-- JSON/JSONL 作为源数据和发布 artifacts。
-- Cloudflare D1 SQLite 作为公开站点和 Workers MCP API 的查询存储。
-- 每次运行生成新版本，不直接覆盖已发布版本。
-- 发布指针指向当前稳定版本。
-- 支持回滚到上一版本。
+Incremental triggers include content-hash, repository release or commit, package version, manual override, parser version, and normalizer version changes. Unchanged snapshots are not reparsed. Parser changes may replay existing snapshots. Rating-rule changes rerun rating and indexing; recommendation-rule changes rerun recommendation evaluation.
 
-## 增量更新
+## Quality Metrics and Logging
 
-增量更新触发：
+| Metric | MVP threshold |
+| --- | --- |
+| Required-field completeness | at least 90 percent |
+| Source coverage | track official or multi-source share |
+| Possible duplicate rate | continuously decrease |
+| Stale-record rate | at most 20 percent |
+| Parser failure rate | at most 10 percent |
+| Low or unknown confidence share | continuously track |
 
-- 来源内容 hash 变化。
-- repo release 或 commit 更新。
-- package version 更新。
-- 人工 override 新增。
-- parser 或 normalizer 版本变化。
+Low critical-field completeness blocks the reliable recommendation index. Rising parser failure retains the prior index and raises an alert. Missing high-risk fields exclude affected tools from recommendation.
 
-增量策略：
+Every pipeline run logs run ID, data version, sources, success and failure counts, candidate additions and changes, parser warnings, validator failures, and evaluation summary. Logs must never include tokens, cookies, private URLs, or private user data.
 
-- 未变化快照不重复解析。
-- parser 版本变化可触发回放。
-- rating rules 变化只需重跑评分和索引。
-- recommendation rules 变化只需重跑推荐评测。
-
-## 数据质量检查
-
-核心指标：
-
-| 指标 | 说明 | MVP 阈值 |
-| --- | --- | --- |
-| 字段完整率 | 必填字段完整的 Tool Card 占比 | >= 90% |
-| 来源覆盖率 | 至少两个来源或官方来源占比 | 持续跟踪 |
-| 重复率 | possible duplicate 占比 | 持续下降 |
-| 过期率 | 超过新鲜度阈值记录占比 | <= 20% |
-| 解析失败率 | parser failed snapshots 占比 | <= 10% |
-| 低置信占比 | confidence low/unknown 占比 | 持续跟踪 |
-
-失败处理：
-
-- 关键字段完整率低于阈值：阻止发布可靠推荐索引。
-- 解析失败率升高：保留旧索引并生成告警。
-- 高风险字段缺失：相关工具不进入推荐。
-
-## 日志要求
-
-每次 pipeline 运行记录：
-
-- run id。
-- 数据版本。
-- 来源列表。
-- 成功/失败数量。
-- 新增、更新、删除候选数量。
-- parser warnings。
-- validator failures。
-- eval summary。
-
-日志不能包含：
-
-- token。
-- cookie。
-- 私有 URL。
-- 用户私密数据。
-
-## 手动触发 MVP 流程
-
-### 工作流
+## Manual MVP Release
 
 ```text
-steps:
-  - checkout
-  - install dependencies
-  - validate source registry
-  - crawl enabled sources
-  - parse snapshots
-  - normalize tool cards
-  - validate data
-  - deduplicate tool card drafts
-  - run auto review
-  - apply release admission
-  - generate promotion candidates and promotion plan
-  - run `npm run promotion:check`
-  - run ratings
-  - build index
-  - run eval
-  - upload reviewed bundle and review materials
-  - obtain GitHub `production` environment approval
-  - deploy the same immutable reviewed bundle to the single Cloudflare Worker
-  - run deployed Worker MCP smoke checks
-  - record production release evidence with GitHub run/SHA/tag and bundle checksums
+checkout
+  -> install dependencies
+  -> validate Source Registry
+  -> crawl enabled sources
+  -> parse, normalize, validate, and deduplicate
+  -> run automatic review and release admission
+  -> generate promotion candidates and plan
+  -> run promotion check
+  -> rate, index, and evaluate
+  -> upload the reviewed bundle and review materials
+  -> obtain GitHub production environment approval
+  -> deploy the same immutable bundle to the single Cloudflare Worker
+  -> run deployed Worker MCP smoke checks
+  -> record release evidence with run, SHA, tag, and checksums
 ```
 
-要求：
+The MVP has no automatic schedule. Maintainers release by pushing an immutable `all-v*` tag. `workflow_dispatch` may select only an existing `all-v*` tag; branches and other references are rejected. The project introduces no paid runner, paid database, or closed data source. A failed promotion check blocks reviewed-bundle upload and deployment.
 
-- MVP 不配置自动 schedule。
-- 维护者通过推送不可变 `all-v*` tag 触发；`workflow_dispatch` 也只能选择已有的 `all-v*` tag，branch 或其他 ref 会被拒绝。
-- 不引入付费 runner、付费数据库或闭源数据源。
-- `npm run promotion:check` 失败时必须在 fail-closed 状态阻断 reviewed bundle 上传和部署。
+Cost controls include source-count limits, ETags or content hashes, lower frequency for low-priority sources, and replaying snapshots instead of refetching them.
 
-### 成本控制
+Isolated failures in non-MVP candidate sources, individual 404 pages, low-priority rate limits, and missing noncritical fields need not block the whole pipeline. Schema failure, mass Tool Card ID changes, loss of every core official source without fallback, missing security fields at scale, severe golden-query regression, or index and data version mismatch must block release.
 
-- 限制每次运行来源数量。
-- 使用 ETag 或 content hash。
-- 对低优先级来源降频。
-- 优先重新解析已有快照，而不是重复抓取。
+Intervention or production-gate attention includes possible duplicates, classification conflicts, unknown permissions on powerful tools, rating changes beyond thresholds, recommendation upgrades from `avoid` or `consider` to `recommended`, and deprecated tools.
 
-## 失败不应阻断全部 pipeline 的情况
+## Related Documents and Maintenance
 
-- 单个非 MVP 候选来源解析失败。
-- 单个工具页面 404。
-- 低优先级来源限流。
-- 个别 Tool Card 缺少非关键字段。
+- Source definitions: `docs/07-source-registry.md`.
+- Data contracts: `docs/04-data-model.md`.
+- Taxonomy: `docs/05-taxonomy.md`.
+- Rating rules: `docs/06-rating-rules.md`.
+- Security: `docs/11-security-and-trust.md`.
+- Evaluation thresholds: `docs/10-evaluation-plan.md`.
 
-## 必须阻断发布的情况
-
-- schema 校验器失败。
-- 大量 Tool Card ID 变化。
-- 核心官方来源全部不可用且无旧版本。
-- 安全风险字段批量缺失。
-- golden queries 出现严重回归。
-- 索引版本和数据版本不一致。
-
-## 自动审核异常队列
-
-以下记录进入 intervention requests 或 production gate 关注项：
-
-- possible duplicate。
-- 分类冲突。
-- 权限未知但工具能力强。
-- 评分变化超过阈值。
-- 推荐等级从 avoid/consider 升为 recommended。
-- 工具被标记为 deprecated。
-
-## 与其他文档的关系
-
-- SourceDefinition 来自 `docs/07-source-registry.md`。
-- 数据结构来自 `docs/04-data-model.md`。
-- 分类规则来自 `docs/05-taxonomy.md`。
-- 评分规则来自 `docs/06-rating-rules.md`。
-- 安全风险来自 `docs/11-security-and-trust.md`。
-- 评测阈值来自 `docs/10-evaluation-plan.md`。
-
-## 维护规则
-
-- 所有 parser 应尽量保留原始字段，避免不可逆丢失。
-- 采集失败不应阻断全部 pipeline，除非核心来源全部不可用。
-- 修改入库规则必须说明对已有 Tool Card、评分和索引的影响。
-- 涉及来源合法性或高风险权限的数据必须保守处理。
+Parsers must preserve raw fields whenever possible. A single source failure should not stop the pipeline unless all core sources are unavailable. Any ingestion-rule change must document its impact on existing Tool Cards, ratings, and indexes. Treat source legality and high-risk permission data conservatively.
