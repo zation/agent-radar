@@ -148,7 +148,8 @@ test("MCP Registry workflow publishes only evidence-bound Release All runs throu
   assert.match(workflow, /agent-radar-mcp-smoke-\$\{SOURCE_RUN_ID\}/);
   assert.match(workflow, /agent-radar-all-\$\{SOURCE_RUN_ID\}/);
   assert.equal(workflow.match(/gh run download "\$SOURCE_RUN_ID"[\s\S]*?--repo "\$GITHUB_REPOSITORY"/g)?.length, 2);
-  assert.match(workflow, /source-reviewed-bundle\/dist-pages\/artifact-manifest\.json/);
+  assert.match(workflow, /RUNNER_TEMP\/agent-radar-source-evidence/);
+  assert.match(workflow, /RUNNER_TEMP\/agent-radar-source-reviewed-bundle\/dist-pages\/artifact-manifest\.json/);
   assert.match(workflow, /production-release-evidence\.json/);
   assert.match(workflow, /\/api\/version/);
   assert.match(workflow, /AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);

@@ -63,15 +63,15 @@ jobs:
           gh run download "$SOURCE_RUN_ID" \
             --repo "$GITHUB_REPOSITORY" \
             --name "agent-radar-mcp-smoke-${SOURCE_RUN_ID}" \
-            --dir source-evidence
+            --dir "$RUNNER_TEMP/agent-radar-source-evidence"
           gh run download "$SOURCE_RUN_ID" \
             --repo "$GITHUB_REPOSITORY" \
             --name "agent-radar-all-${SOURCE_RUN_ID}" \
-            --dir source-reviewed-bundle
-          test -f source-evidence/production-release-evidence.json
-          test -f source-evidence/mcp-smoke-result.json
-          test -f source-reviewed-bundle/dist-pages/artifact-manifest.json
-          test -f source-reviewed-bundle/dist-pages/data/d1_seed.sql
+            --dir "$RUNNER_TEMP/agent-radar-source-reviewed-bundle"
+          test -f "$RUNNER_TEMP/agent-radar-source-evidence/production-release-evidence.json"
+          test -f "$RUNNER_TEMP/agent-radar-source-evidence/mcp-smoke-result.json"
+          test -f "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/artifact-manifest.json"
+          test -f "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/data/d1_seed.sql"
 
       - name: Validate source production evidence before checkout
         run: |
@@ -91,15 +91,15 @@ jobs:
               .smoke.total == 7 and
               .smoke.passed_checks == 7 and
               .smoke.failed == 0
-            ' source-evidence/production-release-evidence.json >/dev/null
+            ' "$RUNNER_TEMP/agent-radar-source-evidence/production-release-evidence.json" >/dev/null
           jq -e --arg sha "$SOURCE_SHA" --arg tag "$SOURCE_TAG" '
             .schema_version == "mcp_smoke_result.v2" and
             .release_id == $tag and
             .commit_sha == $sha and
             .passed == true and
             .summary == {"total": 7, "passed": 7, "failed": 0}
-          ' source-evidence/mcp-smoke-result.json >/dev/null
-          MCP_ENDPOINT="$(jq -r '.deployment.mcp_endpoint' source-evidence/production-release-evidence.json)"
+          ' "$RUNNER_TEMP/agent-radar-source-evidence/mcp-smoke-result.json" >/dev/null
+          MCP_ENDPOINT="$(jq -r '.deployment.mcp_endpoint' "$RUNNER_TEMP/agent-radar-source-evidence/production-release-evidence.json")"
           if [[ ! "$MCP_ENDPOINT" =~ ^https://[^/]+\.workers\.dev/api/mcp$ ]]; then
             echo "Production evidence MCP endpoint is invalid." >&2
             exit 1
@@ -126,11 +126,11 @@ jobs:
         run: |
           set -euo pipefail
           node dist/src/cli/validate-mcp-registry-release.js \
-            --production-evidence source-evidence/production-release-evidence.json \
-            --smoke-result source-evidence/mcp-smoke-result.json \
+            --production-evidence "$RUNNER_TEMP/agent-radar-source-evidence/production-release-evidence.json" \
+            --smoke-result "$RUNNER_TEMP/agent-radar-source-evidence/mcp-smoke-result.json" \
             --metadata server.json \
-            --manifest source-reviewed-bundle/dist-pages/artifact-manifest.json \
-            --d1-seed source-reviewed-bundle/dist-pages/data/d1_seed.sql \
+            --manifest "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/artifact-manifest.json" \
+            --d1-seed "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/data/d1_seed.sql" \
             --repository "$GITHUB_REPOSITORY" \
             --run-id "$SOURCE_RUN_ID" \
             --release-tag "$SOURCE_TAG" \
@@ -228,7 +228,7 @@ jobs:
         run: |
           set -euo pipefail
           node dist/src/cli/build-mcp-registry-evidence.js \
-            --production-evidence source-evidence/production-release-evidence.json \
+            --production-evidence "$RUNNER_TEMP/agent-radar-source-evidence/production-release-evidence.json" \
             --metadata server.json \
             --registry-response registry-response.json \
             --output mcp-registry-publication-evidence.json \
