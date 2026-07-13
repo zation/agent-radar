@@ -1,0 +1,228 @@
+name: Publish MCP Registry
+
+on:
+  workflow_run:
+    workflows: ["Release All"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: Successful Release All workflow run ID to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Verify and publish MCP Registry metadata
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    env:
+      SOURCE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.release_run_id }}
+    steps:
+      - name: Resolve trusted Release All run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Release All run ID must be a positive decimal integer." >&2
+            exit 1
+          fi
+          gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${SOURCE_RUN_ID}" > source-run.json
+          jq -e --arg repository "$GITHUB_REPOSITORY" '
+            .name == "Release All" and
+            .status == "completed" and
+            .conclusion == "success" and
+            .head_repository.full_name == $repository
+          ' source-run.json >/dev/null
+          SOURCE_SHA="$(jq -r '.head_sha' source-run.json)"
+          SOURCE_TAG="$(jq -r '.head_branch' source-run.json)"
+          if [[ ! "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Release All source SHA is invalid." >&2
+            exit 1
+          fi
+          if [[ "$SOURCE_TAG" != all-v* ]] || [[ "$SOURCE_TAG" =~ [[:space:]] ]]; then
+            echo "Release All source ref must be an all-v* tag." >&2
+            exit 1
+          fi
+          {
+            echo "SOURCE_SHA=$SOURCE_SHA"
+            echo "SOURCE_TAG=$SOURCE_TAG"
+          } >> "$GITHUB_ENV"
+
+      - name: Download source production evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh run download "$SOURCE_RUN_ID" \
+            --name "agent-radar-mcp-smoke-${SOURCE_RUN_ID}" \
+            --dir source-evidence
+          test -f source-evidence/production-release-evidence.json
+          test -f source-evidence/mcp-smoke-result.json
+
+      - name: Validate source production evidence before checkout
+        run: |
+          set -euo pipefail
+          jq -e \
+            --arg repository "$GITHUB_REPOSITORY" \
+            --arg run_id "$SOURCE_RUN_ID" \
+            --arg sha "$SOURCE_SHA" \
+            --arg tag "$SOURCE_TAG" '
+              .schema_version == "production_release_evidence.v1" and
+              .github.repository == $repository and
+              .github.run_id == $run_id and
+              .github.sha == $sha and
+              .github.release_tag == $tag and
+              .deployment.environment == "production" and
+              .smoke.passed == true and
+              .smoke.total == 7 and
+              .smoke.passed_checks == 7 and
+              .smoke.failed == 0
+            ' source-evidence/production-release-evidence.json >/dev/null
+          jq -e --arg sha "$SOURCE_SHA" --arg tag "$SOURCE_TAG" '
+            .schema_version == "mcp_smoke_result.v2" and
+            .release_id == $tag and
+            .commit_sha == $sha and
+            .passed == true and
+            .summary == {"total": 7, "passed": 7, "failed": 0}
+          ' source-evidence/mcp-smoke-result.json >/dev/null
+          MCP_ENDPOINT="$(jq -r '.deployment.mcp_endpoint' source-evidence/production-release-evidence.json)"
+          if [[ ! "$MCP_ENDPOINT" =~ ^https://[^/]+\.workers\.dev/api/mcp$ ]]; then
+            echo "Production evidence MCP endpoint is invalid." >&2
+            exit 1
+          fi
+          echo "WORKER_BASE_URL=${MCP_ENDPOINT%/api/mcp}" >> "$GITHUB_ENV"
+
+      - name: Checkout evidence SHA
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate immutable Registry metadata
+        run: npm run validate:mcp-registry -- --release-tag "$SOURCE_TAG"
+
+      - name: Revalidate deployed version
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --retry 3 "$WORKER_BASE_URL/api/version" > production-version.json
+          jq -e --arg tag "$SOURCE_TAG" --arg sha "$SOURCE_SHA" '
+            .release_id == $tag and .commit_sha == $sha
+          ' production-version.json >/dev/null
+
+      - name: Run fresh production MCP smoke
+        env:
+          AGENT_RADAR_MCP_BASE_URL: ${{ env.WORKER_BASE_URL }}
+          AGENT_RADAR_RELEASE_ID: ${{ env.SOURCE_TAG }}
+          AGENT_RADAR_COMMIT_SHA: ${{ env.SOURCE_SHA }}
+        run: |
+          set -euo pipefail
+          AGENT_RADAR_MCP_BASE_URL="$WORKER_BASE_URL" node dist/src/cli/run-mcp-smoke.js | tee fresh-mcp-smoke-result.json
+
+      - name: Query official MCP Registry before publication
+        run: |
+          set -euo pipefail
+          REGISTRY_VERSION="${SOURCE_TAG#all-v}"
+          REGISTRY_QUERY_URL="https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.zation%2Fagent-radar&version=${REGISTRY_VERSION}"
+          curl --fail --silent --show-error --retry 3 "$REGISTRY_QUERY_URL" > registry-response-before.json
+          {
+            echo "REGISTRY_VERSION=$REGISTRY_VERSION"
+            echo "REGISTRY_QUERY_URL=$REGISTRY_QUERY_URL"
+          } >> "$GITHUB_ENV"
+
+      - name: Classify existing Registry record
+        id: registry_preflight
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import { appendFileSync, readFileSync } from "node:fs";
+          import { classifyMcpRegistryRecord } from "./dist/src/release/mcp-registry-evidence.js";
+          const response = JSON.parse(readFileSync("registry-response-before.json", "utf8"));
+          const metadata = JSON.parse(readFileSync("server.json", "utf8"));
+          const result = classifyMcpRegistryRecord(response, metadata);
+          appendFileSync(process.env.GITHUB_OUTPUT, `publication_action=${result.kind === "identical" ? "idempotent" : "publish"}\n`);
+          NODE
+
+      - name: Install pinned MCP publisher
+        run: |
+          set -euo pipefail
+          PUBLISHER_ARCHIVE="$RUNNER_TEMP/mcp-publisher_linux_amd64.tar.gz"
+          curl --fail --location --silent --show-error \
+            "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.0/mcp-publisher_linux_amd64.tar.gz" \
+            --output "$PUBLISHER_ARCHIVE"
+          echo "1370446bbe74d562608e8005a6ccce02d146a661fbd78674e11cc70b9618d6cf  $PUBLISHER_ARCHIVE" | sha256sum --check --strict
+          mkdir -p "$RUNNER_TEMP/mcp-publisher-bin"
+          tar -xzf "$PUBLISHER_ARCHIVE" -C "$RUNNER_TEMP/mcp-publisher-bin" mcp-publisher
+          chmod 0755 "$RUNNER_TEMP/mcp-publisher-bin/mcp-publisher"
+          echo "$RUNNER_TEMP/mcp-publisher-bin" >> "$GITHUB_PATH"
+
+      - name: Validate metadata with MCP publisher
+        run: mcp-publisher validate server.json
+
+      - name: Publish metadata with GitHub OIDC
+        if: steps.registry_preflight.outputs.publication_action == 'publish'
+        run: |
+          set -euo pipefail
+          mcp-publisher login github-oidc
+          mcp-publisher publish server.json
+
+      - name: Poll official MCP Registry
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            curl --fail --silent --show-error "$REGISTRY_QUERY_URL" > registry-response.json
+            CLASSIFICATION="$(node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          import { classifyMcpRegistryRecord } from "./dist/src/release/mcp-registry-evidence.js";
+          const response = JSON.parse(readFileSync("registry-response.json", "utf8"));
+          const metadata = JSON.parse(readFileSync("server.json", "utf8"));
+          console.log(classifyMcpRegistryRecord(response, metadata).kind);
+          NODE
+            )"
+            if [ "$CLASSIFICATION" = "identical" ]; then
+              date -u +%Y-%m-%dT%H:%M:%SZ > registry-queried-at.txt
+              exit 0
+            fi
+            if [ "$attempt" -lt 12 ]; then sleep 5; fi
+          done
+          echo "Published MCP Registry record did not become visible in time." >&2
+          exit 1
+
+      - name: Build MCP Registry publication evidence
+        run: |
+          set -euo pipefail
+          node dist/src/cli/build-mcp-registry-evidence.js \
+            --production-evidence source-evidence/production-release-evidence.json \
+            --metadata server.json \
+            --registry-response registry-response.json \
+            --output mcp-registry-publication-evidence.json \
+            --repository "$GITHUB_REPOSITORY" \
+            --run-id "$SOURCE_RUN_ID" \
+            --release-tag "$SOURCE_TAG" \
+            --git-sha "$SOURCE_SHA" \
+            --registry-query-url "$REGISTRY_QUERY_URL" \
+            --registry-queried-at "$(cat registry-queried-at.txt)"
+
+      - name: Upload MCP Registry publication evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: mcp-registry-publication-evidence-${{ env.SOURCE_RUN_ID }}
+          path: |
+            mcp-registry-publication-evidence.json
+            fresh-mcp-smoke-result.json
+            registry-response.json
+          if-no-files-found: error

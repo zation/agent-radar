@@ -120,3 +120,37 @@ test("all release workflow prepares feedback read-only and applies it after appr
   assert.match(workflow, /AGENT_RADAR_FEEDBACK_BUILD_INPUT:\s*feedback-build-input\.json/);
   assert.match(workflow, /npm run feedback:apply -- --plan reviewed-bundle\/dist-pages\/data\/feedback_processing_plan\.json/);
 });
+
+test("MCP Registry workflow publishes only evidence-bound Release All runs through GitHub OIDC", async () => {
+  const workflow = await readFile(".github/workflows/publish-mcp-registry.yml", "utf8");
+  const downloadEvidence = workflow.indexOf("Download source production evidence");
+  const checkout = workflow.indexOf("Checkout evidence SHA");
+  const validate = workflow.indexOf("mcp-publisher validate server.json");
+  const login = workflow.indexOf("mcp-publisher login github-oidc");
+  const publish = workflow.indexOf("mcp-publisher publish server.json");
+
+  assert.match(workflow, /workflow_run:\s*\n\s*workflows:\s*\["Release All"\]\s*\n\s*types:\s*\[completed\]/);
+  assert.match(workflow, /workflow_dispatch:[\s\S]*release_run_id:[\s\S]*required:\s*true/);
+  assert.match(workflow, /permissions:\s*\n\s*contents:\s*read\s*\n\s*actions:\s*read\s*\n\s*id-token:\s*write/);
+  assert.match(workflow, /github\.event\.workflow_run\.conclusion == 'success'/);
+  assert.match(workflow, /repos\/\$\{GITHUB_REPOSITORY\}\/actions\/runs\/\$\{SOURCE_RUN_ID\}/);
+  assert.match(workflow, /\.head_repository\.full_name == \$repository/);
+  assert.match(workflow, /\.conclusion == "success"/);
+  assert.match(workflow, /\[\[ "\$SOURCE_TAG" != all-v\* \]\]/);
+  assert.match(workflow, /ref:\s*\$\{\{ env\.SOURCE_SHA \}\}/);
+  assert.ok(downloadEvidence >= 0 && checkout > downloadEvidence);
+
+  assert.match(workflow, /agent-radar-mcp-smoke-\$\{SOURCE_RUN_ID\}/);
+  assert.match(workflow, /production-release-evidence\.json/);
+  assert.match(workflow, /\/api\/version/);
+  assert.match(workflow, /AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);
+  assert.match(workflow, /classifyMcpRegistryRecord/);
+  assert.match(workflow, /registry\/releases\/download\/v1\.8\.0\/mcp-publisher_linux_amd64\.tar\.gz/);
+  assert.match(workflow, /1370446bbe74d562608e8005a6ccce02d146a661fbd78674e11cc70b9618d6cf/);
+  assert.ok(validate >= 0 && login > validate && publish > login);
+  assert.match(workflow, /if: steps\.registry_preflight\.outputs\.publication_action == 'publish'/);
+  assert.doesNotMatch(workflow, /(MCP_REGISTRY_TOKEN|REGISTRY_PAT|secrets\.[A-Za-z0-9_]*REGISTRY)/);
+  assert.match(workflow, /Poll official MCP Registry/);
+  assert.match(workflow, /build-mcp-registry-evidence\.js/);
+  assert.match(workflow, /mcp-registry-publication-evidence-\$\{\{ env\.SOURCE_RUN_ID \}\}/);
+});
