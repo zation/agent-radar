@@ -11,14 +11,30 @@ import {
 import type { EvalCase } from "../src/schema.js";
 import { goldenQueries } from "../src/eval/golden-queries.js";
 
-test("public document scope contains exactly the approved P1 files", () => {
+test("public document scope contains exactly the approved public files", () => {
   const paths = new Set<string>(PUBLIC_DOCUMENT_PATHS);
-  assert.equal(PUBLIC_DOCUMENT_PATHS.length, 17);
-  assert.deepEqual(PUBLIC_DOCUMENT_PATHS.slice(0, 2), ["README.md", "AGENTS.md"]);
+  assert.equal(PUBLIC_DOCUMENT_PATHS.length, 18);
+  assert.deepEqual(PUBLIC_DOCUMENT_PATHS.slice(0, 3), ["README.md", "DEVELOPMENT.md", "AGENTS.md"]);
+  assert.ok(paths.has("DEVELOPMENT.md"));
   assert.ok(paths.has("docs/00-product-brief.md"));
   assert.ok(paths.has("docs/14-web-ui.md"));
   assert.ok(!paths.has("docs/15-roadmap.md"));
   assert.ok(PUBLIC_DOCUMENT_PATHS.every((path) => !path.startsWith("docs/superpowers/")));
+});
+
+test("README promotes the product and delegates local development", async () => {
+  const [readme, development] = await Promise.all([
+    readFile("README.md", "utf8"),
+    readFile("DEVELOPMENT.md", "utf8"),
+  ]);
+
+  assert.doesNotMatch(readme, /^## Current Stage$/m);
+  assert.match(readme, /\[Development Guide\]\(DEVELOPMENT\.md\)/);
+  assert.doesNotMatch(readme, /AGENT_RADAR_LLM_API_KEY=/);
+  assert.match(development, /^# Development Guide$/m);
+  assert.match(development, /^## Local Setup$/m);
+  assert.match(development, /^## Development Commands$/m);
+  assert.match(development, /docs\/12-deployment-and-ops\.md/);
 });
 
 test("validator reports Han, CJK punctuation, and fullwidth forms with stable locations", () => {

@@ -2,6 +2,7 @@ import type { EvalCase } from "../schema.js";
 
 export const PUBLIC_DOCUMENT_PATHS = [
   "README.md",
+  "DEVELOPMENT.md",
   "AGENTS.md",
   "docs/00-product-brief.md",
   "docs/01-requirements.md",

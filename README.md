@@ -1,92 +1,123 @@
 # Agent Radar
 
-Agent Radar is an AI tool rating and recommendation knowledge base for human developers and coding agents. It continuously discovers AI Agents, Skills, MCP Servers, CLIs, Frameworks, and Prompts/Rules from the ecosystem; classifies and rates them by purpose, usage, source trustworthiness, and risk; and publishes AI-friendly documentation, JSON/JSONL data, and MCP query capabilities.
+**Choose AI tools with evidence, not hype.**
 
-## Project Goals
+Agent Radar is a structured rating and recommendation knowledge base for AI Agents, Skills, MCP Servers, CLIs, Frameworks, and Prompts/Rules. It helps developers and coding agents answer a practical question: which tool fits this task, and what should I know before trusting it?
 
-- Help developers quickly find AI tools suited to their current needs.
-- Help coding agents select reusable tools based on task goals, constraints, and risk.
-- Continuously build a body of Tool Cards, rating rules, source definitions, evaluation suites, and recommendation evidence.
-- Allow coding agents to improve ingestion code, data structures, rating criteria, and documentation within explicit guardrails.
+Instead of publishing another directory of links, Agent Radar turns fragmented ecosystem information into Tool Cards, explainable ratings, task-oriented recommendations, risk signals, and agent-readable data.
 
-## Current Stage
+## Why Agent Radar
 
-MVP, v0.2, v0.3, and v0.4 are complete. `all-v0.4.4` passed production release and verification: the reviewed release contains 53 reliable Tool Cards, real-provider golden evaluation passed 24/24 with critical safety 4/4, MCP smoke checks passed 4/4, and all 53 Rating Results bind to the same production D1 vote snapshot checksum. The repository includes:
+The AI tooling ecosystem is growing faster than any one developer can evaluate it. Names and categories overlap, documentation quality varies, and popularity often says little about task fit, integration cost, maintenance, permissions, or trust.
 
-- TypeScript schemas for Tool Card, Rating Result, and Recommendation Result.
-- A Source Registry-driven data pipeline; controlled GitHub topic metadata, exact GitHub repositories, npm package metadata, and official documentation sources are enabled, and candidates must pass validation, automatic review, and promotion gates.
-- A single Cloudflare Worker with Static Assets enabled, serving the Web UI, data artifacts, HTTP API, and the `/api/mcp` MCP JSON-RPC endpoint.
-- A read-only API handler covering `search_tools`, `get_tool_card`, `recommend_tools`, and `explain_rating`.
-- A Cloudflare D1-compatible read-model migration.
-- A public React/Vite UI served through the same Cloudflare Worker's Static Assets.
-- A 24-case golden-query suite covering recommendation quality, coding agents, frameworks, MCP, high-risk permissions, and no-reliable-match behavior, including four release-blocking critical safety cases.
+Agent Radar adds a decision layer:
 
-## Local Commands
+- **Task fit over popularity.** Recommendations start from the work to be done, not a global leaderboard.
+- **Evidence over marketing.** Sources, update times, provenance, and confidence remain visible.
+- **Explanation over opaque ranking.** Ratings and recommendations expose reasons, trade-offs, and unsuitable conditions.
+- **Safety before execution.** Permission, trust, data-flow, and production-impact risks can tighten or block a recommendation.
+- **Built for humans and agents.** The same reviewed knowledge is available through a Web UI, static data, HTTP endpoints, and MCP.
 
-```bash
-npm install
-npm test
-npm run ingest
-npm run pipeline
-npm run eval
-npm run pages:build
-npm run dev
-npm run dev:data
-npm run dev:api
-npm run dev:ui
-npm run preview:build
+## What You Get
+
+### Structured Tool Knowledge
+
+Tool Cards describe capabilities, appropriate tasks, limitations, integration methods, maintenance, permissions, known risks, sources, and confidence in a consistent format across tool types.
+
+### Explainable Ratings
+
+Ratings combine task fit, maintenance, documentation, integration cost, security risk, and evidence quality. Scores never replace the underlying evidence or risk context.
+
+### Task-Oriented Recommendations
+
+Describe a development task, environment, preferred tool type, allowed permissions, and risk tolerance. Agent Radar returns candidates with fit reasons, risks, alternatives, and a conservative next action.
+
+| Action | Meaning |
+| --- | --- |
+| `use` | A suitable option can be included in the plan within its stated boundaries |
+| `compare` | Multiple options deserve a trade-off review |
+| `ask_human` | Permission, account, production, or uncertainty boundaries require confirmation |
+| `avoid` | The option or operation crosses an unacceptable safety or quality boundary |
+| `no_reliable_match` | The catalog cannot support a trustworthy recommendation |
+
+### Agent-Readable Decision Context
+
+JSON, JSONL, HTTP, and MCP surfaces let coding agents search the catalog, inspect Tool Cards, request recommendations, and explain ratings without scraping a human-only page.
+
+## How It Works
+
+```text
+reviewed public sources
+  -> normalized Tool Cards and provenance
+  -> explainable ratings and risk signals
+  -> task-oriented retrieval and recommendation
+  -> deterministic safety enforcement
+  -> provider-backed evaluation and release gates
+  -> Web, JSON/JSONL, HTTP API, and MCP
 ```
 
-Core release artifacts are generated by `npm run pipeline` and are no longer committed as long-lived source files:
+Collection is controlled by a Source Registry. Candidates pass normalization, validation, review, admission, and promotion gates before entering reliable recommendation data. Dynamic recommendations use an LLM for task interpretation and candidate selection, while local deterministic logic validates known tools and enforces safety boundaries.
 
-- `public/data/tool_cards.jsonl`
-- `public/data/ratings.jsonl`
-- `public/data/search_index.json`
-- `public/data/d1_seed.sql`
-- `public/data/manifest.json`
-- `public/reports/eval-data-2026-07-06.md`
+## Who It Is For
 
-The development environment uses `npm run dev` to prepare the six artifacts required by the UI and Worker, automatically apply local D1 migrations, and then start Vite at `127.0.0.1:5173` and Wrangler at `127.0.0.1:8787` in parallel. Vite provides React/Tailwind HMR and proxies same-origin `/api/*` requests to the hot-reloading Worker; Wrangler uses local D1 and never writes to production. All local LLM, OAuth, and session configuration is read from the git-ignored `.env`, which can be copied from `.env.example`. The development OAuth callback is `http://127.0.0.1:5173/api/auth/github/callback`. This bootstrap does not run or relax production data gates. Production releases still use `npm run release:build` to execute the strict pipeline. The Worker entry point is `src/worker.ts`; the UI entry points are `index.html` and `src/ui/App.tsx`.
+- **AI-first developers** choosing among agents, Skills, MCP Servers, CLIs, and Frameworks for a concrete task.
+- **Coding-agent users** who want tool selection to include reasons, permissions, risks, and traceable evidence.
+- **AI platform teams** building a trusted, reusable catalog and decision layer for developers.
+- **Tool maintainers** who want capabilities, limitations, and sources represented accurately.
 
-`npm run ingest` runs the local v0.2 ingestion MVP: it reads enabled Source Registry entries, stores Raw Snapshots under `data/raw/`, and emits Source Records, Tool Card drafts, release admission, promotion candidates, and the promotion-check artifact. `npm run pipeline` consumes candidates that passed the gates by default and produces reliable recommendation release data. These intermediate, reproducible ingestion files are not committed.
+## Trust and Safety
 
-Local LLM evaluation and recommendation may use the repository-root `.env`, which must remain git-ignored:
+Agent Radar is designed to support safer selection, not to authorize execution.
 
-```dotenv
-AGENT_RADAR_LLM_API_KEY=your-provider-key
-AGENT_RADAR_LLM_MODEL=MiniMax M3
-AGENT_RADAR_LLM_BASE_URL=https://api.minimaxi.com
-```
+- Sources and field-level evidence remain traceable.
+- Unknown, stale, or conflicting evidence lowers confidence.
+- Permissions and data flows stay visible beside recommendation value.
+- High-risk operations can require human confirmation even when a tool is a strong task match.
+- Unknown-source code execution is treated conservatively and cannot be promoted by provider output.
+- Critical safety cases block a reviewed release when they fail, are missing, or are not executed.
 
-`npm run eval`, `npm run pipeline`, and local commands that depend on the pipeline automatically load `.env`. Explicit shell environment variables or CI secrets take precedence over `.env`. `AGENT_RADAR_LLM_BASE_URL` overrides the current provider base URL; for example, a mainland-China MiniMax key uses `https://api.minimaxi.com`.
+Agent Radar does not automatically install, authorize, or run third-party tools. It is not a substitute for a security scanner, dependency audit, organizational policy, or human review of production-impacting actions.
 
-After `release:build`, `npm run preview:build` generates `dist-pages/artifact-manifest.json` and writes complete review material to `artifacts/review/ingestion.md`. The word `preview` in the command is historical: the current output is the immutable reviewed bundle used by the `Release All` workflow, not a Cloudflare Pages deployment. Normal review evidence is generated by scripts, rules, LLM evaluation, automatic review, release admission, and promotion checks, then persisted in the reviewed bundle; maintainers do not fill out approval records item by item.
+## Ways to Use Agent Radar
 
-Pushing an `all-v*` tag triggers `.github/workflows/release-all.yml`: the workflow builds and uploads the reviewed bundle, waits for one human confirmation through the GitHub `production` environment, then builds the Worker from the same immutable SHA and deploys the reviewed `dist-pages` unchanged. It obtains the Worker URL from Wrangler deploy output, runs MCP smoke checks, and records the GitHub run, SHA, tag, production deployment, manifest checksum, D1 seed checksum, and smoke results in `production-release-evidence.json`. High-risk tool execution, destructive operations, and safety-boundary changes still require human confirmation.
+### Web UI
+
+Browse and filter the reviewed catalog, describe a task, inspect recommendations, open detailed Tool Cards, and review evaluation evidence through the Tools and Evaluation workspaces.
+
+### Static Data
+
+Reviewed bundles expose versioned Tool Cards, Rating Results, search indexes, Golden Queries, evaluation summaries, manifests, provenance, and quality evidence as JSON or JSONL artifacts.
+
+### HTTP API
+
+The Worker exposes read-oriented endpoints for:
+
+- `/api/search_tools`
+- `/api/get_tool_card`
+- `/api/recommend_tools`
+- `/api/explain_rating`
+- `/api/version`
+
+### MCP
+
+`/api/mcp` provides an MCP JSON-RPC interface for agent clients. `/api/mcp_manifest` exposes the supported tool definitions for simpler HTTP integrations.
 
 ## Documentation
 
 - [Product Brief](docs/00-product-brief.md)
-- [Requirements](docs/01-requirements.md)
 - [User Workflows](docs/02-user-workflows.md)
 - [System Architecture](docs/03-system-architecture.md)
 - [Data Model](docs/04-data-model.md)
-- [Taxonomy](docs/05-taxonomy.md)
 - [Rating Rules](docs/06-rating-rules.md)
-- [Source Registry](docs/07-source-registry.md)
-- [Crawler and Ingestion](docs/08-crawler-and-ingestion.md)
 - [Recommendation Engine](docs/09-recommendation-engine.md)
 - [Evaluation Plan](docs/10-evaluation-plan.md)
 - [Security and Trust](docs/11-security-and-trust.md)
 - [Deployment and Operations](docs/12-deployment-and-ops.md)
-- [Agent Self-Improvement](docs/13-agent-self-improvement.md)
 - [Web UI](docs/14-web-ui.md)
 - [Roadmap](docs/15-roadmap.md)
 
-## Working with Coding Agents
+## Development and Contributing
 
-Read [AGENTS.md](AGENTS.md) before starting any implementation. The default workflow is to understand the documentation, propose the smallest change, modify code or data, run tests and evaluations, and report the change. High-risk actions must wait for human confirmation.
+Use the [Development Guide](DEVELOPMENT.md) for local setup, development commands, data generation, evaluation, testing, and troubleshooting.
 
-## Regeneration Prompt
-
-Future regeneration prompts should be stored under `docs/prompts/` when that directory is added.
+Coding agents and contributors must also read [AGENTS.md](AGENTS.md) before changing the project. It defines document authority, required validation, safe automatic actions, and changes that require human confirmation.
