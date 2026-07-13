@@ -125,6 +125,30 @@ test("eval retries one transient provider schema error", async () => {
   assert.equal(summary.passed, 1);
 });
 
+test("eval retries one transient provider request failure", async () => {
+  let attempts = 0;
+  const evalCase = goldenQueries.find((item) => item.id === "gq-unknown-permission-evidence");
+  assert.ok(evalCase);
+  const summary = await runGoldenQueries([evalCase], reviewedToolCardFixtures, ratings, {
+    apiKey: "sk-test-secret", model: "gpt-4.1",
+    client: {
+      recommend() {
+        attempts += 1;
+        if (attempts === 1) {
+          throw new RecommendationProviderError({
+            code: "provider_request_failed",
+            message: "Provider request timed out.",
+            provider: "openai"
+          });
+        }
+        return Promise.resolve({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] });
+      }
+    }
+  });
+  assert.equal(attempts, 2);
+  assert.equal(summary.passed, 1);
+});
+
 test("eval accepts an action more conservative than ask_human", async () => {
   const evalCase = {
     ...goldenQueries[0],

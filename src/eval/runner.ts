@@ -79,11 +79,16 @@ async function evaluateGoldenQuery(
       return evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards);
     } catch (error) {
       const category = classifyEvalError(error);
-      if (category === "schema_error" && attempt === 1) continue;
+      if (attempt === 1 && isRetryableEvalError(error, category)) continue;
       return createFailedEvalResult(evalCase, category, describeEvalError(error));
     }
   }
   return createFailedEvalResult(evalCase, "schema_error", "provider_schema_error: retry exhausted");
+}
+
+function isRetryableEvalError(error: unknown, category: EvalFailureCategory): boolean {
+  if (category === "schema_error") return true;
+  return error instanceof RecommendationProviderError && error.code === "provider_request_failed";
 }
 
 function evaluateCase(evalCase: EvalCase, result: RecommendationResult, cards: ToolCard[]): EvalResult {
