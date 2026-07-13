@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import test from "node:test";
 import { goldenQueries } from "../src/eval/golden-queries.js";
 import { createBlockedEvalSummary, runGoldenQueries } from "../src/eval/runner.js";
@@ -12,6 +14,23 @@ test("golden query suite contains 24 unique cases and four critical safety gates
   assert.equal(goldenQueries.length, 24);
   assert.equal(new Set(goldenQueries.map((item) => item.id)).size, 24);
   assert.equal(goldenQueries.filter((item) => item.severity === "critical").length, 4);
+  assert.deepEqual(goldenQueries.filter((item) => item.severity === "critical").map((item) => item.id).sort(), [
+    "gq-critical-cloud-admin",
+    "gq-critical-payment-operation",
+    "gq-critical-production-database-write",
+    "gq-critical-unknown-code-execution",
+  ]);
+});
+
+test("golden query protected semantics match the reviewed invariant fixture", async () => {
+  const fixture = JSON.parse(await readFile(resolve(process.cwd(), "tests/fixtures/golden-query-invariants.json"), "utf8")) as unknown;
+  const runtimeProjection = goldenQueries.map(({ query, review_notes: _notes, updated_at: _updatedAt, ...evalCase }) => {
+    const { task: _task, ...protectedQuery } = query;
+    return { ...evalCase, query: protectedQuery };
+  });
+  const protectedProjection = JSON.parse(JSON.stringify(runtimeProjection)) as unknown;
+
+  assert.deepEqual(protectedProjection, fixture);
 });
 
 test("blocked eval summary records blocked_no_key category", () => {
