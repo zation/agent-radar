@@ -384,6 +384,8 @@ explanations:
 
 `raw_adjustment` 限制到 `[-3, 3]` 后加到 `base_score`，final `overall_score` 再限制到 `[0, 100]`，使用十分位整数计算并最多输出一位小数。Dimension scores 保持不变；recommendation level 从 final score 计算，但 maintenance、evidence、risk、trust 与 critical safety 上限继续优先。反馈永远不能降低 risk、提升 trust 或解除安全上限。
 
+同一 reviewed bundle 内的每条 `rating_result.v2` 都必须记录本次生产投票快照的 canonical checksum；即使某张 Tool Card 没有投票或 accepted Issue、调整值为 `0`，也不能使用占位 checksum。这样零调整结果同样可以回放到本次真实快照。
+
 以下变更必须运行评分评测：
 
 - 修改权重。

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { optimisticVote, parseOAuthFeedbackReturn } from "../src/ui/feedback-state.js";
+import { dismissFeedbackDetailsDialog, optimisticVote, parseOAuthFeedbackReturn } from "../src/ui/feedback-state.js";
 
 test("optimistic votes add, switch and cancel with exact count math", () => {
   const base = { tool_id: "a", up: 2, down: 1, viewer_vote: null } as const;
@@ -13,4 +13,15 @@ test("OAuth feedback return identifies the Tool whose details dialog should open
   assert.deepEqual(parseOAuthFeedbackReturn("https://radar.test/?tool=skill-a&feedback=applied"), { toolId: "skill-a" });
   assert.equal(parseOAuthFeedbackReturn("https://radar.test/?tool=skill-a"), null);
   assert.equal(parseOAuthFeedbackReturn("https://radar.test/?feedback=applied"), null);
+});
+
+test("opening GitHub details dismisses both manual and OAuth feedback dialogs", () => {
+  const actions: string[] = [];
+  dismissFeedbackDetailsDialog({
+    toolId: "skill-a",
+    oauthDialogOpen: true,
+    closeManualDialog: () => actions.push("manual"),
+    consumeOAuthFeedback: (toolId) => actions.push(`oauth:${toolId}`),
+  });
+  assert.deepEqual(actions, ["manual", "oauth:skill-a"]);
 });

@@ -15,3 +15,13 @@ export function parseOAuthFeedbackReturn(value: string): { toolId: string } | nu
   const toolId = url.searchParams.get("tool");
   return url.searchParams.get("feedback") === "applied" && toolId ? { toolId } : null;
 }
+
+export function dismissFeedbackDetailsDialog(input: {
+  toolId: string;
+  oauthDialogOpen: boolean;
+  closeManualDialog: () => void;
+  consumeOAuthFeedback: (toolId: string) => void;
+}): void {
+  input.closeManualDialog();
+  if (input.oauthDialogOpen) input.consumeOAuthFeedback(input.toolId);
+}

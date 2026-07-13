@@ -16,7 +16,7 @@ import { buildSourceRegistryReviewArtifact, buildSourceRegistryReviewRequests } 
 import { buildSourceRegistryArtifact, buildSourceRegistryDiff, sourceRegistry } from "../ingestion/source-registry.js";
 import { rateAllToolCards } from "../rating/engine.js";
 import { buildFeedbackArtifacts } from "../feedback-processing/artifacts.js";
-import { calculateFeedbackAdjustment } from "../feedback-processing/scoring.js";
+import { calculateFeedbackAdjustment, emptyFeedbackAdjustment } from "../feedback-processing/scoring.js";
 import { validateFeedbackBuildInput, type FeedbackBuildInput } from "../feedback-processing/preparer.js";
 import { DEFAULT_RECOMMENDATION_MODEL, buildProviderRegistryArtifact } from "../recommendation/provider-registry.js";
 import { buildSearchIndex } from "../search/index-builder.js";
@@ -119,10 +119,11 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await writeFile(join(publicDataDir, "data_quality_report.json"), JSON.stringify(dataQualityReport, null, 2), "utf8");
   assertDataQualityReport(dataQualityReport);
   const feedbackInput = validateFeedbackBuildInput(options.feedbackBuildInput ?? buildEmptyFeedbackInput(generatedAt));
-  const feedbackByTool = new Map(feedbackInput.artifacts.summary.tools.map((summary) => [
-    summary.tool_id,
-    calculateFeedbackAdjustment(summary, feedbackInput.artifacts.summary.vote_snapshot_checksum),
-  ]));
+  const voteSnapshotChecksum = feedbackInput.artifacts.summary.vote_snapshot_checksum;
+  const feedbackByTool = new Map(toolCards.map((card) => [card.id, emptyFeedbackAdjustment(voteSnapshotChecksum)]));
+  for (const summary of feedbackInput.artifacts.summary.tools) {
+    feedbackByTool.set(summary.tool_id, calculateFeedbackAdjustment(summary, voteSnapshotChecksum));
+  }
   const ratings = rateAllToolCards(toolCards, feedbackByTool);
   const index = buildSearchIndex(toolCards, ratings);
   const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";

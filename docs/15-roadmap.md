@@ -31,7 +31,7 @@
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP、v0.2、v0.3 和 v0.4 P1 均已完成。`all-v0.4.1` 已通过生产发布与线上核验，Web UI、GitHub OAuth、签名 session、D1 投票和 Issue Form 反馈写链路已投入生产。下一阶段进入 v0.4 P2。
+实际情况：MVP、v0.2、v0.3 和 v0.4 P1 均已完成。v0.4 P2 已由 `all-v0.4.3` 部署到生产；线上收口核验发现零调整 Rating Result 使用占位投票快照 checksum，修复与回归测试已完成，待下一次 production release 后完成 v0.4 验收。
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
@@ -330,11 +330,11 @@ v0.3 P1 与 P2 均已完成并发布。`all-v0.3.3` 已通过 production deploym
 
 ### P2：反馈处理与评级接入
 
-阶段 Spec：[`v0.4 P2：反馈处理与评级接入`](superpowers/specs/2026-07-12-v0.4-p2-feedback-processing-rating-design.md)（已批准，待实施）。
+阶段 Spec：[`v0.4 P2：反馈处理与评级接入`](superpowers/specs/2026-07-12-v0.4-p2-feedback-processing-rating-design.md)（已完成并冻结）。
 
-阶段 Plan：[`v0.4 P2：反馈处理与评级接入实施计划`](superpowers/plans/2026-07-12-v0.4-p2-feedback-processing-rating.md)（已完成；生产发布待单独确认）。
+阶段 Plan：[`v0.4 P2：反馈处理与评级接入实施计划`](superpowers/plans/2026-07-12-v0.4-p2-feedback-processing-rating.md)（已完成并冻结）。
 
-实现状态：代码、workflow、contract tests 与权威文档已完成；首个 P2 `all-v0.4.x` production release、真实 Issue 回写和线上 evidence 验收尚未执行。
+实现状态：代码、workflow、contract tests 与权威文档已完成，`all-v0.4.3` 已通过 production deployment、24/24 golden eval、MCP smoke 与 production evidence。生产 D1 当前已有 `mcp-browser-automation` 的一条 up vote，可用于下一次发布验证非空投票评分；零调整 Rating Result 的真实快照 checksum 修复待发布，真实 Issue 分类与回写仍需在出现首条 Issue 后验收。
 
 - `Release All` 的 reviewed bundle 构建阶段读取并处理带 `tool-feedback` 标签的 open Issue。
 - 确定性校验后，由受限 LLM 输出 `accepted`、`rejected` 或 `needs-human-review`。
