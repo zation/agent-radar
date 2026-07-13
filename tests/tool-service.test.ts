@@ -44,7 +44,7 @@ test("request credential overrides the configured fallback without leaking", asy
     recommendationClient: successfulRecommendationClient(calls),
     fallbackLlmApiKey: "fallback-key",
     fallbackModel: "deepseek-v4-flash",
-    versionInfo: { release_id: "all-v0.6.2", commit_sha: "abc123" }
+    versionInfo: { release_id: "all-v0.6.3", commit_sha: "abc123" }
   });
 
   const result = await service.execute(
@@ -56,7 +56,7 @@ test("request credential overrides the configured fallback without leaking", asy
   assert.deepEqual(calls, [{ apiKey: "request-key", model: "openai/gpt-5-mini" }]);
   assert.equal(JSON.stringify(result).includes("request-key"), false);
   assert.equal(JSON.stringify(result).includes("fallback-key"), false);
-  assert.deepEqual(result.release, { release_id: "all-v0.6.2", commit_sha: "abc123" });
+  assert.deepEqual(result.release, { release_id: "all-v0.6.3", commit_sha: "abc123" });
 });
 
 test("configured credential is used only when the request has none", async () => {

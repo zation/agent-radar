@@ -8,7 +8,7 @@ const ratings = rateAllToolCards(reviewedToolCardFixtures);
 const release = { release_id: "all-v0.3.2-test", commit_sha: "0123456789abcdef" };
 
 test("routes MiniMax model labels to the MiniMax chat completions endpoint", () => {
-  assert.deepEqual(resolveModelRequest("MiniMax M3"), {
+  assert.deepEqual(resolveModelRequest("MiniMax M3", ""), {
     endpoint: "https://api.minimax.io/v1/chat/completions",
     instructionRole: "system",
     model: "MiniMax-M3",
@@ -51,7 +51,7 @@ test("an explicit request-scoped base URL overrides process environment", () => 
 });
 
 test("keeps OpenAI model labels on the OpenAI chat completions endpoint", () => {
-  assert.deepEqual(resolveModelRequest("OpenAI GPT-4.1"), {
+  assert.deepEqual(resolveModelRequest("OpenAI GPT-4.1", ""), {
     endpoint: "https://api.openai.com/v1/chat/completions",
     instructionRole: "developer",
     model: "gpt-4.1",
@@ -60,13 +60,13 @@ test("keeps OpenAI model labels on the OpenAI chat completions endpoint", () => 
 });
 
 test("routes DeepSeek model labels to the DeepSeek chat completions endpoint", () => {
-  assert.deepEqual(resolveModelRequest("DeepSeek V4 Pro"), {
+  assert.deepEqual(resolveModelRequest("DeepSeek V4 Pro", ""), {
     endpoint: "https://api.deepseek.com/chat/completions",
     instructionRole: "system",
     model: "deepseek-v4-pro",
     provider: "deepseek"
   });
-  assert.deepEqual(resolveModelRequest("DeepSeek V4 Flash"), {
+  assert.deepEqual(resolveModelRequest("DeepSeek V4 Flash", ""), {
     endpoint: "https://api.deepseek.com/chat/completions",
     instructionRole: "system",
     model: "deepseek-v4-flash",
@@ -98,7 +98,7 @@ test("sends MiniMax requests with a single bearer authorization header", async (
   };
   const client = createOpenAiRecommendationClient(fetchImpl);
 
-  await client.recommend({ apiKey: " Bearer minimax-secret ", model: "MiniMax M3", prompt: "{}" });
+  await client.recommend({ apiKey: " Bearer minimax-secret ", baseUrl: "", model: "MiniMax M3", prompt: "{}" });
 
   assert.equal(calls[0]?.url, "https://api.minimax.io/v1/chat/completions");
   assert.equal(calls[0]?.authorization, "Bearer minimax-secret");
@@ -122,7 +122,7 @@ test("does not send MiniMax thinking controls to non-MiniMax providers", async (
   };
   const client = createOpenAiRecommendationClient(fetchImpl);
 
-  await client.recommend({ apiKey: "openai-secret", model: "OpenAI GPT-4.1", prompt: "{}" });
+  await client.recommend({ apiKey: "openai-secret", baseUrl: "", model: "OpenAI GPT-4.1", prompt: "{}" });
 
   assert.equal(calls[0]?.body.thinking, undefined);
 });
