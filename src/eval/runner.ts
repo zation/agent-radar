@@ -82,12 +82,12 @@ async function evaluateGoldenQuery(
   runtime: RecommendToolsRuntime,
   options: EvalRunOptions
 ): Promise<EvalResult> {
-  for (let attempt = 1; attempt <= 2; attempt += 1) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
     try {
       return evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards);
     } catch (error) {
       const category = classifyEvalError(error);
-      if (attempt === 1 && isRetryableEvalError(error, category)) {
+      if (shouldRetryEvalError(error, category, attempt)) {
         if (error instanceof RecommendationProviderError && error.code === "provider_request_failed") {
           await (options.sleep ?? sleep)(options.retryDelayMs ?? PROVIDER_RETRY_DELAY_MS);
         }
@@ -103,9 +103,9 @@ function sleep(delayMs: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
-function isRetryableEvalError(error: unknown, category: EvalFailureCategory): boolean {
-  if (category === "schema_error") return true;
-  return error instanceof RecommendationProviderError && error.code === "provider_request_failed";
+function shouldRetryEvalError(error: unknown, category: EvalFailureCategory, attempt: number): boolean {
+  if (category === "schema_error") return attempt === 1;
+  return attempt < 3 && error instanceof RecommendationProviderError && error.code === "provider_request_failed";
 }
 
 function evaluateCase(evalCase: EvalCase, result: RecommendationResult, cards: ToolCard[]): EvalResult {

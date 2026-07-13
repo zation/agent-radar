@@ -125,7 +125,7 @@ test("eval retries one transient provider schema error", async () => {
   assert.equal(summary.passed, 1);
 });
 
-test("eval retries one transient provider request failure", async () => {
+test("eval retries two transient provider request failures", async () => {
   let attempts = 0;
   const delays: number[] = [];
   const evalCase = goldenQueries.find((item) => item.id === "gq-unknown-permission-evidence");
@@ -135,7 +135,7 @@ test("eval retries one transient provider request failure", async () => {
     client: {
       recommend() {
         attempts += 1;
-        if (attempts === 1) {
+        if (attempts <= 2) {
           throw new RecommendationProviderError({
             code: "provider_request_failed",
             message: "Provider request timed out.",
@@ -146,8 +146,8 @@ test("eval retries one transient provider request failure", async () => {
       }
     }
   }, { retryDelayMs: 5_000, sleep: (delayMs) => { delays.push(delayMs); return Promise.resolve(); } });
-  assert.equal(attempts, 2);
-  assert.deepEqual(delays, [5_000]);
+  assert.equal(attempts, 3);
+  assert.deepEqual(delays, [5_000, 5_000]);
   assert.equal(summary.passed, 1);
 });
 
