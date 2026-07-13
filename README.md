@@ -104,7 +104,7 @@ The Worker exposes read-oriented endpoints for:
 
 `recommend_tools` accepts its ordinary query and optional model as tool input. A per-request provider credential is sent only in the optional secret header `X-Agent-Radar-LLM-API-Key`; it is never part of the tool schema or response. The Worker may use its configured server-side fallback when that header is absent.
 
-The repository includes remote-only MCP Registry metadata for `io.github.zation/agent-radar`. The v0.6 implementation is release-ready, while `all-v0.5.1` remains the verified production baseline until the v0.6 production and Registry workflows complete.
+The production baseline is `all-v0.6.3`. Its remote-only MCP server is published in the official Registry as `io.github.zation/agent-radar@0.6.3`, backed by the production Streamable HTTP endpoint and evidence-bound GitHub OIDC publication.
 
 ## Documentation
 
