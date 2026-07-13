@@ -77,7 +77,7 @@ export interface RecommendToolsRuntime {
 
 const allowedActions: RecommendedAction[] = ["use", "compare", "ask_human", "avoid", "no_reliable_match"];
 const allowedConfidences: Confidence[] = ["high", "medium", "low", "unknown"];
-const DEFAULT_PROVIDER_TIMEOUT_MS = 60_000;
+const DEFAULT_PROVIDER_TIMEOUT_MS = 120_000;
 
 export async function recommendTools(
   query: RecommendationQuery,
