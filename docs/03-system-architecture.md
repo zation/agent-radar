@@ -32,7 +32,7 @@ Source Registry
   -> Rating Engine
   -> Search Index Builder
   -> Recommendation Engine
-  -> Cloudflare Worker Static Assets + HTTP API + MCP JSON-RPC + Reports
+  -> Cloudflare Worker Static Assets + HTTP API + MCP Streamable HTTP + Reports
   -> Eval Runner
   -> Feedback / Override Records
 ```
@@ -165,17 +165,17 @@ Tests: fake-client contracts, real-provider golden queries, and explanation revi
 
 ### Cloudflare Worker HTTP/MCP API
 
-Responsibility: expose read-only HTTP and `/api/mcp` MCP JSON-RPC from the same Worker.
+Responsibility: expose read-only HTTP and stateless `/api/mcp` Streamable HTTP from the same Worker. The MCP route uses `@modelcontextprotocol/server@2.0.0-beta.3` with Web Standard request handling rather than a handwritten JSON-RPC dispatcher.
 
-Inputs: HTTP API or MCP JSON-RPC requests.
+Inputs: HTTP API requests or MCP Streamable HTTP JSON-RPC messages.
 
 Outputs: JSON Tool Cards and recommendations.
 
-MVP tools: `search_tools`, `get_tool_card`, `recommend_tools`, and `explain_rating`.
+MVP tools: `search_tools`, `get_tool_card`, `recommend_tools`, and `explain_rating`. `src/api/tool-contracts.ts` is the shared schema and annotation authority for HTTP, manifest, and MCP surfaces; `src/api/tool-service.ts` owns transport-neutral business behavior.
 
-Runtime boundary: same Static Assets deployment as Web and data artifacts; read-only for tool execution/installation; incomplete parameters return recoverable errors.
+Runtime boundary: same Static Assets deployment as Web and data artifacts; read-only for tool execution/installation; incomplete parameters return recoverable errors. `recommend_tools` receives a request credential through `X-Agent-Radar-LLM-API-Key`, then an explicit server fallback, and never through tool arguments. Host, Origin, method, CORS, and UTF-8 byte-size guards execute before the SDK handler.
 
-Tests: schema contracts, request/response examples, and deployed smoke for `initialize`, `tools/list`, read-only `tools/call`, and write rejection using the URL reported by Wrangler deploy.
+Tests: schema contracts, request/response examples, and seven deployed smoke checks covering initialization, tool listing, three representative read calls, missing recommendation credential, and write-method rejection using the URL reported by Wrangler deploy.
 
 ### Web UI
 

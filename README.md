@@ -100,7 +100,11 @@ The Worker exposes read-oriented endpoints for:
 
 ### MCP
 
-`/api/mcp` provides an MCP JSON-RPC interface for agent clients. `/api/mcp_manifest` exposes the supported tool definitions for simpler HTTP integrations.
+`/api/mcp` provides a stateless Streamable HTTP MCP interface built with the official TypeScript SDK v2 beta. It exposes `search_tools`, `get_tool_card`, `recommend_tools`, and `explain_rating`; all four tools are read-only with respect to tool execution and installation. `/api/mcp_manifest` exposes the same shared contracts for simpler HTTP integrations.
+
+`recommend_tools` accepts its ordinary query and optional model as tool input. A per-request provider credential is sent only in the optional secret header `X-Agent-Radar-LLM-API-Key`; it is never part of the tool schema or response. The Worker may use its configured server-side fallback when that header is absent.
+
+The repository includes remote-only MCP Registry metadata for `io.github.zation/agent-radar`. The v0.6 implementation is release-ready, while `all-v0.5.1` remains the verified production baseline until the v0.6 production and Registry workflows complete.
 
 ## Documentation
 

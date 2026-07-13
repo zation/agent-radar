@@ -43,7 +43,9 @@ For v0.4 feedback processing:
 
 API keys, tokens, cookies, SSH keys, and environment values may leak into model context, third-party services, or logs. `secrets` access is at least high risk. Prefer test keys, short-lived tokens, minimum scope, and keeping live secrets outside agent context.
 
-BYOK credentials authenticate one recommendation request only. They never enter artifacts, logs, responses, browser share state, or evaluation output.
+BYOK credentials authenticate one recommendation request only. HTTP and MCP request bodies contain no `api_key`; a request credential may appear only in the secret `X-Agent-Radar-LLM-API-Key` header. The Worker prefers that request-scoped value, then an explicitly injected server fallback, and otherwise returns a typed missing-credential error. Credentials never enter artifacts, logs, responses, browser share state, tool schemas, or evaluation output.
+
+The remote MCP boundary is stateless and read-only for tool execution and installation. Before SDK dispatch, the Worker enforces the production Host allowlist, Origin policy, POST-only method policy with CORS preflight, and a fixed UTF-8 request-byte limit. Registry metadata marks the recommendation header optional and secret; publication evidence omits request headers entirely.
 
 ### Data Exfiltration
 

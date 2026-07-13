@@ -46,6 +46,7 @@ The BYOK provider generates recommendation content. Local code assembles context
 - High-risk candidates cannot normalize to `recommended_action: use`.
 - OpenAI, MiniMax, and DeepSeek model labels route to the correct endpoint and model ID.
 - API keys appear only in authorization headers, including normalized pasted `Bearer` values.
+- Recommendation request keys are absent from HTTP and MCP input schemas and travel only through `X-Agent-Radar-LLM-API-Key`; tests also cover the explicit server fallback and typed missing-key result.
 - Provider calls time out after 120 seconds and surface as typed request failures.
 - Recoverable errors are returned when required recommendation credentials or model configuration are missing.
 - Safety recovery never bypasses permission, trust, or action ceilings.
@@ -215,6 +216,8 @@ Normal release review is persisted automatic evidence plus whole-bundle confirma
 
 Before deployment, the reviewed bundle preserves its manifest, checksums, automatic review, release admission, promotion check, and summaries. After deployment, `production-release-evidence.json` records repository, workflow run, SHA, tag, deployment ID, bundle name, manifest SHA, D1 artifact checksum, Worker and MCP endpoint, and smoke results. The workflow resolves the unique production deployment for the current run and validates all correlation fields. Any failure fails the release.
 
+For v0.6, MCP smoke evidence uses `mcp_smoke_result.v2` and exactly seven checks. Registry publication is a second evidence-bound gate: `mcp_registry_publication_evidence.v1` binds the selected successful Release All run, tag, SHA, production-evidence checksum, canonical `server.json` checksum, official Registry query URL/time, active/latest publication status/time, repository, transport, and remote endpoint. Before OIDC, the workflow rebuilds production evidence from the source run's reviewed manifest, D1 seed, and smoke artifact, then requires exact equality and binds the endpoint to `server.json`. A missing record may proceed to publication; an active/latest identical record is idempotent success; a same-name/version record with a different repository or remote is an immutable conflict.
+
 These boundaries are distinct:
 
 - The production gate approves one reviewed release bundle; it is not item-level discovery review.
@@ -244,6 +247,7 @@ All of the following must pass:
 - Manifest and checksums for all critical review and promotion evidence.
 - Provider-backed 24/24 golden evaluation and critical safety 4/4.
 - Production evidence construction and validation plus uploaded MCP smoke evidence.
+- For Registry releases, pinned publisher validation, GitHub OIDC, official API visibility, immutable metadata matching, and uploaded Registry publication evidence.
 
 Noncritical community-source failure, a small number of optional-field gaps, and minor explanation lint may remain warnings.
 

@@ -35,7 +35,6 @@ An LLM may be more conservative, but it cannot relax `ask_human`, `avoid`, or `n
   "budget": "free_or_low_cost",
   "output_format": "json",
   "top_k": 5,
-  "api_key": "sk-example",
   "model": "gpt-4.1"
 }
 ```
@@ -52,11 +51,10 @@ An LLM may be more conservative, but it cannot relax `ask_human`, `avoid`, or `n
 | `budget` | no | Cost preference |
 | `output_format` | no | `json` or `markdown` |
 | `top_k` | no | Requested result count |
-| `api_key` | conditional | BYOK key for this request; optional when `AGENT_RADAR_LLM_API_KEY` exists locally or on the server |
 | `model` | no | Model name; otherwise use `AGENT_RADAR_LLM_MODEL` or the provider-registry default |
 | `base_url` | unsupported in body | Use server-side `AGENT_RADAR_LLM_BASE_URL` for an OpenAI-compatible endpoint override |
 
-The API key authenticates only the current provider request. It must never enter artifacts, logs, response bodies, or shareable browser state. System environment variables take precedence over repository-root `.env`. A base-URL override changes the endpoint only; it does not change provider type or model ID.
+The Recommendation Query contains no `api_key`. A per-request key is supplied only through `X-Agent-Radar-LLM-API-Key`; the Worker uses that request credential before the explicitly injected `AGENT_RADAR_LLM_API_KEY` fallback and otherwise returns a typed missing-credential error. The key authenticates only the current provider request and must never enter artifacts, logs, response bodies, tool arguments, or shareable browser state. System environment variables take precedence over repository-root `.env`. A base-URL override changes the endpoint only; it does not change provider type or model ID.
 
 ## LLM Recommendation Flow
 
@@ -219,14 +217,14 @@ Next step: <action for the user or agent>
 
 ## Worker and MCP Interfaces
 
-The Worker provides two agent-facing entry points:
+The Worker provides two agent-facing entry points backed by the same contracts and transport-neutral Tool Service:
 
 - `/api/mcp_manifest` returns read-only tool definitions for simple HTTP JSON clients.
-- `/api/mcp` is a minimal MCP JSON-RPC endpoint supporting `initialize`, `tools/list`, and read-only `tools/call`.
+- `/api/mcp` is a stateless Streamable HTTP endpoint built with `@modelcontextprotocol/server@2.0.0-beta.3`, supporting `initialize`, `tools/list`, and read-only `tools/call`.
 - `data/provider_registry.json` contains versioned provider runtime configuration, models, endpoints, instruction roles, and BYOK behavior, but no API key.
-- `data/mcp_examples.json` contains JSON-RPC examples for initialization, listing, card lookup, and search.
-- `data/mcp_smoke_checklist.json` defines deployed read-only smoke checks.
-- `npm run mcp:smoke` reads `AGENT_RADAR_MCP_BASE_URL` and verifies the deployed endpoint. It discovers a current `tool_id` with `search_tools` before testing `get_tool_card`.
+- `data/mcp_examples.json` contains Streamable HTTP JSON-RPC examples for initialization, listing, card lookup, and search.
+- `data/mcp_smoke_checklist.json` defines the seven deployed contract checks.
+- `npm run mcp:smoke` reads `AGENT_RADAR_MCP_BASE_URL` and verifies the deployed endpoint, structured/text result parity, release identity, missing-key behavior, and method rejection.
 
 ### Read-Only Tools
 

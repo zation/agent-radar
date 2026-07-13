@@ -146,11 +146,14 @@ Acceptance criteria:
 
 ### FR-09 MCP Query Interface
 
-The same Cloudflare Worker with Static Assets serves a lightweight MCP JSON-RPC API at `/api/mcp`.
+The same Cloudflare Worker with Static Assets serves a stateless Streamable HTTP MCP API at `/api/mcp` through the official TypeScript SDK v2 beta and Web Standard request handling.
 
 Acceptance criteria:
 
 - Support `initialize`, `tools/list`, and read-only `tools/call` exposing at least `search_tools`, `get_tool_card`, `recommend_tools`, and `explain_rating`.
+- Derive HTTP, manifest, and MCP tool input contracts from one strict shared contract module, and route their business behavior through one transport-neutral Tool Service.
+- Keep `api_key` out of every tool and HTTP body schema. `recommend_tools` may read `X-Agent-Radar-LLM-API-Key` as an optional secret request header, then fall back to the explicitly configured server credential.
+- Reject untrusted Host or Origin values, non-POST MCP methods other than CORS preflight, and request bodies larger than the fixed byte limit before SDK dispatch.
 - v0.2 reads static JSON artifacts from the same Worker deployment and never installs or authorizes third-party tools.
 - Errors include a readable cause and recovery advice.
 
@@ -266,7 +269,7 @@ MVP must implement:
 - JSON datasets, Cloudflare D1 SQLite storage, and basic search.
 - `rating_rules.v0.1-draft` base ratings and explanation templates.
 - Task-oriented recommendations.
-- Read-only HTTP API, MCP JSON-RPC endpoint, and Static Assets site on the same Worker.
+- Read-only HTTP API, MCP Streamable HTTP endpoint, and Static Assets site on the same Worker.
 - Golden queries and recommendation-quality evaluation.
 
 MVP uses manual review and manually triggered updates, not scheduled ingestion.
@@ -309,7 +312,7 @@ The feedback loop is not part of the MVP reliable release path. Future feedback 
 | FR-06 | Search | Basic search/API/UI implemented | Query and filters | Results | Golden search cases |
 | FR-07 | Recommendation | BYOK LLM-backed baseline passed | Task context, API key, model | Recommendation Result | Golden queries |
 | FR-08 | Agent output | JSON schema implemented; Markdown not systematic | Recommendation Result | JSON/Markdown | Schema validation |
-| FR-09 | MCP query | `/api/mcp` deployed with smoke | MCP/API call | Query response | Contracts + 4/4 smoke |
+| FR-09 | MCP query | `/api/mcp` implemented with the official SDK and prepared for v0.6 release | MCP/API call | Query response | Shared contracts + 7/7 smoke |
 | FR-10 | Web UI | Tools and Evaluation served by Worker Static Assets; Recommend is integrated into Tools | Index and task | Browse/recommend/evaluate | Manual + `pages:build` |
 | FR-11 | Evaluation | `all-v0.5.1`: provider 24/24, critical safety 4/4, MCP 4/4 | Data, ratings, provider | Eval Report | CI release gate |
 | FR-12 | Reports | Eval report implemented; ecosystem report absent | Structured data | Markdown | Source-citation check |
@@ -324,6 +327,7 @@ The feedback loop is not part of the MVP reliable release path. Future feedback 
 - Without `AGENT_RADAR_LLM_API_KEY`, recommendation evaluation emits a blocked summary; this is not a recommendation-quality pass.
 - `all-v0.3.3` established the 53-card, 24/24 provider-evaluation, critical-safety 4/4 baseline.
 - `all-v0.5.1` passed production release and verification with feedback processing/rating, provider evaluation 24/24, critical safety 4/4, and MCP smoke 4/4; all 53 Rating Results bind to production feedback snapshot `sha256:e884a1c6195962ab95f01cca08634db44341adb22162b48ebbecbe4d8a6190c3`.
+- v0.6 implementation pins `@modelcontextprotocol/server@2.0.0-beta.3`, defines remote-only `server.json` metadata for `io.github.zation/agent-radar`, and adds a separate GitHub OIDC publication workflow. Production and Registry publication remain pending until the release evidence gates pass.
 
 ## Maintenance Rules
 

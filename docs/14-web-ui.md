@@ -6,7 +6,7 @@ This document defines the current Web UI information architecture, interaction b
 
 ## Current Implementation
 
-React and Vite build Static Assets deployed with HTTP API and MCP JSON-RPC in one Cloudflare Worker. `src/worker.ts` handles `/api/*`; other requests use the `ASSETS` binding. There is no separate Cloudflare Pages production deployment.
+React and Vite build Static Assets deployed with HTTP API and MCP Streamable HTTP in one Cloudflare Worker. `src/worker.ts` handles `/api/*`; other requests use the `ASSETS` binding. There is no separate Cloudflare Pages production deployment.
 
 Primary files:
 
@@ -44,7 +44,7 @@ The command area adapts to state:
 - `ask_human` uses caution styling, no-match is neutral, and only real request failure uses error styling.
 - Edit reopens the form; Clear task resets task and recommendation ordering.
 
-The browser calls the same Worker's `/api/recommend_tools`. A BYOK key is used for that request only, never persisted or returned, and the browser never calls a provider directly.
+The browser calls the same Worker's `/api/recommend_tools`. A BYOK key remains only in component memory and is sent as `X-Agent-Radar-LLM-API-Key` for that request; it is absent from the JSON body, never persisted or returned, and the browser never calls a provider directly.
 
 ### Tool Detail
 
@@ -114,7 +114,7 @@ release pipeline
   -> Cloudflare Worker
        -> Static Assets: Web and data
        -> HTTP API: /api/*
-       -> MCP JSON-RPC: /api/mcp
+       -> MCP Streamable HTTP: /api/mcp
 
 Browser
   -> src/ui/data.ts -> Tools and Evaluation

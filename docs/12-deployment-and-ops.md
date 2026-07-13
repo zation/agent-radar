@@ -25,7 +25,7 @@ Local development uses files, JSON or JSONL, Wrangler local D1 with the producti
 
 ### Production
 
-One Cloudflare Worker deployment serves Web, versioned static artifacts, read-only HTTP API, MCP JSON-RPC, and D1-backed feedback. A release is triggered by an immutable `all-v*` tag or a manual workflow selection of an existing `all-v*` tag.
+One Cloudflare Worker deployment serves Web, versioned static artifacts, read-only HTTP API, stateless Streamable HTTP MCP, and D1-backed feedback. A release is triggered by an immutable `all-v*` tag or a manual workflow selection of an existing `all-v*` tag.
 
 ## Single-Worker Architecture
 
@@ -40,7 +40,8 @@ enabled Source Registry
   -> build immutable reviewed bundle
   -> GitHub production environment approval
   -> deploy the reviewed assets and same-ref Worker
-  -> deployed MCP smoke and production evidence
+  -> seven-check deployed MCP smoke and production evidence
+  -> evidence-bound GitHub OIDC Registry publication
 ```
 
 The Worker named `agent-radar` serves:
@@ -65,7 +66,7 @@ Historical Cloudflare Pages workflows are not part of production and have no dua
 
 ## Release Identity
 
-`all-vX.Y.Z` represents one complete data, Web, API, and MCP release attempt. Never reuse a failed or superseded tag; increment the patch version. A tag becomes a verified production release only after reviewed-bundle checks, production approval, deployment, smoke checks, and production evidence all succeed.
+`all-vX.Y.Z` represents one complete data, Web, API, and MCP release attempt. Never reuse a failed or superseded tag; increment the patch version. A tag becomes a verified production release only after reviewed-bundle checks, production approval, deployment, smoke checks, and production evidence all succeed. For a Registry release, `all-vX.Y.Z` maps exactly to Registry version `X.Y.Z`; an existing conflicting Registry version is never overwritten.
 
 `all-v0.5.1` is the current verified baseline. Release All run `29248755693` and production deployment `5424142098` bind commit `4c3aee2c`, reviewed bundle `agent-radar-all-29248755693`, production feedback snapshot `sha256:e884a1c6195962ab95f01cca08634db44341adb22162b48ebbecbe4d8a6190c3`, feedback processing plan `sha256:89da0b16a67b47a5ac3b6e3d0e0a65713a0a706a0e713575e8eec567e6ced6a5`, and the Worker endpoint. Provider evaluation passed 24/24, critical safety passed 4/4, and MCP smoke passed 4/4 for all 53 Tool Cards and Rating Results.
 
@@ -124,13 +125,14 @@ npm run preview:build
 - `npm run release:build` runs tests, pipeline, release checks, and Web build.
 - `npm run preview:build` runs ingestion and pipeline once, then finalizes the same evidence without a second network collection.
 - `npm run promotion:check`, `data-quality:check`, and `review-summary:check` validate immutable candidate artifacts and exit nonzero on blockers.
-- `npm run mcp:smoke` validates the deployed JSON-RPC read-only boundary.
+- `npm run mcp:smoke` validates the deployed Streamable HTTP read-only boundary with seven contract checks.
+- `npm run validate:mcp-registry -- --release-tag all-vX.Y.Z` validates the remote-only metadata and immutable version mapping.
 
 ## Configuration and Secrets
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `AGENT_RADAR_LLM_API_KEY` | for provider eval | Current provider request only |
+| `AGENT_RADAR_LLM_API_KEY` | for provider eval or optional Worker fallback | Explicit server credential; request header takes precedence |
 | `AGENT_RADAR_LLM_MODEL` | no | Provider model; default `deepseek-v4-flash` |
 | `AGENT_RADAR_LLM_BASE_URL` | no | OpenAI-compatible endpoint base override |
 | `AGENT_RADAR_CHECK_URLS` | no | Enable live Tool Card URL checks |
@@ -144,7 +146,7 @@ npm run preview:build
 
 Local `.env` is ignored by Git. System values override `.env`. Browsers never read `.env`; keys remain in local or Worker processes. Logs may include provider, endpoint, model, status code, and redacted errors, but never credentials or raw secret-bearing bodies.
 
-Recommendation API keys are ephemeral. The browser calls the same Worker at `/api/recommend_tools`; it does not call providers directly. The Worker installs, authorizes, and executes no recommended tool.
+Recommendation API keys are ephemeral. The browser calls the same Worker at `/api/recommend_tools`, keeps the key in component memory, and sends it only as `X-Agent-Radar-LLM-API-Key`; it does not call providers directly. MCP clients use the same optional secret header for `recommend_tools`. The Worker installs, authorizes, and executes no recommended tool.
 
 ## Build Once, Review Once, Deploy Reviewed Assets
 
@@ -189,6 +191,12 @@ After deployment, `agent-radar-mcp-smoke-<run_id>` contains:
 
 The workflow resolves exactly one deployment for the current repository, run, SHA, and tag. Evidence validation checks release metadata, manifest SHA binding, D1 checksum, endpoints, and all required smoke checks. Any ambiguity or mismatch fails production.
 
+### MCP Registry Publication Evidence
+
+`.github/workflows/publish-mcp-registry.yml` runs only after a successful `Release All` run or for an explicitly selected successful run ID. It downloads production evidence, source smoke, and the reviewed bundle before checkout; checks out the evidence SHA; rebuilds the production evidence from the reviewed manifest, D1 seed, and smoke result; requires exact endpoint/run/tag/SHA/checksum equality with `server.json`; revalidates `/api/version`; runs fresh MCP smoke against the metadata-derived endpoint; verifies the pinned `mcp-publisher` v1.8.0 archive checksum; validates `server.json`; and authenticates with GitHub OIDC only when publication is required.
+
+`server.json` is remote-only and declares `io.github.zation/agent-radar`, one production `streamable-http` endpoint, the optional secret recommendation header, and no installable package. The publication workflow treats an active/latest identical record as idempotent success and a mismatch at the same name/version as an immutable conflict. After bounded official API polling, `mcp-registry-publication-evidence.json` records the source run/tag/SHA, production-evidence checksum, canonical metadata checksum, Registry active/latest status and timestamps, endpoint, repository, and query identity without request headers.
+
 ## Feedback Release Order
 
 1. Restore the previous reviewed Tool Cards as the valid feedback Tool-ID boundary.
@@ -214,6 +222,7 @@ All of these must pass:
 - One GitHub `production` environment approval.
 - D1 migration and approved feedback writeback.
 - Deployed MCP smoke and validated production evidence.
+- For Registry releases, pinned publisher validation, GitHub OIDC publication or identical-record idempotency, official API polling, and Registry publication evidence.
 
 A missing provider key cannot support a quality claim. Authentication, rate limit, model, endpoint, or schema failure is a provider or configuration failure and must not be hidden by changing expected results.
 
