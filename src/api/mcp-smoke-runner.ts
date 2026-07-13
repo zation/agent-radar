@@ -89,7 +89,7 @@ async function checkInitialize(endpoint: string, fetchImpl: typeof fetch): Promi
     params: {
       protocolVersion: "2025-06-18",
       capabilities: {},
-      clientInfo: { name: "agent-radar-smoke", version: "0.6.0" }
+      clientInfo: { name: "agent-radar-smoke", version: "0.6.1" }
     }
   });
   const result = response.result as { serverInfo?: { name?: string; version?: string }; capabilities?: { tools?: unknown } } | undefined;

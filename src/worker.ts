@@ -73,7 +73,7 @@ function isProductionRelease(releaseId: string | undefined): boolean {
 }
 
 function mcpServerVersion(releaseId: string | undefined): string {
-  return releaseId?.startsWith("all-v") ? releaseId.slice("all-v".length) : "0.6.0-dev";
+  return releaseId?.startsWith("all-v") ? releaseId.slice("all-v".length) : "0.6.1-dev";
 }
 
 async function fetchAsset(env: Env, request: Request, path: string): Promise<string> {

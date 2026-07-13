@@ -18,7 +18,7 @@ test("MCP smoke runner verifies all deployed SDK and read-only boundaries", asyn
 
     if (body?.method === "initialize") {
       return Promise.resolve(jsonResponse({ jsonrpc: "2.0", id: body.id, result: {
-        serverInfo: { name: "io.github.zation/agent-radar", version: "0.6.0" }, capabilities: { tools: {} }
+        serverInfo: { name: "io.github.zation/agent-radar", version: "0.6.1" }, capabilities: { tools: {} }
       } }));
     }
     if (body?.method === "tools/list") {
@@ -49,7 +49,7 @@ test("MCP smoke runner verifies all deployed SDK and read-only boundaries", asyn
 
   const result = await runMcpSmokeTest({
     baseUrl: "https://agent-radar.example/",
-    releaseId: "all-v0.6.0",
+    releaseId: "all-v0.6.1",
     commitSha: "abc123",
     generatedAt: "2026-07-13T12:00:00Z",
     fetchImpl
@@ -57,7 +57,7 @@ test("MCP smoke runner verifies all deployed SDK and read-only boundaries", asyn
 
   assert.equal(result.schema_version, "mcp_smoke_result.v2");
   assert.equal(result.endpoint, "https://agent-radar.example/api/mcp");
-  assert.equal(result.release_id, "all-v0.6.0");
+  assert.equal(result.release_id, "all-v0.6.1");
   assert.equal(result.commit_sha, "abc123");
   assert.equal(result.generated_at, "2026-07-13T12:00:00Z");
   assert.equal(result.passed, true);
@@ -70,7 +70,7 @@ test("MCP smoke runner verifies all deployed SDK and read-only boundaries", asyn
 test("MCP smoke runner records all failed deployed checks without leaking response bodies", async () => {
   const result = await runMcpSmokeTest({
     baseUrl: "https://agent-radar.example",
-    releaseId: "all-v0.6.0",
+    releaseId: "all-v0.6.1",
     commitSha: "abc123",
     generatedAt: "2026-07-13T12:00:00Z",
     fetchImpl: () => Promise.resolve(jsonResponse({ secret: "must-not-leak" }, 500))
