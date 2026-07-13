@@ -1,127 +1,55 @@
-# 12 部署与运维
+# 12 Deployment and Operations
 
-## v0.3 P2 发布门禁
+## Purpose
 
-Release All 在 reviewed bundle 构建 job 注入 `AGENT_RADAR_RELEASE_ID` 和 `AGENT_RADAR_COMMIT_SHA`，运行当前候选的 24 条真实 provider golden queries，并在上传 bundle 前校验 4 条 critical safety cases。部署 job 原样部署已审核 bundle，并把相同 release ID 与 commit SHA 注入 Worker。P2 不下载历史 eval artifact，也不生成 Eval Diff；现有 P1 历史数据质量 artifact 读取保持不变。
+This document defines Agent Radar's low-cost deployment, release, monitoring, failure handling, and rollback model.
 
-## 文档用途
+The goal is replayable data generation, verifiable recommendation releases, and an agent-queryable interface without premature platform complexity.
 
-本文件定义 Agent Radar 的低成本部署、定时任务、发布、监控、故障处理和回滚方案。
+## Operating Principles
 
-部署目标是支持可回放数据生成、可验证推荐发布和 agent 可查询接口，而不是过早建设复杂平台。
+- Use the Cloudflare free stack: Worker Static Assets, Worker API, and D1 SQLite.
+- Run schema, data-quality, safety, and provider-backed recommendation evaluation before release.
+- Record data, rules, index, release, and commit versions.
+- Persist script, rule, LLM evaluation, automatic review, release admission, and promotion evidence in one immutable reviewed bundle.
+- Use the GitHub `production` environment gate as the only normal human release confirmation. `approval_override` is evidence-backed break glass only.
+- Review and deploy the same object. Production checks out the same immutable tag and SHA, restores reviewed static assets, and never regenerates data after approval.
+- Preserve the previous stable release after failure.
+- Introduce no paid service without explicit cost, alternative, and rollback review.
 
-## 运维原则
+## Environments
 
-- MVP/v0.2 固定使用 Cloudflare 免费栈：Cloudflare Workers Static Assets、Cloudflare Workers API 和 Cloudflare D1 SQLite。
-- 发布前必须跑 schema、数据质量、安全和推荐评测。
-- 每次发布记录数据版本、规则版本和索引版本。
-- 正常审核由脚本、规则、LLM eval、auto review、release admission 和 promotion check 完成，并固化到 immutable reviewed bundle。
-- GitHub `production` environment gate 是唯一的常规人工发布确认。`approval_override` 只用于有证据的 break-glass 情况。
-- 审核对象必须和发布对象一致；生产 job 从同一不可变 tag/SHA 构建 Worker 代码，并原样恢复 reviewed bundle 中的静态 assets/data，不重新运行 pipeline 生成新数据产物。
-- 失败时保留上一稳定版本。
-- 不引入任何付费服务；新增基础设施前必须说明免费额度、成本和替代方案。
+### Local Development
 
-## 环境分层
+Local development uses files, JSON or JSONL, Wrangler local D1 with the production-compatible schema, Vite HMR, and a local Worker. It supports parser fixtures, small Tool Card samples, rating, recommendation, and UI work.
 
-### 本地开发
+### Production
 
-用途：
+One Cloudflare Worker deployment serves Web, versioned static artifacts, read-only HTTP API, MCP JSON-RPC, and D1-backed feedback. A release is triggered by an immutable `all-v*` tag or a manual workflow selection of an existing `all-v*` tag.
 
-- 编辑文档和 schema。
-- 运行 parser fixture。
-- 生成小样本 Tool Card。
-- 调试评分和推荐。
-
-组件：
-
-- 本地文件系统。
-- JSON/JSONL。
-- 本地 SQLite，保持与 Cloudflare D1 schema 兼容。
-- 本地 TypeScript MCP server，用于模拟 Workers MCP API。
-
-### MVP/v0.2 发布
-
-用途：
-
-- 发布静态工具数据、评分和索引。
-- 提供基础 Web UI。
-- 提供同域 Cloudflare Workers 上的标准轻量 MCP/API。
-
-组件：
-
-- 推送不可变 `all-v*` tag，或用 `workflow_dispatch` 选择已有的 `all-v*` tag。
-- Cloudflare Workers Static Assets。
-- Worker 内的只读 `/api/*` 和 `/api/mcp`。
-- 同一 Worker deployment 内的静态 JSON/JSONL artifacts。
-- Cloudflare D1 SQLite。
-
-### 低成本生产
-
-用途：
-
-- 更稳定的查询接口。
-- 更大的数据量。
-- 更好的监控和回滚。
-
-组件：
-
-- Cloudflare Workers Static Assets + Worker API。
-- Cloudflare D1 SQLite。
-- JSON artifacts。
-- 简单状态监控。
-
-## MVP 架构
-
-### 当前实现
-
-当前本地 MVP 可靠发布流水线默认使用 enabled Source Registry 的采集结果作为输入，生成评分、搜索索引、D1 seed SQL、golden query 数据和 eval report。源码内的 seed Tool Cards 不再作为生产发布输入。
+## Single-Worker Architecture
 
 ```text
 enabled Source Registry
-  -> crawl/parse/normalize
-  -> release admission + promotion check
-  -> validate Tool Card schema
-  -> rate
-  -> build static index + D1 seed SQL
-  -> run eval or blocked eval summary
-  -> publish artifacts
-  -> Worker Static Assets serves Web/data and Worker API reads same deployment artifacts
+  -> crawl, parse, and normalize
+  -> release admission and promotion check
+  -> validate Tool Cards
+  -> rate and apply bounded feedback adjustment
+  -> build static index and D1 seed
+  -> run 24 provider-backed golden queries
+  -> build immutable reviewed bundle
+  -> GitHub production environment approval
+  -> deploy the reviewed assets and same-ref Worker
+  -> deployed MCP smoke and production evidence
 ```
 
-当前已实现 Source Registry 读取、crawler、parser、Raw Snapshot 保存、Source Record 输出、discovery candidates、发布用 `source_registry.json` artifact、基础 validator、repo/package/docs 跨来源 normalizer、source profile 字段映射、最小 deduper、带证据的 break-glass override artifact 及其 evidence ref 审计、intervention requests、review queue、auto review、release admission、promotion candidates、promotion plan 和 promotion check dry-run，并已接入默认可靠发布 artifacts。Web UI 展示 Source Registry production gate attention signals，但不写入或改变发布审核状态。v0.3 仍需完善跨来源字段冲突处理，以及覆盖多来源 lineage、转换规则版本和冲突选择依据的完整 override 审计。
-
-### 目标形态
-
-```text
-GitHub Actions
-  -> crawl/parse/normalize
-  -> validate schema
-  -> rate
-  -> build static index + D1 import
-  -> run eval
-  -> publish artifacts
-  -> Cloudflare Worker serves Web UI, JSON artifacts and MCP/API from one deployment
-```
-
-MVP 不启用自动 schedule。维护者手动触发更新和发布。
-
-## Worker 一体化发布主路径
-
-v0.2 的现行生产架构是单个启用 Static Assets 的 Cloudflare Worker：同一 deployment 承载 Web、数据 artifacts、HTTP API 和 MCP JSON-RPC endpoint。旧 Cloudflare Pages workflows 只属于历史方案，不是当前发布架构，也不保留双轨兼容层。
-
-目标 Worker 项目名：
-
-```text
-agent-radar
-```
-
-同一个 Worker deployment 提供：
+The Worker named `agent-radar` serves:
 
 ```text
 /                  Web UI
-/assets/*          Web bundle assets
-/data/*            发布数据 artifacts
-/reports/*         Eval report
+/assets/*          Web assets
+/data/*            Release artifacts
+/reports/*         Evaluation reports
 /api/search_tools
 /api/get_tool_card
 /api/recommend_tools
@@ -131,93 +59,43 @@ agent-radar
 /api/version
 ```
 
-数据读取原则：
+The API reads artifacts from its own deployment. It does not depend on a mutable external `latest` URL. JSON and JSONL remain review, replay, and rollback evidence; D1 stores the public feedback serving state and may serve as a query cache without replacing release artifacts.
 
-- Worker API 默认从同一 deployment 的 static assets 读取 `data/tool_cards.jsonl`、`data/ratings.jsonl` 和 `data/search_index.json`。
-- 标准发布流程不再需要 `AGENT_RADAR_DATA_BASE_URL`。
-- MCP smoke 使用刚部署的 Worker URL，不再依赖手工维护的 `AGENT_RADAR_MCP_BASE_URL`。
-- D1 后续作为 serving cache 接入；JSON/JSONL artifacts 仍是发布审核、回放和回滚的事实源。
+Historical Cloudflare Pages workflows are not part of production and have no dual-track compatibility layer.
 
-发布 tag 使用三段版本号和发布轨道前缀：
+## Release Identity
 
-```text
-all-v0.2.4
-all-v0.2.5
-```
+`all-vX.Y.Z` represents one complete data, Web, API, and MCP release attempt. Never reuse a failed or superseded tag; increment the patch version. A tag becomes a verified production release only after reviewed-bundle checks, production approval, deployment, smoke checks, and production evidence all succeed.
 
-规则：
+`all-v0.4.4` is the current verified baseline. Release All run `29226907250` and production deployment `5419806444` bind commit `0b9fc48c`, the reviewed bundle, production feedback snapshot checksum, and Worker endpoint. Provider evaluation passed 24/24, critical safety passed 4/4, and MCP smoke passed 4/4. One production up vote adjusted `mcp-browser-automation` from 84 to 84.2, and all 53 Rating Results bind to the same real D1 snapshot checksum.
 
-- `all-vX.Y.Z` 表示一次完整发布尝试，构建并部署 data + web + api/mcp 到同一个 Worker。
-- 如果发布尝试失败或需要重新审核，不复用 tag，直接递增 patch 版本。
-- tag 只有在 reviewed bundle、GitHub `production` environment confirmation、生产部署、部署后 smoke 和 production evidence 全部完成后，才可视为已验证 production release。
-- 失败 tag 保留为历史尝试，供审计和复盘使用。
+Until separate tracks are intentionally introduced, `all-v*` is the only production release entry point.
 
-### v0.2 发布状态
+## Generated Artifacts
 
-- `all-v0.2.4` 是上一版已验证基线：发布 29 张 Tool Cards，真实 provider golden eval 10/10 通过，promotion candidates 29/29 通过，完成 GitHub `production` environment confirmation 与生产部署，线上 `/api/mcp` smoke 4/4 通过。
-- `all-v0.4.1` 是上一版反馈采集 production baseline。GitHub Actions run `29194345806` 已完成 production confirmation、生产 D1 migrations 和 Worker 部署；线上 `/api/version`、session、匿名 feedback、OAuth authorize 和 GitHub Issue Form 均已核验。
-- `all-v0.4.4` 是当前已验证 production baseline。GitHub Actions run `29226907250` 和 production deployment `5419806444` 绑定 commit `0b9fc48c`、reviewed bundle、真实 feedback vote snapshot checksum 与 Worker endpoint；24/24 golden eval、MCP smoke 4/4 均通过。生产中的一条 up vote 已使 `mcp-browser-automation` 从 base score `84` 调整为 `84.2`，53/53 条 Rating Result 均绑定同一真实快照 checksum。
+`npm run pipeline` generates release artifacts locally or in CI. Regenerable `public/data`, `public/reports`, `dist`, and `dist-pages` are not source-controlled release truth; GitHub artifacts and deployed Static Assets preserve them.
 
-后续需要更细粒度发布时再增加：
-
-```text
-data-vX.Y.Z
-web-vX.Y.Z
-api-vX.Y.Z
-```
-
-在这些单独发布轨道出现前，`all-v*` 是唯一生产发布入口。
-
-## 发布产物
-
-发布产物由 `npm run pipeline` 在本地或 CI 中生成，默认不作为源码长期提交。源码仓库保留 Source Registry、golden queries、评分/推荐代码、schema、migration 和文档；`public/data`、`public/reports`、`dist`、`dist-pages` 属于可再生成产物，应作为 GitHub Actions artifacts 或 Worker Static Assets 部署输出保存。v0.2 不要求创建 GitHub Release 对象。
-
-| 产物 | 路径示例 | 用途 |
+| Artifact | Example | Purpose |
 | --- | --- | --- |
-| Source Registry | `public/data/source_registry.json` | 来源展示和审计 |
-| Tool Cards | `public/data/tool_cards.jsonl` | 工具详情 |
-| Ratings | `public/data/ratings.jsonl` | 评分解释 |
-| Search Index | `public/data/search_index.json` | 搜索和召回 |
-| Eval Report | `public/reports/eval-<version>.md` | 发布质量证明 |
-| Manifest | `public/data/manifest.json` | 版本指针 |
+| Source Registry | `public/data/source_registry.json` | Source review |
+| Tool Cards | `public/data/tool_cards.jsonl` | Catalog data |
+| Ratings | `public/data/ratings.jsonl` | Rating explanations and feedback checksum |
+| Search Index | `public/data/search_index.json` | Retrieval |
+| Golden Queries | `public/data/golden_queries.json` | Evaluation definitions |
+| Eval Summary | `public/data/eval_summary.json` | Release evaluation status |
+| D1 Seed | `public/data/d1_seed.sql` | Versioned read-model seed |
+| Manifest | `public/data/manifest.json` | Data, schema, rule, index, and release versions |
+| Artifact Manifest | `dist-pages/artifact-manifest.json` | Critical checksums and build evidence |
 
-Manifest 示例：
+The reviewed bundle also includes provider configuration without secrets, field provenance v1 and v2, conflicts, URL validation v1 and v2, data-quality report, Review Summary v2, discovery and intervention artifacts, automatic review, release admission, promotion evidence, MCP examples, and the smoke checklist.
 
-```json
-{
-  "data_version": "data-2026-07-06",
-  "schema_versions": {
-    "tool_card": "tool_card.v1",
-    "rating_result": "rating_result.v1"
-  },
-  "rules_versions": {
-    "rating": "rating_rules.v0.1-draft",
-    "recommendation": "recommendation_rules.v1"
-  },
-  "index_version": "index-2026-07-06",
-  "eval_report": "reports/eval-data-2026-07-06.md",
-  "published_at": "2026-07-06T12:00:00Z"
-}
-```
-
-## 手动触发流水线
-
-### 触发策略
-
-MVP 只使用手动触发：
-
-- 新增或修正来源。
-- 新增或修正 Tool Card。
-- 修复 parser。
-- 发布前验证。
-- 需要刷新公开站点或 D1 数据。
-
-### 当前 MVP 命令
-
-当前实现提供以下本地命令：
+## Local Commands
 
 ```bash
 npm test
+npm run lint
+npm run stylelint
+npm run ingest
 npm run pipeline
 npm run eval
 npm run pages:build
@@ -227,406 +105,152 @@ npm run dev:api
 npm run dev:ui
 npm run release:build
 npm run promotion:check
+npm run data-quality:check
+npm run review-summary:check
 npm run mcp:smoke
 npm run preview:build
 ```
 
-命令说明：
+- `npm test` builds TypeScript and runs the Node suite.
+- `npm run ingest` executes the controlled ingestion path.
+- `npm run pipeline` generates data, D1 seed, and reports.
+- `npm run eval` executes all 24 golden queries and exits nonzero with `blocked_no_key` if no provider key exists.
+- `npm run pages:build` builds Vite output into `dist-pages`; the legacy command name avoids migration noise.
+- `npm run dev` prepares validated local artifacts, builds assets, applies local migrations, and runs Vite on `127.0.0.1:5173` plus Wrangler on `127.0.0.1:8787`.
+- `npm run dev:data` validates HTTP responses, HTML fallbacks, JSON, and JSONL before replacing local artifacts.
+- `npm run dev:api` loads `.env` explicitly and runs the local Worker with D1.
+- `npm run release:build` runs tests, pipeline, release checks, and Web build.
+- `npm run preview:build` runs ingestion and pipeline once, then finalizes the same evidence without a second network collection.
+- `npm run promotion:check`, `data-quality:check`, and `review-summary:check` validate immutable candidate artifacts and exit nonzero on blockers.
+- `npm run mcp:smoke` validates the deployed JSON-RPC read-only boundary.
 
-- `npm test`：运行 TypeScript 编译和 Node test suite，覆盖评分、推荐、pipeline、API 和 UI 数据装配。
-- `npm run pipeline`：生成本地 `public/data` artifacts、D1 seed SQL 和 `public/reports` eval report；这些文件是发布产物，不再默认进入 git。
-- `npm run dev`：确保六个 UI/Worker artifacts 存在，构建一次 Wrangler Static Assets，自动应用 local D1 migrations，然后并行启动 Vite `127.0.0.1:5173` 和 Wrangler `127.0.0.1:8787`。Vite 保留 UI HMR，并把 `/api/*` 同源代理到热重载的 Worker；Worker 使用 local D1。
-- `npm run dev:data`：只执行本地 data bootstrap。`tool_cards.jsonl`、`ratings.jsonl`、`search_index.json`、`golden_queries.json`、`eval_summary.json` 和 `manifest.json` 全部通过 HTTP、HTML fallback、JSON/JSONL 校验后才替换本地文件；它不运行或放宽 production pipeline 门禁。
-- `npm run eval`：运行 10 个 v0.2 golden queries；需要 `AGENT_RADAR_LLM_API_KEY` 才会调用真实 LLM provider。缺少 key 时输出 blocked summary 并退出非 0。
-- `npm run pages:build`：构建 Vite 静态 UI，输出到本地 `dist-pages/`，供 Worker Static Assets 部署使用。命令名暂时保留以减少迁移噪声。
-- `npm run dev:api`：显式通过 `--env-file .env` 读取统一的本地配置，启动 Wrangler Worker API 热重载和 local D1，固定端口 8787。
-- `npm run dev:db`：幂等应用 `migrations/` 到 Wrangler local D1；默认由 `npm run dev` 自动执行。
-- `npm run dev:ui`：单独启动 Vite UI HMR，固定端口 5173；需要完整 API 时应同时运行 `dev:api` 或直接使用 `npm run dev`。
-- `npm run dev:with-data`：兼容别名，等价于 `npm run dev`。
-- `npm run release:build`：运行测试、生成发布产物并构建静态 UI 输出，适合 CI 或手动发布前使用。
-- `npm run promotion:check`：默认读取 `dist-pages/data/promotion_candidates/promotion_check.json`；release workflow 也显式传入该 reviewed bundle 路径。如果 promotion candidate 重复或未通过 Tool Card validator dry-run，则非 0 退出，并在进入 production gate 前阻断发布。
-- `npm run mcp:smoke`：对部署后的 Worker base URL 执行 JSON-RPC smoke test，覆盖 initialize、tools/list、只读 tools/call 和只读边界。Worker 一体化发布后，GitHub Actions 必须从 deploy output 自动传入 base URL；`AGENT_RADAR_MCP_BASE_URL` 只作为本地或外部 endpoint override。
-- `npm run preview:build`：release build 只运行一次 ingestion/pipeline，并把版本化 review evidence 随静态数据复制到 `dist-pages/`；finalize 只从同一 `dist-pages` 校验和渲染 artifact manifest 与 `artifacts/review/ingestion.md`，不会再次联网采集。
-- `.env`：由 `.env.example` 复制并保持 git ignored，统一保存本地 LLM、开发 OAuth Client ID/Secret 和至少 32 bytes 的 session secret；Wrangler 由 `--env-file .env` 显式读取。开发 GitHub OAuth App callback 固定为 `http://127.0.0.1:5173/api/auth/github/callback`。
+## Configuration and Secrets
 
-LLM 推荐相关环境变量：
-
-| 变量 | 必填 | 默认值 | 说明 |
-| --- | --- | --- | --- |
-| `AGENT_RADAR_LLM_API_KEY` | eval 必填 | 无 | BYOK provider key，仅用于当前 eval/provider 请求 |
-| `AGENT_RADAR_LLM_MODEL` | 否 | `deepseek-v4-flash` | eval 使用的模型 ID 或已支持的 provider model label；本地 CLI 和 CI 使用同一默认值 |
-| `AGENT_RADAR_LLM_BASE_URL` | 否 | provider 默认值 | 覆盖当前 LLM provider 的 OpenAI-compatible base URL，不包含具体 path；例如国内 MiniMax 使用 `https://api.minimaxi.com` |
-| `AGENT_RADAR_CHECK_URLS` | 否 | `false` | 设置为 `true` 时，`npm run pipeline` 会对 Tool Card URL 执行 HEAD/GET 可达性检查；默认只输出 skipped artifact，避免本地/CI 偶发外网失败 |
-| `AGENT_RADAR_MCP_BASE_URL` | 本地 smoke 可选 | 无 | 本地或外部 endpoint override；标准 Worker 一体化发布必须使用刚部署的 Worker URL 自动运行 smoke。 |
-
-本地开发可以在仓库根目录创建 `.env`，该文件必须保持 git ignored：
-
-```dotenv
-AGENT_RADAR_LLM_API_KEY=your-provider-key
-AGENT_RADAR_LLM_MODEL=MiniMax M3
-AGENT_RADAR_LLM_BASE_URL=https://api.minimaxi.com
-```
-
-Node CLI 入口会在运行时加载 `.env`，包括 `npm run eval`、`npm run pipeline`、`npm run dev:with-data`、`npm run release:build` 和 `npm run preview:build`。系统环境变量优先级高于 `.env`，因此 CI secret 或 shell 中显式导出的变量不会被本地 `.env` 覆盖。
-
-本地/API 推荐调用中，如果请求体没有传 `api_key` 或 `model`，后端会回退到 `AGENT_RADAR_LLM_API_KEY`、`AGENT_RADAR_LLM_MODEL` 和 provider registry 默认模型。`AGENT_RADAR_LLM_BASE_URL` 只覆盖当前 model 对应 provider 的 base URL；provider 仍由 model label 或 model id 决定。浏览器页面不会读取或显示 `.env` 内容，secret 只留在本地 Node/API 进程中。
-
-当前 Web UI 支持用户在 Recommend 表单中输入一次性 API key 和模型。请求路径为：
-
-```text
-Browser UI
-  -> /api/recommend_tools
-  -> Recommendation Engine proxy
-  -> OpenAI / MiniMax / DeepSeek provider
-```
-
-安全约束：
-
-- API key 不写入 artifacts、eval report 或响应体。
-- `.env` 不进入 git；不要把 provider key 粘贴到文档、issue、PR 或 Actions Summary。
-- server 日志只记录 provider、endpoint、model、状态码和脱敏错误体。
-- provider 401/403、429、模型不可用和 JSON 输出异常会映射为稳定 API error code，并由 Recommend UI 展示 provider/status 上下文。
-- 本地 dev API 和 Workers API 都必须保持只读，不安装、不授权、不执行推荐工具。
-
-Web UI 的 Review 页面读取 `data/source_registry_review_requests.json`，展示需要在 production gate 关注或介入的 Source Registry signals。该页面不自动确认来源，也不改变发布数据或审核状态。
-
-当前 D1 相关文件：
-
-- schema migration：`migrations/0001_mvp_read_model.sql`
-- data seed：`public/data/d1_seed.sql`
-
-当前 Workers 只读 API 入口：`src/worker.ts`。
-
-每日增量、每周全量和每月审核作为 v0.2 之后能力，不在 MVP 自动运行。
-
-### 发布流程
-
-Agent Radar 的数据发布流程采用“build once, review once, deploy the reviewed assets”原则。由于 LLM-backed eval 和数据采集都可能受时间、provider、来源内容变化影响，生产发布不应在 GitHub production confirmation 后重新运行 `pipeline` 并发布新结果。`all-v*` workflow 先用脚本、规则和 LLM 生成 static assets、自动审核结果与 review artifacts，并上传 immutable reviewed bundle，同时对同一 ref 的 Worker 代码执行 dry-run；production gate 确认后，production job 从同一不可变 tag/SHA checkout Worker 源码，并原样恢复 reviewed `dist-pages` 后部署。
-
-### `all-v*` Worker 发布流程
-
-当前实现使用 Worker 一体化发布 workflow。触发方式：
-
-```bash
-git tag -a all-v0.2.5 -m "Agent Radar v0.2 closeout"
-git push origin all-v0.2.5
-```
-
-也可以通过 `workflow_dispatch` 在 GitHub 的标准 ref 选择器中选择已有的 `all-v*` tag；workflow 会拒绝 branch 或其他 ref。Workflow 不接受第二套自定义 ref 输入，并将 build 与 production 两次 checkout 都固定到事件 `${{ github.sha }}`，保证实际代码、GitHub event、deployment record 和 production evidence 指向同一不可变提交。Workflow 使用 `cloudflare/wrangler-action@v4` 执行 `wrangler deploy`，把 `dist-pages` 作为 Worker Static Assets 与 `src/worker.ts` 一起部署到 Cloudflare Worker `agent-radar`。
-
-```text
-checkout
-  -> install dependencies
-  -> npm run preview:build
-  -> npm run promotion:check
-  -> wrangler deploy --dry-run validates Worker source/config with reviewed assets
-  -> append compact review summary to GitHub Actions summary
-  -> upload immutable reviewed bundle (dist-pages + review + worker dry-run)
-  -> production job waits on GitHub Environment: production
-  -> after confirmation, download and restore the reviewed dist-pages
-  -> bundle Worker from the same immutable ref and deploy it with reviewed Static Assets
-  -> run npm run mcp:smoke against deployed Worker URL
-  -> resolve matching GitHub production deployment
-  -> generate and upload production-release-evidence.json + mcp-smoke-result.json
-```
-
-Worker deployment 应包含：
-
-- 产品网站本体。
-- `data/*`：Tool Cards、ratings、search index、eval summary、D1 seed。
-- `data/provider_registry.json`：版本化 provider runtime config，供 UI、API 和发布审核确认 BYOK model/provider 选项一致。
-- `data/tool_card_field_provenance.json`：关键字段 provenance summary，覆盖 `permissions`、`security` 和 `maintenance` 的字段级证据状态。
-- `data/field_provenance/tool_card_fields.v2.json`、`data/conflicts/tool_card_conflicts.json`：字段级多来源选择证据和冲突报告；迁移期继续保留 provenance v1。
-- `data/tool_card_url_validation.v2.json`：带超时、重试、状态分类和历史的 URL 检查；迁移期继续保留 URL v1。
-- `data/data_quality_report.json`：P1 确定性数据质量门禁。
-- `data/review_summary.v2.json` 与 `reports/review_summary.v2.md`：发布级审核摘要及证据路径。
-- `data/mcp_examples.json`：MCP JSON-RPC 请求示例，供 agent/client 集成验证。
-- `data/mcp_smoke_checklist.json`：MCP deployment review checklist，列出 initialize、tools/list、只读 tools/call 和只读边界的必检项。
-- `reports/*`：eval report。
-- `artifact-manifest.json`：直接记录 git sha、data version、eval model、通过数、eval failure categories、source registry diff summary、source registry review summary、Tool Card URL validation summary、Tool Card field provenance summary、crawl audit summary、approval override summary、discovery candidates summary、intervention requests summary、field value provenance summary、auto review summary、release admission summary、promotion candidates summary、promotion check summary、构建时间和关键文件 checksum；规则版本和索引版本保存在被 checksum 覆盖的 `data/manifest.json` 中，checksum 还覆盖 `provider_registry.json`、`tool_card_field_provenance.json`、`mcp_examples.json` 和 `mcp_smoke_checklist.json`。
-
-部署前 reviewed bundle 与 GitHub Actions summary 应包含：
-
-- compact review summary，在 GitHub `production` environment confirmation 前展示 ref/SHA、data version、golden eval、source registry attention signals、Tool Card intervention requests、release admission blocks、promotion check failures、critical field provenance missing 和 crawl failure/partial 等整批发布信号。
-- `artifacts/review/ingestion.md` 作为 uploaded artifact 保存完整采集明细，包括 discovery candidates、intervention requests、auto review scorecards、release admission items、promotion candidates 和 promotion plan。
-- `dist-pages/artifact-manifest.json` 作为机器可读摘要保存在 reviewed bundle 中；它直接记录 Git SHA、data version、eval 和自动审核/admission/promotion 摘要，并用关键文件 checksums 间接绑定 `data/manifest.json` 中的规则与索引版本。
-- `worker-dry-run` 保存 Wrangler 对 Worker bundle 的部署前校验结果。
-
-P1 检查只在 reviewed-bundle build job 运行：该 job 强制启用真实 URL 检查，尝试恢复上一成功 Release All 的 reviewed baseline，随后执行采集、数据质量门禁、golden eval、Review Summary/final manifest checksum 校验和 pages build。上一 artifact 不存在时显式使用 `no_baseline`；来源失败且策略允许时保留上一稳定 Source Records。production job 在 GitHub `production` environment 确认后只下载、复核并部署同一个 immutable reviewed bundle；不得重跑采集、URL checker、评分或数据质量报告。
-
-GitHub 配置要求：
-
-| 名称 | 类型 | 用途 |
+| Variable | Required | Purpose |
 | --- | --- | --- |
-| `AGENT_RADAR_LLM_API_KEY` | secret | `pipeline` / golden eval 使用的 BYOK provider key。 |
-| `AGENT_RADAR_LLM_MODEL` | repository variable | eval model；默认使用 `deepseek-v4-flash`。 |
-| `CLOUDFLARE_API_TOKEN` | secret | Wrangler Worker deploy 认证。 |
-| `CLOUDFLARE_ACCOUNT_ID` | secret | Cloudflare account id。 |
-| `CLOUDFLARE_PROJECT_NAME` | repository variable | Cloudflare project name；默认使用 `agent-radar`。 |
-| `GITHUB_OAUTH_CLIENT_ID` | Worker text variable | GitHub OAuth App public client ID；由 `keep_vars = true` 在 deploy 时保留。 |
-| `GITHUB_OAUTH_CLIENT_SECRET` | Worker secret | GitHub OAuth App client secret。 |
-| `AGENT_RADAR_SESSION_SECRET` | Worker secret | 至少 32 bytes，用于签名 session/state Cookie。 |
+| `AGENT_RADAR_LLM_API_KEY` | for provider eval | Current provider request only |
+| `AGENT_RADAR_LLM_MODEL` | no | Provider model; default `deepseek-v4-flash` |
+| `AGENT_RADAR_LLM_BASE_URL` | no | OpenAI-compatible endpoint base override |
+| `AGENT_RADAR_CHECK_URLS` | no | Enable live Tool Card URL checks |
+| `AGENT_RADAR_MCP_BASE_URL` | local smoke only | External smoke target override |
+| `CLOUDFLARE_API_TOKEN` | CI secret | Worker deploy and D1 migration |
+| `CLOUDFLARE_ACCOUNT_ID` | CI secret | Cloudflare account |
+| `CLOUDFLARE_PROJECT_NAME` | repository variable | Worker name, default `agent-radar` |
+| `GITHUB_OAUTH_CLIENT_ID` | Worker variable | Public OAuth client ID |
+| `GITHUB_OAUTH_CLIENT_SECRET` | Worker secret | OAuth exchange secret |
+| `AGENT_RADAR_SESSION_SECRET` | Worker secret | At least 32 bytes for session and state signing |
 
-v0.4 P1 将 D1 binding `DB` 指向数据库 `agent-radar`，schema migration 位于 `migrations/`。`Release All` 在 immutable Worker deploy 之前执行 `wrangler d1 migrations apply agent-radar --remote`；migration 失败会阻断部署。执行 workflow 的 `CLOUDFLARE_API_TOKEN` 除 Worker deploy 权限外必须具有 D1 Edit 权限。
+Local `.env` is ignored by Git. System values override `.env`. Browsers never read `.env`; keys remain in local or Worker processes. Logs may include provider, endpoint, model, status code, and redacted errors, but never credentials or raw secret-bearing bodies.
 
-Workflow 在部署前上传的 reviewed bundle artifact 名为 `agent-radar-all-<run_id>`，包含：
+Recommendation API keys are ephemeral. The browser calls the same Worker at `/api/recommend_tools`; it does not call providers directly. The Worker installs, authorizes, and executes no recommended tool.
 
-- `dist-pages`：可部署网站、数据 artifacts 和 `artifact-manifest.json`。
-- `artifacts/review`：脚本、规则和 LLM 生成的 Markdown review evidence。
-- `worker-dry-run`：Wrangler dry-run 输出。
+## Build Once, Review Once, Deploy Reviewed Assets
 
-部署后 workflow 另行上传 `agent-radar-mcp-smoke-<run_id>` artifact，包含：
-
-- `mcp-smoke-result.json`：对刚部署 Worker `/api/mcp` 自动执行 initialize、tools/list、只读 tools/call 和只读边界检查的原始结果。
-- `production-release-evidence.json`：把 GitHub repository/run/SHA/tag、production deployment id、reviewed bundle 名称、manifest 与 D1 seed checksums、Worker URL、MCP endpoint 和 smoke summary 绑定为 `production_release_evidence.v1`。
-
-Workflow 先通过 `gh api` 将 production deployment 唯一绑定到当前 repository/run/SHA/tag；evidence builder 再校验 release metadata 格式、manifest `git_sha`、D1 seed checksum、Worker/MCP endpoint 和全部必需 smoke checks，并计算 manifest 文件 SHA 写入证据。任一步失败都会使 production job 失败。JSON 与 smoke artifact 是部署完成后的证据，不属于部署前 reviewed bundle，也不取代 GitHub production confirmation。
-
-### Production Promote 流程
+Release All uses two jobs.
 
 ```text
-download immutable reviewed bundle
-  -> restore reviewed dist-pages without rebuilding
-  -> bundle Worker from the same immutable ref and deploy reviewed Static Assets
-  -> run automated MCP smoke against deploy output URL
-  -> resolve this run's GitHub production deployment id
-  -> validate and persist production-release-evidence.json
+immutable all-v* tag
+  -> checkout exact SHA
+  -> restore previous reviewed baselines
+  -> read aggregate-only production feedback
+  -> prepare read-only feedback input
+  -> npm run preview:build
+  -> data-quality, promotion, and Review Summary checks
+  -> Worker dry run with reviewed assets
+  -> upload agent-radar-all-<run_id>
+  -> wait at GitHub environment: production
+  -> download and verify the same bundle
+  -> apply approved feedback writeback plan
+  -> apply D1 migrations
+  -> deploy same-ref Worker with reviewed dist-pages
+  -> run MCP smoke
+  -> bind the unique production deployment
+  -> upload production release evidence
 ```
 
-Production promote 不重新运行：
+The build job forces live URL checks, attempts to restore the last successful Release All baselines, and records `no_baseline` explicitly when none exists. A failed source may preserve only its previous records when its policy allows stable fallback.
 
-- `npm run ingest`
-- `npm run pipeline`
-- `npm run eval`
+The production job does not rerun ingestion, pipeline, evaluation, URL checks, rating, or data-quality reporting.
 
-当前 workflow 的标准路径就是在 GitHub `production` environment confirmation 后下载 immutable reviewed bundle，并部署其中的同一份 `dist-pages`；不得重新 build 数据 artifacts。GitHub environment deployment record、Actions run、不可变 tag、reviewed bundle 和部署后 evidence artifacts 共同构成发布记录。
+### Reviewed Bundle Evidence
 
-### 发布门槛
+`agent-radar-all-<run_id>` contains `dist-pages`, full review Markdown under `artifacts/review`, and Wrangler dry-run output. The GitHub Actions summary presents compact release ID and SHA, data version, golden results, source-attention signals, interventions, admission blockers, promotion failures, missing provenance, and crawl failures before approval.
 
-必须通过：
+The artifact manifest records Git SHA, data version, eval model and categories, source diffs, crawl, overrides, discovery, intervention, provenance, automatic review, admission, promotion, timestamps, and critical checksums. The checksum-covered data manifest records rules and index versions.
 
-- schema validation。
-- source registry validation。
-- data quality critical checks。
-- `data_quality_report.v1` 为 pass，`review_summary.v2` 无 blocking item 且 checksum 校验通过。
-- safety eval critical cases。
-- golden queries critical cases。
-- index build。
-- artifact manifest 已生成并记录关键文件 checksums；production evidence 校验 manifest `git_sha` 和 D1 seed checksum。
-- immutable reviewed bundle 已上传，且 deployment 原样恢复其中的 `dist-pages`。
-- GitHub `production` environment gate 已完成唯一一次常规人工发布确认。
-- 部署后 MCP smoke 全部通过，且 `production-release-evidence.json` 成功生成并上传。
+### Production Evidence
 
-LLM-backed 推荐发布说明：
+After deployment, `agent-radar-mcp-smoke-<run_id>` contains:
 
-- 没有 provider key 时，golden queries 只能证明 pipeline 可运行，不能证明推荐质量。
-- 发布推荐质量声明前，必须至少使用一个真实 provider key 跑完 critical golden queries。
-- 如果 provider 返回 401、429、模型不可用或 JSON 输出异常，应记录为 provider/config failure，不应修改 expected result 掩盖问题。
+- `mcp-smoke-result.json` with initialization, tool listing, read-only calls, and boundary checks.
+- `production-release-evidence.json` binding repository, run, SHA, tag, unique production deployment ID, bundle name, manifest SHA, D1 seed and feedback snapshot checksums, Worker and MCP endpoints, and smoke summary.
 
-允许带警告：
+The workflow resolves exactly one deployment for the current repository, run, SHA, and tag. Evidence validation checks release metadata, manifest SHA binding, D1 checksum, endpoints, and all required smoke checks. Any ambiguity or mismatch fails production.
 
-- 单个低优先级社区来源失败。
-- 少量非关键字段缺失。
-- 非 critical golden query 排名轻微变化。
+## Feedback Release Order
 
-## Workers MCP/API 部署
+1. Restore the previous reviewed Tool Cards as the valid feedback Tool-ID boundary.
+2. Query production D1 with aggregate-only SQL for per-Tool up, down, and row counts.
+3. In the read-only build job, prepare `feedback_build_input.v1`, classify new Issues, and include four feedback artifacts and checksums in the reviewed bundle.
+4. Obtain GitHub `production` environment approval.
+5. Restore and verify the same bundle, then apply `feedback_processing_plan.v1` with `issues: write`.
+6. Only after every Issue action succeeds, apply D1 migrations and deploy.
+7. Record feedback rules, vote-snapshot checksum, and processing-plan checksum in production evidence.
 
-### MVP 方式
+Votes and Issues created after the build snapshot wait for the next release. Missing production D1 input, GitHub or LLM read failure, classification failure, or checksum mismatch blocks build. Issue state drift, missing write permission, or comment, label, or close failure blocks deployment.
 
-MCP/API 部署在同一个 Cloudflare Worker 中，读取同一 Worker deployment 的静态 JSON artifacts。D1 后续作为 serving cache 接入，但不替代 artifacts 的事实源地位。
+## Release Gates
 
-入口：
+All of these must pass:
 
-- `/api/mcp_manifest`：HTTP JSON 工具清单。
-- `/api/mcp`：MCP JSON-RPC endpoint，支持 `initialize`、`tools/list` 和 `tools/call`。
-- `data/mcp_examples.json`：部署产物中的 JSON-RPC 请求示例，可用于 agent/client smoke test。
-- `data/mcp_smoke_checklist.json`：部署验收清单；workflow 的自动 smoke 按其覆盖 endpoint 初始化、工具列表、只读工具调用和只读边界。
-- `data/provider_registry.json`：部署产物中的 provider registry artifact；其版本、默认模型和 UI 可选模型进入 reviewed bundle 的自动校验与 evidence。
-- `npm run mcp:smoke`：部署后的自动 smoke test；标准 workflow 从 Worker deploy output 自动传入 base URL 并请求 `${base}/api/mcp`。
+- Public-document language validation, schema and Source Registry validation.
+- `data_quality_report.v1` and `review_summary.v2`, including checksums and no blocking item.
+- 24/24 provider-backed golden queries and 4/4 critical safety cases.
+- Index build, automatic review, release admission, and promotion check.
+- Artifact manifest generation and critical checksums.
+- Immutable reviewed-bundle upload and exact restoration.
+- One GitHub `production` environment approval.
+- D1 migration and approved feedback writeback.
+- Deployed MCP smoke and validated production evidence.
 
-支持工具：
+A missing provider key cannot support a quality claim. Authentication, rate limit, model, endpoint, or schema failure is a provider or configuration failure and must not be hidden by changing expected results.
 
-- `search_tools`
-- `get_tool_card`
-- `recommend_tools`
-- `explain_rating`
+Warnings may include isolated low-priority source failure, small optional-field gaps, and noncritical ranking changes.
 
-限制：
+## Monitoring and Alerts
 
-- 只读。
-- 不安装第三方工具。
-- 不持久化用户 secret；Recommend BYOK key 只用于当前 provider 请求。
-- 不执行推荐候选。
-- MCP `tools/call` 只包装上述只读查询工具；未知 method 或未知 tool 返回 JSON-RPC error。
-- 使用 Cloudflare 免费额度。
+Monitor source success, rate limits, parser warnings, discovered and updated Tools, completeness, staleness, unknown permissions, duplicates, low confidence, golden pass rate, no-match rate, high-risk recommendations, build duration, artifact size, API latency, and rollback frequency.
 
-### Cloudflare Workers Static Assets 方式
+Block release on critical safety failure, schema failure, manifest mismatch, missing core data, or a material unknown-permission increase. Require review for widespread Top-1 changes, raised high-risk recommendation levels, noisy low-confidence sources, and repeated collection failures.
 
-适用条件：
+## Rollback
 
-- Web UI、数据 artifacts 和 MCP/API 需要同域部署。
-- 希望避免额外维护外部 data URL 或独立 MCP base URL。
-- 希望一次 `all-v*` 发布绑定 data、web 和 api/mcp。
+1. Identify the last stable `all-v*` manifest, Worker deployment ID, and bundle checksum.
+2. Prefer Cloudflare Worker deployment rollback. If unavailable, check out the prior immutable ref, restore its reviewed `dist-pages`, and deploy without regenerating data.
+3. Restore the matching D1 seed or prior active database when serving data requires it.
+4. Mark the failed release `retracted` and record the cause.
+5. Add or update an evaluation case to prevent recurrence.
 
-数据读取：
+Do not roll back only the index while leaving unmatched data and ratings unless the manifest explicitly supports that composition.
 
-- 当前主查询：同一 Worker deployment 的静态 JSON artifacts。
-- 后续 serving cache：Cloudflare D1 SQLite。
+## Retention, Cost, and Failure Policy
 
-注意：
+Retain raw snapshots for 30 days, all release manifests, critical evaluation reports, migrations, overrides, and release records. Object storage requires a separate free-tier and lifecycle review.
 
-- Worker API 读取的 artifacts 必须来自当前 deployment，不能读 `latest` 或外部 mutable URL 作为审核对象。
-- D1 schema 迁移必须和 manifest 版本一致；D1 只能作为 serving copy。
-- Workers API 保持只读。
+Prefer static files, Worker Static Assets, Workers, D1, then R2 only if the free allowance is sufficient. Any new infrastructure proposal documents why static storage is insufficient, maximum cost, alternatives, migration, and rollback.
 
-## Web UI 部署
-
-MVP 页面：
-
-- 工具列表。
-- 工具详情。
-- 推荐查询页。
-- 比较页。
-- Eval report 页面。
-
-部署建议：
-
-- Cloudflare Workers Static Assets 作为公开站点。
-- 页面读取同一 Worker deployment 中的 manifest 数据版本。
-- 如果数据版本缺失，显示降级错误，不展示旧推荐为新数据。
-
-## 监控指标
-
-### 采集指标
-
-- 来源成功率。
-- 来源失败次数。
-- 限流次数。
-- parser warning 数。
-- 新增工具数。
-- 更新工具数。
-
-### 数据指标
-
-- Tool Card 总数。
-- 必填字段完整率。
-- 过期率。
-- 权限未知率。
-- possible duplicate 数。
-- 低置信记录占比。
-
-### 推荐指标
-
-- golden queries 通过率。
-- Top 1 变化数。
-- no reliable match 数。
-- 高风险候选推荐次数。
-- 推荐解释缺失数。
-
-### 运维指标
-
-- 构建时长。
-- 发布成功率。
-- artifact 大小。
-- API 响应时间。
-- 旧版本回滚次数。
-
-## 告警规则
-
-阻断发布：
-
-- critical safety eval 失败。
-- schema validation 失败。
-- manifest 不一致。
-- 核心数据文件缺失。
-- 权限未知率显著上升。
-
-需要人工查看：
-
-- Top 1 排名大量变化。
-- 高风险工具推荐等级上升。
-- 新来源带来大量低置信记录。
-- 采集失败率连续多次升高。
-
-## 回滚策略
-
-每次发布保留：
-
-- 数据版本。
-- 规则版本。
-- 索引版本。
-- eval report。
-- manifest。
-
-回滚步骤：
-
-1. 找到上一稳定 `all-v*` release manifest、Worker deployment id 和 bundle checksum。
-2. 优先使用 Cloudflare Worker rollback 恢复上一 Worker deployment；如果不可用，则 checkout 上一不可变 ref、恢复其 immutable reviewed bundle 中的 `dist-pages`，再由 Wrangler 构建 Worker 并部署，不能重新运行 pipeline/eval 生成数据 artifacts。
-3. 如果 D1 serving 已启用，使用上一 release 的 `d1_seed.sql` 恢复 D1，或切回上一 active D1 database。
-4. 标记失败版本为 `retracted`。
-5. 记录失败原因。
-6. 新增或更新 eval case 防止复发。
-
-不可只回滚索引而不回滚数据和评分，除非 manifest 明确支持组合版本。标准 `all-v*` 回滚应恢复同一个 Worker deployment 中的 Web、data artifacts 和 MCP/API。
-
-## 数据保留策略
-
-MVP：
-
-- 保留最近 30 天 raw snapshot。
-- 保留所有发布 manifest。
-- 保留关键 eval report。
-- 保留 D1 schema migration。
-
-后续：
-
-- Raw snapshot 如需迁移到对象存储，必须确认免费额度足够。
-- 对低价值社区来源快照设置生命周期。
-- 人工 override 和发布记录长期保留。
-
-## 成本控制
-
-优先级：
-
-1. 静态文件。
-2. Cloudflare Workers Static Assets 免费额度。
-3. Cloudflare Workers 免费额度。
-4. Cloudflare D1 免费额度。
-5. 仅在免费额度可承载时评估 R2。
-
-新增基础设施前必须确认仍在免费额度内，并说明：
-
-- 为什么静态方案不足。
-- 免费额度和潜在成本上限。
-- 替代方案。
-- 迁移和回滚方式。
-
-## 故障处理
-
-| 故障 | 处理 |
+| Failure | Response |
 | --- | --- |
-| 单个来源失败 | 保留旧数据，标记 stale |
-| 官方来源全部失败 | 阻止发布并调查来源或采集故障 |
-| parser 大量失败 | 回滚 parser 或保留旧版本 |
-| 评分异常 | 阻止发布并输出 diff |
-| API 不可用 | 回滚 Worker deployment；必要时 Web UI 显示静态数据，MCP 返回错误 |
-| 数据污染 | 回滚 manifest，新增安全/数据 eval |
+| One source fails | Preserve its prior data and mark stale |
+| Every core official source fails | Block release and investigate |
+| Parsers fail broadly | Roll back parser or preserve prior data |
+| Ratings become anomalous | Block release and preserve evidence |
+| API is unavailable | Roll back the Worker; serve only clearly labeled stable static data if safe |
+| Data is contaminated | Roll back the manifest and add data or security evaluation |
 
-## v0.4 P2 feedback release 顺序
+## Maintenance Rules
 
-1. 恢复上一份成功的 reviewed bundle，以其中已发布 Tool Cards 作为反馈 Tool ID 边界。
-2. 使用 Wrangler 对生产 D1 执行 aggregate-only SQL，输出每个 Tool 的 up/down/row counts。
-3. Build job 以 `issues: read` 准备 `feedback_build_input.v1`，运行 pipeline/eval，并把四类 feedback artifacts 纳入 reviewed bundle 与 manifest checksums。
-4. GitHub `production` environment 完成人工 approval。
-5. Deploy job 恢复并校验同一 bundle，以 `issues: write` 应用 `feedback_processing_plan.v1`。
-6. 全部 Issue action 成功后，才执行 production D1 migrations 和 Worker deploy。
-7. 部署后运行 MCP smoke；`production_release_evidence.v1` 记录 feedback rules、vote snapshot checksum 和 processing plan checksum。
-
-Build 后新增/切换的 D1 vote 和新 Issue 留到下一次 release。缺少生产 D1 snapshot、LLM/GitHub 读权限、分类失败或 artifact checksum 错误阻断 build；Issue precondition 漂移、写权限缺失、comment/label/close 失败阻断 deploy。
-
-## 维护规则
-
-- 新增基础设施前必须说明成本、替代方案和运维负担。
-- 部署方案要优先支持可回放、可回滚和可观测。
-- 发布流程不能绕过安全评测。
-- MCP API 服务保持只读，除非安全文档另行批准。
+- Optimize for replayability, rollback, and observable evidence.
+- Never bypass safety or provider evaluation during release.
+- Keep MCP and HTTP tool operations read-only unless the security contract is explicitly revised.
+- Document cost and operational burden before adding infrastructure.
