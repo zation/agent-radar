@@ -238,6 +238,7 @@ test("builds MVP data artifacts and an eval report", async () => {
 
     const mcpTools = JSON.parse(await readFile(join(outputDir, "data", "mcp_tools.json"), "utf8"));
     assert.equal(mcpTools.schema_version, "mcp_tool_manifest.v1");
+    assert.equal(mcpTools.transport, "streamable-http");
     assert.equal(mcpTools.tools.length, 4);
 
     const mcpExamples = JSON.parse(await readFile(join(outputDir, "data", "mcp_examples.json"), "utf8")) as {
@@ -245,11 +246,11 @@ test("builds MVP data artifacts and an eval report", async () => {
       endpoint: string;
       examples: Array<{ name: string; request: { method: string; params?: { name?: string } } }>;
     };
-    assert.equal(mcpExamples.schema_version, "mcp_examples.v1");
+    assert.equal(mcpExamples.schema_version, "mcp_examples.v2");
     assert.equal(mcpExamples.endpoint, "/api/mcp");
     assert.deepEqual(
       mcpExamples.examples.map((example) => example.name),
-      ["initialize", "tools/list", "tools/call:get_tool_card", "tools/call:search_tools"]
+      ["initialize", "tools/list", "tools/call:search_tools", "tools/call:get_tool_card", "tools/call:explain_rating", "tools/call:recommend_tools"]
     );
     assert.equal(mcpExamples.examples.find((example) => example.name === "tools/call:get_tool_card")?.request.params?.name, "get_tool_card");
 
@@ -259,13 +260,13 @@ test("builds MVP data artifacts and an eval report", async () => {
       summary: { total: number; required: number };
       checks: Array<{ id: string; required: boolean }>;
     };
-    assert.equal(mcpSmokeChecklist.schema_version, "mcp_smoke_checklist.v1");
+    assert.equal(mcpSmokeChecklist.schema_version, "mcp_smoke_checklist.v2");
     assert.equal(mcpSmokeChecklist.endpoint, "/api/mcp");
     assert.deepEqual(
       mcpSmokeChecklist.checks.map((check) => check.id),
-      ["mcp-initialize", "mcp-tools-list", "mcp-tools-call-get-tool-card", "mcp-read-only-boundary"]
+      ["initialize", "tools-list", "search-tools", "get-tool-card", "explain-rating", "recommend-missing-key", "write-method-rejected"]
     );
-    assert.deepEqual(mcpSmokeChecklist.summary, { total: 4, required: 4 });
+    assert.deepEqual(mcpSmokeChecklist.summary, { total: 7, required: 7 });
 
     const searchIndex = JSON.parse(await readFile(join(outputDir, "data", "search_index.json"), "utf8")) as {
       documents: Array<{ tool_id: string }>;

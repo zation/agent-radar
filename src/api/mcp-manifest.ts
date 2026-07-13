@@ -3,7 +3,7 @@ import { MCP_TOOL_NAMES, toolContracts, type ToolName } from "./tool-contracts.j
 
 export interface McpToolManifest {
   schema_version: "mcp_tool_manifest.v1";
-  transport: "http_json";
+  transport: "streamable-http";
   base_path: "/api";
   tools: Array<{
     name: "search_tools" | "get_tool_card" | "recommend_tools" | "explain_rating";
@@ -24,7 +24,7 @@ export interface McpToolManifest {
 export function buildMcpToolManifest(): McpToolManifest {
   return {
     schema_version: "mcp_tool_manifest.v1",
-    transport: "http_json",
+    transport: "streamable-http",
     base_path: "/api",
     tools: MCP_TOOL_NAMES.map(buildManifestTool)
   };

@@ -49,10 +49,10 @@ test("builds immutable production evidence from the reviewed bundle and deployed
       feedback_vote_snapshot_checksum: `sha256:${"b".repeat(64)}`,
       feedback_processing_plan_checksum: `sha256:${"c".repeat(64)}`
     });
-    assert.deepEqual(evidence.smoke, { passed: true, total: 4, passed_checks: 4, failed: 0 });
+    assert.deepEqual(evidence.smoke, { passed: true, total: 7, passed_checks: 7, failed: 0 });
     assert.equal(evidence.generated_at, "2026-07-10T00:00:00Z");
     assert.match(renderProductionReleaseEvidenceMarkdown(evidence), /### Production Release Evidence/);
-    assert.match(renderProductionReleaseEvidenceMarkdown(evidence), /PASS 4\/4/);
+    assert.match(renderProductionReleaseEvidenceMarkdown(evidence), /PASS 7\/7/);
   });
 });
 
@@ -166,7 +166,7 @@ test("rejects evidence when the deployed MCP smoke result failed", async () => {
     await writeSmokeResult(fixture, {
       ...fixture.smoke,
       passed: false,
-      summary: { total: 4, passed: 4, failed: 0 }
+      summary: { total: 7, passed: 7, failed: 0 }
     });
 
     await assert.rejects(
@@ -199,11 +199,11 @@ test("rejects an MCP smoke result that is not an object", async () => {
 
 test("rejects an MCP smoke result with the wrong schema version", async () => {
   await withFixture(async (fixture) => {
-    await writeSmokeResult(fixture, { ...fixture.smoke, schema_version: "mcp_smoke_result.v2" });
+    await writeSmokeResult(fixture, { ...fixture.smoke, schema_version: "mcp_smoke_result.v1" });
 
     await assert.rejects(
       buildProductionReleaseEvidence(optionsFor(fixture)),
-      /MCP smoke result schema_version must be mcp_smoke_result.v1/
+      /MCP smoke result schema_version must be mcp_smoke_result.v2/
     );
   });
 });
@@ -263,7 +263,7 @@ test("rejects an MCP smoke summary that disagrees with its checks", async () => 
   await withFixture(async (fixture) => {
     await writeSmokeResult(fixture, {
       ...fixture.smoke,
-      summary: { total: 4, passed: 3, failed: 1 }
+      summary: { total: 7, passed: 6, failed: 1 }
     });
 
     await assert.rejects(
@@ -279,7 +279,7 @@ test("rejects MCP smoke results missing a required deployed check", async () => 
     checks.pop();
     await writeSmokeResult(fixture, {
       ...fixture.smoke,
-      summary: { total: 3, passed: 3, failed: 0 },
+      summary: { total: 6, passed: 6, failed: 0 },
       checks
     });
 
@@ -293,7 +293,7 @@ test("rejects MCP smoke results missing a required deployed check", async () => 
 test("rejects MCP smoke results with duplicate check ids", async () => {
   await withFixture(async (fixture) => {
     const checks = smokeChecks(fixture);
-    checks[3] = { ...checks[3], id: checks[0]?.id };
+    checks[6] = { ...checks[6], id: checks[0]?.id };
     await writeSmokeResult(fixture, { ...fixture.smoke, checks });
 
     await assert.rejects(
@@ -309,7 +309,7 @@ test("rejects MCP smoke results with unknown check ids", async () => {
     checks.push({ id: "unexpected-check", passed: true, message: "ok" });
     await writeSmokeResult(fixture, {
       ...fixture.smoke,
-      summary: { total: 5, passed: 5, failed: 0 },
+      summary: { total: 8, passed: 8, failed: 0 },
       checks
     });
 
@@ -327,7 +327,7 @@ test("rejects MCP smoke results when any individual check failed", async () => {
     await writeSmokeResult(fixture, {
       ...fixture.smoke,
       passed: true,
-      summary: { total: 4, passed: 3, failed: 1 },
+      summary: { total: 7, passed: 6, failed: 1 },
       checks
     });
 
@@ -345,6 +345,26 @@ test("rejects evidence when the smoke endpoint is not the deployed Worker MCP en
     await assert.rejects(
       buildProductionReleaseEvidence(optionsFor(fixture)),
       /MCP smoke endpoint must match the production Worker MCP endpoint/
+    );
+  });
+});
+
+test("rejects evidence when MCP smoke release identity differs from GitHub", async () => {
+  await withFixture(async (fixture) => {
+    await writeSmokeResult(fixture, { ...fixture.smoke, release_id: "all-v0.6.1" });
+    await assert.rejects(
+      buildProductionReleaseEvidence(optionsFor(fixture)),
+      /MCP smoke release_id must match the GitHub release tag/
+    );
+  });
+});
+
+test("rejects evidence when MCP smoke commit differs from GitHub", async () => {
+  await withFixture(async (fixture) => {
+    await writeSmokeResult(fixture, { ...fixture.smoke, commit_sha: "deadbe" });
+    await assert.rejects(
+      buildProductionReleaseEvidence(optionsFor(fixture)),
+      /MCP smoke commit_sha must match the GitHub SHA/
     );
   });
 });
@@ -548,15 +568,21 @@ async function createFixture(): Promise<EvidenceFixture> {
     checksums: { "data/d1_seed.sql": d1SeedSha256, "data/feedback_processing_plan.json": `sha256:${"c".repeat(64)}` }
   };
   const smoke = {
-    schema_version: "mcp_smoke_result.v1",
+    schema_version: "mcp_smoke_result.v2",
     endpoint: "https://agent-radar.example/api/mcp",
+    release_id: "all-v0.2.5",
+    commit_sha: "abc123",
+    generated_at: "2026-07-10T00:00:00Z",
     passed: true,
-    summary: { total: 4, passed: 4, failed: 0 },
+    summary: { total: 7, passed: 7, failed: 0 },
     checks: [
-      { id: "mcp-initialize", passed: true, message: "ok" },
-      { id: "mcp-tools-list", passed: true, message: "ok" },
-      { id: "mcp-tools-call-get-tool-card", passed: true, message: "ok" },
-      { id: "mcp-read-only-boundary", passed: true, message: "ok" }
+      { id: "initialize", passed: true, message: "ok" },
+      { id: "tools-list", passed: true, message: "ok" },
+      { id: "search-tools", passed: true, message: "ok" },
+      { id: "get-tool-card", passed: true, message: "ok" },
+      { id: "explain-rating", passed: true, message: "ok" },
+      { id: "recommend-missing-key", passed: true, message: "ok" },
+      { id: "write-method-rejected", passed: true, message: "ok" }
     ]
   };
 

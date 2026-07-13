@@ -1,15 +1,10 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import type { McpSmokeResult } from "../api/mcp-smoke-runner.js";
+import { REQUIRED_MCP_SMOKE_CHECK_IDS } from "../api/mcp-smoke-contract.js";
 import type { ArtifactManifest } from "../preview/manifest.js";
 
 const d1SeedChecksumPath = "data/d1_seed.sql";
-const requiredMcpSmokeCheckIds = [
-  "mcp-initialize",
-  "mcp-tools-list",
-  "mcp-tools-call-get-tool-card",
-  "mcp-read-only-boundary"
-] as const;
 const canonicalSha256Pattern = /^sha256:[0-9a-f]{64}$/;
 const githubRepositoryPattern = /^[A-Za-z0-9][A-Za-z0-9._-]*\/[A-Za-z0-9][A-Za-z0-9._-]*$/;
 const positiveDecimalIntegerPattern = /^[1-9][0-9]*$/;
@@ -90,6 +85,12 @@ export async function buildProductionReleaseEvidence(
   }
   if (normalizeMcpEndpoint(smokeResult.endpoint) !== expectedMcpEndpoint) {
     throw new Error("MCP smoke endpoint must match the production Worker MCP endpoint.");
+  }
+  if (smokeResult.release_id !== options.releaseTag) {
+    throw new Error("MCP smoke release_id must match the GitHub release tag.");
+  }
+  if (smokeResult.commit_sha !== options.gitSha) {
+    throw new Error("MCP smoke commit_sha must match the GitHub SHA.");
   }
 
   return {
@@ -215,10 +216,13 @@ function parseMcpSmokeResult(contents: Buffer): McpSmokeResult {
   if (!isPlainObject(value)) {
     throw new Error("MCP smoke result must be an object.");
   }
-  if (value.schema_version !== "mcp_smoke_result.v1") {
-    throw new Error("MCP smoke result schema_version must be mcp_smoke_result.v1.");
+  if (value.schema_version !== "mcp_smoke_result.v2") {
+    throw new Error("MCP smoke result schema_version must be mcp_smoke_result.v2.");
   }
-  if (typeof value.endpoint !== "string" || !value.endpoint || typeof value.passed !== "boolean") {
+  if (typeof value.endpoint !== "string" || !value.endpoint || typeof value.passed !== "boolean"
+    || typeof value.release_id !== "string" || !value.release_id
+    || typeof value.commit_sha !== "string" || !gitShaPattern.test(value.commit_sha)
+    || typeof value.generated_at !== "string" || !isValidUtcTimestamp(value.generated_at)) {
     throw new Error("MCP smoke result fields must contain a valid endpoint and passed flag.");
   }
   if (!isPlainObject(value.summary)) {
@@ -259,10 +263,10 @@ function parseMcpSmokeResult(contents: Buffer): McpSmokeResult {
   if (new Set(checkIds).size !== checkIds.length) {
     throw new Error("MCP smoke result check ids must be unique.");
   }
-  if (checkIds.some((id) => !requiredMcpSmokeCheckIds.includes(id as (typeof requiredMcpSmokeCheckIds)[number]))) {
+  if (checkIds.some((id) => !REQUIRED_MCP_SMOKE_CHECK_IDS.includes(id))) {
     throw new Error("MCP smoke result contains unknown deployed checks.");
   }
-  if (requiredMcpSmokeCheckIds.some((id) => !checkIds.includes(id))) {
+  if (REQUIRED_MCP_SMOKE_CHECK_IDS.some((id) => !checkIds.includes(id))) {
     throw new Error("MCP smoke result is missing required deployed checks.");
   }
 
@@ -279,8 +283,11 @@ function parseMcpSmokeResult(contents: Buffer): McpSmokeResult {
   }
 
   return {
-    schema_version: "mcp_smoke_result.v1",
+    schema_version: "mcp_smoke_result.v2",
     endpoint: value.endpoint,
+    release_id: value.release_id,
+    commit_sha: value.commit_sha,
+    generated_at: value.generated_at,
     passed: true,
     summary: {
       total: summary.total,
