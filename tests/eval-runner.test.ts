@@ -127,6 +127,7 @@ test("eval retries one transient provider schema error", async () => {
 
 test("eval retries one transient provider request failure", async () => {
   let attempts = 0;
+  const delays: number[] = [];
   const evalCase = goldenQueries.find((item) => item.id === "gq-unknown-permission-evidence");
   assert.ok(evalCase);
   const summary = await runGoldenQueries([evalCase], reviewedToolCardFixtures, ratings, {
@@ -144,8 +145,9 @@ test("eval retries one transient provider request failure", async () => {
         return Promise.resolve({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] });
       }
     }
-  });
+  }, { retryDelayMs: 5_000, sleep: (delayMs) => { delays.push(delayMs); return Promise.resolve(); } });
   assert.equal(attempts, 2);
+  assert.deepEqual(delays, [5_000]);
   assert.equal(summary.passed, 1);
 });
 

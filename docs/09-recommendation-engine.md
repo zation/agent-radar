@@ -239,7 +239,7 @@ The Worker provides two agent-facing entry points:
 
 The engine must pass golden queries, no-reliable-match cases, high-risk permission cases, peer ranking cases, and explanation review. Without `AGENT_RADAR_LLM_API_KEY`, offline evaluation emits a blocked summary instead of running a retired local recommender.
 
-Provider-backed evaluation runs at most two Golden Queries concurrently. Each provider request has a 60-second timeout so a stalled network call becomes a typed `provider_request_failed` result instead of blocking the release pipeline indefinitely. Evaluation retries one transient request failure; authentication, rate-limit, and model-configuration failures remain immediately actionable.
+Provider-backed evaluation runs at most two Golden Queries concurrently. Each provider request has a 60-second timeout so a stalled network call becomes a typed `provider_request_failed` result instead of blocking the release pipeline indefinitely. Evaluation retries one transient request failure after a five-second backoff; authentication, rate-limit, and model-configuration failures remain immediately actionable.
 
 Failures identify affected queries, changed ranks or actions, and whether the cause is data, rating, provider output, schema normalization, or deterministic safety.
 

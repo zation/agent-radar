@@ -26,12 +26,19 @@ export interface EvalSummary {
 }
 
 const GOLDEN_QUERY_CONCURRENCY = 2;
+const PROVIDER_RETRY_DELAY_MS = 5_000;
+
+export interface EvalRunOptions {
+  retryDelayMs?: number;
+  sleep?: (delayMs: number) => Promise<void>;
+}
 
 export async function runGoldenQueries(
   cases: EvalCase[],
   cards: ToolCard[],
   ratings: RatingResult[],
-  runtime: RecommendToolsRuntime
+  runtime: RecommendToolsRuntime,
+  options: EvalRunOptions = {}
 ): Promise<EvalSummary> {
   const results = new Array<EvalResult>(cases.length);
   let nextIndex = 0;
@@ -39,7 +46,7 @@ export async function runGoldenQueries(
     while (nextIndex < cases.length) {
       const index = nextIndex;
       nextIndex += 1;
-      results[index] = await evaluateGoldenQuery(cases[index], cards, ratings, runtime);
+      results[index] = await evaluateGoldenQuery(cases[index], cards, ratings, runtime, options);
     }
   });
   await Promise.all(workers);
@@ -72,18 +79,28 @@ async function evaluateGoldenQuery(
   evalCase: EvalCase,
   cards: ToolCard[],
   ratings: RatingResult[],
-  runtime: RecommendToolsRuntime
+  runtime: RecommendToolsRuntime,
+  options: EvalRunOptions
 ): Promise<EvalResult> {
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
       return evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards);
     } catch (error) {
       const category = classifyEvalError(error);
-      if (attempt === 1 && isRetryableEvalError(error, category)) continue;
+      if (attempt === 1 && isRetryableEvalError(error, category)) {
+        if (error instanceof RecommendationProviderError && error.code === "provider_request_failed") {
+          await (options.sleep ?? sleep)(options.retryDelayMs ?? PROVIDER_RETRY_DELAY_MS);
+        }
+        continue;
+      }
       return createFailedEvalResult(evalCase, category, describeEvalError(error));
     }
   }
   return createFailedEvalResult(evalCase, "schema_error", "provider_schema_error: retry exhausted");
+}
+
+function sleep(delayMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
 }
 
 function isRetryableEvalError(error: unknown, category: EvalFailureCategory): boolean {
