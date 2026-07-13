@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import test from "node:test";
 import {
   PUBLIC_DOCUMENT_PATHS,
@@ -45,4 +47,13 @@ test("diagnostics contain file, line, column, character, and trimmed context", (
     formatPublicLanguageViolation(violation!),
     'AGENTS.md:1:10 prohibited CJK character "中" in Reject 中文 text.',
   );
+});
+
+test("all approved public documents satisfy the strict language rule", async () => {
+  const documents = await Promise.all(PUBLIC_DOCUMENT_PATHS.map(async (path) => ({
+    path,
+    content: await readFile(resolve(process.cwd(), path), "utf8"),
+  })));
+
+  assert.deepEqual(findPublicLanguageViolations(documents), []);
 });

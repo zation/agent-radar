@@ -95,6 +95,7 @@ The reviewed bundle also includes provider configuration without secrets, field 
 npm test
 npm run lint
 npm run stylelint
+npm run language:check
 npm run ingest
 npm run pipeline
 npm run eval
@@ -112,6 +113,7 @@ npm run preview:build
 ```
 
 - `npm test` builds TypeScript and runs the Node suite.
+- `npm run language:check` scans the explicit 17-file public-document boundary and rejects Han characters, CJK punctuation, and fullwidth forms. `npm test` runs the same gate, so `release:build` inherits it.
 - `npm run ingest` executes the controlled ingestion path.
 - `npm run pipeline` generates data, D1 seed, and reports.
 - `npm run eval` executes all 24 golden queries and exits nonzero with `blocked_no_key` if no provider key exists.
