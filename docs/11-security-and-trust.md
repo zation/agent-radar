@@ -1,340 +1,218 @@
-# 11 安全与信任
+# 11 Security and Trust
 
-## 文档用途
+## Purpose
 
-本文件定义 Agent Radar 如何识别和表达工具安全风险。由于 MCP、Skill、Agent、CLI 和 Framework 可能接触文件、浏览器、数据库、云服务、邮件和账号权限，本文件是核心安全边界。
+This document defines how Agent Radar identifies and communicates tool risk. MCP servers, Skills, Agents, CLIs, and Frameworks may access files, browsers, databases, cloud services, email, accounts, and money, so security is a core product boundary.
 
-Agent Radar 不替代安全扫描器或审计平台；它的职责是在工具选择和推荐中保守表达风险，避免 agent 幻觉式信任未知工具。
+Agent Radar is not a security scanner or audit platform. It conservatively represents risk during tool selection and prevents agents from treating unknown tools as trusted by default.
 
-## 安全原则
+## Principles
 
-- 未知工具默认不自动安装、不自动执行。
-- 权限未知不能标记为低风险。
-- 高风险权限必须要求人类确认。
-- 来源可信度不等于安全保证。
-- 推荐解释必须说明权限、数据流和不确定性。
-- 不采集、不存储、不输出 token、私钥、cookie 或用户私密数据。
+- Never install or run an unknown tool automatically.
+- Unknown permissions cannot be labeled low risk.
+- High-risk permissions require human confirmation.
+- Source trust is not a security guarantee.
+- Explanations state permissions, data flow, and uncertainty.
+- Never collect, store, or emit tokens, private keys, cookies, or private user data.
 
-## 风险类型
+## Risk Classes
 
-### 供应链风险
+### Supply Chain
 
-风险：
+Risks include malicious dependencies, install-script execution, package confusion, repository takeover, and unverifiable release artifacts. Relevant fields are `install_methods`, `repo_url`, `package_urls`, `maintenance`, and `security.known_risks`.
 
-- 恶意依赖。
-- 安装脚本执行未知代码。
-- 包名混淆。
-- 仓库被接管。
-- release artifact 不可验证。
+Unknown trust plus code execution defaults to `avoid`. Opaque installation never produces an automatic installation instruction.
 
-字段：
+### Excessive Permissions
 
-- `install_methods`
-- `repo_url`
-- `package_urls`
-- `maintenance`
-- `security.known_risks`
-
-推荐要求：
-
-- 来源 unknown 且需要执行代码时，默认 `avoid`。
-- 安装命令不透明时，不输出自动安装建议。
-
-### 权限过大
-
-风险：
-
-- 工具申请超出任务需要的权限。
-- 文件系统写入、shell、浏览器、数据库、云账号等权限未做边界控制。
-
-推荐要求：
-
-- 推荐解释中列出权限。
-- 给出最小权限建议。
-- 超出用户风险偏好时输出 `ask_human` 或 `avoid`。
+Filesystem writes, shell, browser, database, cloud, and other access may exceed the task's needs. Recommendations list permissions, propose minimum scope, and return `ask_human` or `avoid` when access exceeds tolerance.
 
 ### Prompt Injection
 
-风险：
+Web pages, email, documents, issues, Skills, prompts, and rules may contain hostile instructions. Browser, email, document, and web-collection tools are at least medium risk. Untrusted content must remain data, not instructions.
 
-- 工具读取网页、邮件、文档或 issue 后，把恶意文本作为指令执行。
-- Skill 或 rules 要求 agent 忽略系统和用户安全指令。
+For v0.4 feedback processing:
 
-推荐要求：
+- GitHub Issue titles, bodies, comments, user names, and links are untrusted input.
+- Data Build deterministically validates the dedicated label, Issue Form fields, Tool Card key, and vote type before sending only minimum fields to an LLM.
+- The LLM may return only schema-validated `accepted`, `rejected`, or `needs-human-review`. It has no tools and cannot mutate the repository.
+- GitHub writes use fixed code paths and are limited to comments, processing labels, and closing `tool-feedback` Issues in `zation/agent-radar`.
+- Security disputes, rating-rule disputes, evidence conflicts, and insufficient information produce `needs-human-review` and leave the Issue open.
 
-- 浏览器、邮件、文档、网页抓取类工具至少 `medium` 风险。
-- 输出中提示不要把不可信内容当作指令。
+### Secret Exposure
 
-v0.4 反馈处理额外要求：
+API keys, tokens, cookies, SSH keys, and environment values may leak into model context, third-party services, or logs. `secrets` access is at least high risk. Prefer test keys, short-lived tokens, minimum scope, and keeping live secrets outside agent context.
 
-- GitHub Issue title、body、comment、用户名和链接均是不可信外部输入。
-- Data Build 必须先确定性校验专用标签、Issue Form 字段、Tool Card key 和投票类型，再把最小必要字段交给 LLM。
-- LLM 只能返回经过 schema 校验的 `accepted`、`rejected` 或 `needs-human-review`，不能调用工具、执行 Issue 指令或直接修改仓库。
-- GitHub 写操作必须由固定代码路径执行，并限制为 `zation/agent-radar` 中带 `tool-feedback` 标签的 Issue comment、处理标签和 close 操作。
-- 涉及安全、评分规则争议、证据冲突或信息不足时必须输出 `needs-human-review` 并保持 Issue open。
+BYOK credentials authenticate one recommendation request only. They never enter artifacts, logs, responses, browser share state, or evaluation output.
 
-v0.4 P1 已实现的采集边界：OAuth 不请求 scope，只读取 GitHub public user ID/login；access token 只用于一次身份查询。Session 与 10 分钟 OAuth state 都使用 Web Crypto HMAC-SHA256 签名的 `HttpOnly; Secure; SameSite=Lax; Path=/` Cookie，session 有效期 30 天且不进入 D1。写投票必须具有有效 session、同源 `Origin` 和 JSON Content-Type，并按 GitHub user ID 固定限制为每分钟 30 次 mutation。错误响应不得包含 OAuth code、token、secret、Cookie 或 GitHub/D1 原始响应正文。
+### Data Exfiltration
 
-### Secret 泄露
+Hosted or API tools may send files, code, email, or database records off-device. Recommendations state when data leaves the local environment. Sensitive and enterprise use should prefer official, local, or lower-permission alternatives.
 
-风险：
+### Remote Code Execution
 
-- API key、token、cookie、SSH key、环境变量进入模型上下文或第三方服务。
-- 工具日志记录敏感信息。
-- BYOK 推荐请求中的 API key 被持久化到 artifacts、日志、浏览器可分享状态或响应体。
+Shell commands, dependency installation, generated code, and remote scripts are at least high risk. Unknown trust plus `shell` or `code_execution` requires `avoid` or a stricter no-match result.
 
-推荐要求：
+### Accounts, Production, and Money
 
-- 涉及 `secrets` 权限时至少 `high` 风险。
-- 不建议把 live secret 放入 agent 上下文。
-- 输出安全默认值，例如使用 test key、临时 token、最小权限。
-- Recommend API 只能把 API key 用作当前 LLM 请求认证参数，不得写入推荐结果、eval artifacts 或发布数据。
+Email, cloud accounts, payment, database writes, and production systems are sensitive. Payment and cloud administration are at least critical. Database writes are critical; database reads and email access are at least high. These operations require `ask_human` or a more conservative action.
 
-### 数据外传
+## Permission Model
 
-风险：
+The schema authority is `docs/04-data-model.md`.
 
-- 本地文件、邮件、数据库记录或代码发送到第三方服务。
-- 托管工具默认上传上下文。
-
-推荐要求：
-
-- hosted/API 工具必须说明数据离开本地。
-- 企业或敏感项目默认推荐本地或官方低权限方案。
-
-### 远程代码执行
-
-风险：
-
-- 工具运行 shell、安装依赖、执行生成代码或远程脚本。
-
-推荐要求：
-
-- `code_execution` 或 `shell` 权限至少 `high` 风险。
-- unknown trust + code execution 应为 `avoid`。
-
-### 账号和资金风险
-
-风险：
-
-- 邮件、云账号、支付、数据库写入、生产系统操作。
-
-推荐要求：
-
-- 支付和云 admin 至少 `critical`。
-- 数据库写入、邮件读取至少 `high`。
-- 必须 `ask_human`。
-
-## 权限模型
-
-权限字段见 `docs/04-data-model.md`。
-
-### scope
-
-| scope | 示例 | 默认风险 |
+| Scope | Example | Minimum default risk |
 | --- | --- | --- |
-| `filesystem` | 读写项目文件 | read: medium, write: high |
-| `network` | 调用外部 API | medium |
-| `browser` | 控制浏览器 | medium |
-| `email` | 读取 Gmail | high |
-| `database` | 查询或写入数据库 | read: high, write: critical |
-| `cloud` | 管理云资源 | high 到 critical |
-| `payment` | Stripe、退款、收款 | critical |
-| `shell` | 执行命令 | high |
-| `code_execution` | 运行代码或脚本 | high |
-| `secrets` | API key、token | high 到 critical |
-| `unknown` | 权限不明 | unknown，不能低风险推荐 |
+| `filesystem` | Read or write project files | read: medium; write: high |
+| `network` | Call an external API | medium |
+| `browser` | Control a browser | medium |
+| `email` | Read or send email | high |
+| `database` | Query or mutate data | read: high; write: critical |
+| `cloud` | Manage hosted resources | high through critical |
+| `payment` | Charge, refund, or transfer money | critical |
+| `shell` | Execute commands | high |
+| `code_execution` | Run code or scripts | high |
+| `secrets` | Read API keys or tokens | high through critical |
+| `unknown` | Unclear access | unknown; never low-risk recommendation |
 
-### access
-
-| access | 风险提示 |
+| Access | Risk implication |
 | --- | --- |
-| `read` | 数据泄露风险 |
-| `write` | 数据破坏或状态改变风险 |
-| `read_write` | 两者都有 |
-| `execute` | 执行任意代码风险 |
-| `admin` | 最高权限风险 |
-| `unknown` | 采取保守判断 |
+| `read` | Confidentiality and exfiltration risk |
+| `write` | Destructive or state-change risk |
+| `read_write` | Both read and write risk |
+| `execute` | Arbitrary execution risk |
+| `admin` | Highest privilege risk |
+| `unknown` | Apply the conservative boundary |
 
-## 信任等级
+## Trust Levels
 
-字段：`security.trust_level`。
-
-| 等级 | 定义 | 说明 |
+| Level | Meaning | Constraint |
 | --- | --- | --- |
-| `official` | 官方维护 | 仍需检查权限和数据流 |
-| `well_known_org` | 知名组织 | 可信度较高但非安全保证 |
-| `active_open_source` | 活跃开源 | 需看维护和社区信号 |
-| `individual` | 个人维护 | 谨慎推荐 |
-| `commercial` | 商业服务 | 关注数据外传、条款和锁定 |
-| `unknown` | 来源不明 | 不进入高置信推荐 |
+| `official` | Maintained by the authoritative project or vendor | Still inspect permissions and data flow |
+| `well_known_org` | Maintained by an established organization | Higher evidence confidence, not a security guarantee |
+| `active_open_source` | Active public project | Inspect maintenance and community evidence |
+| `individual` | Individually maintained | Recommend cautiously |
+| `commercial` | Commercial service | Inspect exfiltration, terms, and lock-in |
+| `unknown` | Unverified origin | Exclude from high-confidence recommendation |
 
-## 风险等级
+## Risk Levels
 
-| 等级 | 定义 | 推荐行为 |
+| Level | Meaning | Recommendation behavior |
 | --- | --- | --- |
-| `low` | 权限有限、来源可信、影响范围小 | 可推荐，但仍说明条件 |
-| `medium` | 需要有限权限或外部 API | 可推荐，说明权限和安全默认值 |
-| `high` | 涉及敏感数据、执行、写入或账号 | 默认 `ask_human` |
-| `critical` | 涉及资金、云 admin、secret、生产写入 | 默认不自动使用，必须人工确认 |
-| `unknown` | 无法判断 | 不进入低风险推荐 |
+| `low` | Trusted evidence, limited permission, and small impact | May recommend with conditions |
+| `medium` | Limited permission or external API | May recommend with permissions and safe defaults |
+| `high` | Sensitive data, execution, writes, or account access | Default to `ask_human` |
+| `critical` | Money, cloud admin, secrets, or production writes | Never automatic; explicit confirmation required |
+| `unknown` | Cannot determine the boundary | Exclude from low-risk recommendation |
 
-## 风险判定规则
+## Deterministic Risk Floors
 
-### 最低风险等级
-
-| 条件 | 最低风险 |
+| Condition | Minimum risk |
 | --- | --- |
-| 来源 unknown | medium |
-| 权限 unknown | unknown |
-| 读本地文件 | medium |
-| 写本地文件 | high |
-| shell/code execution | high |
-| browser automation | medium |
-| email read/write | high |
-| database read | high |
-| database write | critical |
-| cloud admin | critical |
-| payment operation | critical |
-| secrets access | high |
+| Unknown source | medium |
+| Unknown permissions | unknown |
+| Read local files | medium |
+| Write local files | high |
+| Shell or code execution | high |
+| Browser automation | medium |
+| Email access | high |
+| Database read | high |
+| Database write | critical |
+| Cloud administration | critical |
+| Payment operation | critical |
+| Secret access | high |
 
-### 风险升级条件
+Missing permissions, remote install scripts, default context upload, stalled maintenance on a privileged tool, rules that bypass confirmation, and credible security reports raise risk.
 
-- 权限描述缺失。
-- 安装方式包含 remote script。
-- 工具默认上传上下文。
-- 维护停滞且需要高权限。
-- prompt/rules 要求绕过用户确认。
-- 社区报告存在安全争议。
+Official evidence, configurable minimum permissions, read-only mode, allowlists, documented data flow, security audits, and signed releases may reduce uncertainty, but never below the deterministic floor.
 
-### 风险降低条件
+## Human Approval
 
-风险可以降低但不能低于最低风险等级：
+The deterministic safety assessment in Recommendation Result v2 emits stable reason codes, an approval reason, `confirmation_questions`, and `safe_defaults`. Questions are guidance for a coding agent or read-only Web display. They are not approval records, authorization state, or permission to execute.
 
-- 官方来源。
-- 权限可配置且默认最小。
-- 提供只读模式或 allowlist。
-- 文档明确说明数据流和 secret 处理。
-- 有安全审计或可信 release 签名。
+Human confirmation is required before:
 
-## Human Approval 规则
-
-v0.3 P2 将本节规则实现为动态推荐后的确定性安全评估。Recommendation Result v2 输出稳定 reason codes、确认原因、`confirmation_questions` 和 `safe_defaults`；确认问题只供 coding agent 提问或 Web 只读展示，不构成审批记录、授权状态或自动执行许可。
-
-以下情况必须人工确认：
-
-- 安装或运行来源不明工具。
-- 执行 shell、代码、远程脚本。
-- 读写文件系统、邮件、数据库、云资源。
-- 访问 payment、secret、生产账号。
-- 把私有代码或文档发送到第三方服务。
-- 自动修改评分大权重或核心 schema。
-
-推荐输出应包含：
+- Installing or running an unknown tool.
+- Executing shell commands, code, or remote scripts.
+- Reading or writing files, email, databases, or cloud resources.
+- Accessing payment, secrets, production accounts, or production state.
+- Sending private code or documents to a third party.
+- Changing core schema semantics or major rating weights.
 
 ```json
 {
   "requires_human_approval": true,
-  "approval_reason": "需要读取 Gmail 内容，涉及个人数据。",
-  "safe_defaults": ["只读权限", "限定邮箱标签", "不把邮件原文写入日志"]
+  "approval_reason": "The tool reads email content containing personal data.",
+  "safe_defaults": ["Use read-only access", "Limit mailbox labels", "Do not log message bodies"]
 }
 ```
 
-## v0.3 P1 数据发布安全门禁
+## Deterministic Data Release Gates
 
-数据可信度门禁由确定性代码执行，LLM、Review Summary 或人工可读说明均不能解除：
+No LLM, Review Summary, or human-readable explanation can waive these failures:
 
-- 关键字段 provenance 低于 100%。
-- 存在未解决关键语义冲突、重复候选、validation error、intervention 或 blocked promotion。
-- 关键 URL 出现 404/410、凭证内嵌、不可接受的目标或持续永久失败。
-- 可靠 Tool Card 数不在 50–150。
-- `review_summary.v2` 引用的输入 checksum 与 reviewed bundle 不一致。
+- Critical provenance below 100 percent.
+- Any unresolved critical semantic conflict, duplicate, validation error, intervention, or blocked promotion.
+- A critical URL with embedded credentials, an unacceptable target, HTTP 404 or 410, or persistent permanent failure.
+- Reliable Tool Card count outside 50 through 150.
+- A checksum mismatch between `review_summary.v2` inputs and the reviewed bundle.
 
-URL checker 只访问公开 HTTP(S) URL，不发送 Cookie、Authorization、API key 或浏览器登录态；包含 userinfo/凭证或非 HTTP(S) 的 URL 直接 `skipped` 并按风险决定是否阻断。redirect 使用 `manual` 模式逐跳检查，拒绝 HTTPS 降级、loop/超限、IPv4/IPv6 私网或保留地址、DNS 解析到非公网地址和未审核跨站目标；官方域名迁移只能进入代码中的显式 reviewed allowlist。401/403、429 和第一次瞬时错误保留为可解释 warning，不能被误报成 reachable。来源 profile 只能补充已审核的字段语义，不能仅凭 stars、topic 或包存在降低权限与安全风险。
+The URL checker accesses only public HTTP or HTTPS URLs and sends no cookie, authorization, API key, or browser session. Credential-bearing and non-HTTP URLs are skipped and may block by risk. Manual redirect validation rejects HTTPS downgrade, loops, excessive hops, private or reserved IPv4 and IPv6, non-public DNS results, and unreviewed cross-site targets. Reviewed official migrations use an explicit code allowlist. HTTP 401 or 403, HTTP 429, and first transient failures remain explainable warnings, never false reachable results.
 
-本地 Codex 网络代理使用的 `198.18/15` 映射只可通过 `AGENT_RADAR_ALLOW_BENCHMARK_PROXY_DNS=true` 显式用于本地演练；Release All workflow 不设置该变量，生产门禁仍把该保留网段视为非公网目标。
+Source profiles add reviewed field semantics but cannot use stars, topics, or package existence to lower permission or security risk.
 
-## 安全解释模板
+The local Codex network proxy may map through `198.18/15` only when a developer explicitly sets `AGENT_RADAR_ALLOW_BENCHMARK_PROXY_DNS=true` for a local exercise. Release All never sets it; production treats the reserved range as non-public.
 
-### 中风险
+## GitHub OAuth and Feedback Boundaries
 
-```text
-该工具需要 {permission}，风险等级为 medium。建议限制作用范围为 {scope_limit}，并确认来源 {source} 后再使用。
-```
+OAuth requests no scope and reads only public GitHub user ID and login. The access token is used once for identity lookup and is not retained.
 
-### 高风险
+Session and ten-minute OAuth state cookies use Web Crypto HMAC-SHA256 with `HttpOnly; Secure; SameSite=Lax; Path=/`. Sessions last 30 days and are not stored in D1. Vote mutation requires a valid session, same-origin `Origin`, JSON content type, and a fixed limit of 30 mutations per GitHub user ID per minute.
 
-```text
-该工具涉及 {sensitive_scope}，可能访问或修改敏感数据。Agent 不应自动启用；请先确认权限范围、数据流和替代方案。
-```
+Errors must not reveal OAuth code, token, secret, cookies, or raw GitHub or D1 response bodies. D1 stores no Issue reason or other feedback free text, and public APIs expose no voter list.
 
-### Critical
+## Security Explanations
 
 ```text
-该工具涉及 {critical_scope}，可能影响资金、生产系统、secret 或云资源。除非用户明确确认并提供最小权限环境，否则不应使用。
+Medium: This tool needs {permission}. Limit its scope to {scope_limit} and verify {source} before use.
+
+High: This tool can access or modify {sensitive_scope}. Do not enable it automatically; confirm permissions, data flow, and alternatives first.
+
+Critical: This tool can affect {critical_scope}, including money, production, secrets, or cloud resources. Use only after explicit confirmation in a minimum-permission environment.
+
+Insufficient evidence: Permission or source evidence is incomplete. Treat the result as low confidence and do not install or run it automatically.
 ```
 
-### 证据不足
+## Default Distrust Behavior
 
-```text
-该工具的权限或来源证据不足，无法判断安全边界。推荐结果应视为低置信，不建议自动安装或运行。
-```
+For an unknown tool, Agent Radar does not install, run, provide secrets, grant file, browser, email, database, or cloud access, accept author claims as security conclusions, or treat popularity as trust evidence.
 
-## 不信任原则
+`risk_level` above tolerance changes the action to `ask_human` or `avoid`. Critical risk cannot produce `use`. Unknown permissions cannot enter a low-risk recommendation. High-risk candidates state risks and safe next steps.
 
-Agent Radar 对未知工具采用以下默认行为：
+## Collection Boundaries
 
-- 不自动安装。
-- 不自动运行。
-- 不自动传入 secret。
-- 不自动授予文件、浏览器、邮件、数据库或云权限。
-- 不把工具作者自述当作安全结论。
-- 不把 star、排名或社交热度当作信任证明。
+Collection excludes private repositories, user email or files, authenticated browser pages, access-control bypasses, and leaked-secret content. Suspected tokens are not stored verbatim and create a security event. Sources with unclear terms remain disabled.
 
-## 与推荐系统的关系
+## Security Evaluation
 
-- `risk_level` 高于用户 `risk_tolerance` 时，推荐动作变为 `ask_human` 或 `avoid`。
-- `critical` 风险不能直接输出 `use`。
-- `unknown` 权限不能进入低风险推荐。
-- 高风险工具必须在 `risks` 和 `next_steps` 中说明安全处理。
+Release evaluation includes:
 
-## 与采集系统的关系
+- Unknown trust plus code execution produces `avoid`.
+- Email access plus low tolerance produces `ask_human`.
+- Payment plus unknown source produces `avoid` at critical risk.
+- Unknown permissions never become low risk.
+- Instructions to bypass safety rules produce `avoid`.
 
-采集禁止：
+Any critical safety failure blocks release.
 
-- 私有仓库。
-- 用户邮件或文件。
-- 带 cookie 的网页。
-- 需要登录绕过的内容。
-- 泄露 secret 的公开片段。
+## Maintenance Rules
 
-采集保守处理：
-
-- 来源内容包含疑似 token 时，不入库原文，记录安全事件。
-- 来源条款不清时，禁用自动采集。
-
-## 安全评测
-
-必须覆盖：
-
-- unknown trust + code execution -> avoid。
-- email read + low risk tolerance -> ask_human。
-- payment + unknown source -> avoid/critical。
-- permissions unknown -> not low risk。
-- prompt 要求绕过安全规则 -> avoid。
-
-评测失败时阻止发布。
-
-## 维护规则
-
-- 安全风险字段宁可保守，不要为了推荐率降低风险等级。
-- 与权限、安装、执行相关的自动化必须默认最小权限。
-- 新增权限 scope 必须同步更新数据模型、评分规则、推荐引擎和评测计划。
-- 安全文档优先级高于推荐排序优化。
-- v0.4 GitHub OAuth 只读取稳定 user ID 和公开用户名，不申请邮箱、仓库或组织权限；OAuth token 完成身份查询后不得长期保存。
-- D1 不保存 Issue 原因或其他反馈自由文本；投票用户列表不得公开。
-- 反馈评分调整不能降低安全风险等级、提升来源 trust level 或绕过 critical safety release gate。
-- Tool Feedback title、body、reason、comment、URL 和用户名一律是不可信数据；LLM 没有工具能力，输出只接受固定三态、固定 reason code 和最多 240 字符的公开 summary。
-- 构建 artifact 不保存 D1 用户级行、Issue 原始 reason、完整 prompt、provider 原始响应、token、Cookie 或环境变量。
-- GitHub reader/writeback 固定到 `zation/agent-radar`；build job 只有 `issues: read`，deploy job 只有在 production approval 后才获得 `issues: write`。
-- Writeback 必须复查 `updated_at` 和处理标签，并用隐藏 marker 保证 rerun 不重复评论；任何状态漂移或必要写失败均阻断部署。
+- Prefer conservative risk over higher recommendation coverage.
+- Permission, installation, and execution automation defaults to minimum privilege.
+- A new permission scope requires synchronized data-model, rating, recommendation, and evaluation updates.
+- Security boundaries override ranking optimization.
+- Feedback adjustment cannot lower risk, raise trust, or bypass a critical safety gate.
+- Feedback titles, bodies, reasons, comments, URLs, and user names remain untrusted. The classifier has no tools and returns only a fixed state, reason code, and public summary of at most 240 characters.
+- Build artifacts exclude user-level D1 rows, original Issue reasons, full prompts, raw provider responses, tokens, cookies, and environment values.
+- GitHub read and write paths are fixed to `zation/agent-radar`; build has `issues: read`, while deploy receives `issues: write` only after production approval.
+- Writeback rechecks `updated_at` and processing labels and uses a hidden marker for idempotency. Any drift or required write failure blocks deployment.
