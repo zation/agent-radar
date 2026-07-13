@@ -61,9 +61,11 @@ jobs:
         run: |
           set -euo pipefail
           gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
             --name "agent-radar-mcp-smoke-${SOURCE_RUN_ID}" \
             --dir source-evidence
           gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
             --name "agent-radar-all-${SOURCE_RUN_ID}" \
             --dir source-reviewed-bundle
           test -f source-evidence/production-release-evidence.json
