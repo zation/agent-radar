@@ -228,9 +228,9 @@ Review may keep the automatic result, correct data or classification, change rat
 
 ## Verified Baseline
 
-`all-v0.5.0` is the current verified production baseline. Release All run `29247517708` and production deployment `5423874996` bind evidence to commit `4554d1c3`. Real-provider golden evaluation passed 24/24, critical safety passed 4/4, deployed MCP smoke passed 4/4, and 53/53 Rating Results bind to production feedback snapshot `sha256:7321dea6d8c039b7258323880ea710d9d6df4dadfee5995f1fbcf81f0846d69d`.
+`all-v0.5.1` is the current verified production baseline. Release All run `29248755693` and production deployment `5424142098` bind evidence to commit `4c3aee2c`. Real-provider golden evaluation passed 24/24, critical safety passed 4/4, deployed MCP smoke passed 4/4, and 53/53 Rating Results bind to production feedback snapshot `sha256:e884a1c6195962ab95f01cca08634db44341adb22162b48ebbecbe4d8a6190c3`.
 
-There is currently no pending Tool Feedback Issue. Real Issue classification and writeback remain an operational observation for the first future Issue and do not block the completed v0.4 release.
+The first real Issue classification and writeback observation completed in `all-v0.5.1`: Issue #1 produced `needs-human-review` with reason code `insufficient_information` and remained open, while Issue #2 produced `rejected` with reason code `invalid_context` and closed. Both received the expected processing label, classifier comment, release marker, and final state.
 
 ## Release Criteria
 

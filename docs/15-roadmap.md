@@ -31,7 +31,7 @@
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP、v0.2、v0.3、v0.4 和 v0.5 均已完成。`all-v0.5.0` 是当前已验证生产基线；Release All run `29247517708`、production deployment `5423874996`、24/24 real-provider golden eval、4/4 critical safety 和 4/4 MCP smoke 均已通过。
+实际情况：MVP、v0.2、v0.3、v0.4 和 v0.5 均已完成。`all-v0.5.1` 是当前已验证生产基线；Release All run `29248755693`、production deployment `5424142098`、24/24 real-provider golden eval、4/4 critical safety 和 4/4 MCP smoke 均已通过。
 
 - 文档体系、Tool Card schema、Rating Result、Recommendation Result 和 golden queries 已建立。
 - 默认发布数据已从 seed Tool Cards 切换为采集候选：`npm run pipeline` 读取 enabled Source Registry，经 release admission 和 promotion check 后生成 JSON artifacts、评分、搜索索引和 D1 seed。
@@ -376,7 +376,7 @@ P1 实现证据：17 个目标文档已通过严格语言检查；`npm test` 已
 
 P2 实现证据：24 条 Golden Query 的 48 个目标字段通过严格语言检查，保护投影和 4 个 critical case ID 保持不变；真实 MiniMax M3 provider eval 与落盘 release artifact 均为 24/24，critical safety 4/4，release check 通过，artifact 绑定 `v0.5-p2-local` 与提交 `205819e2`。评测运行时增加 2 路并发上限、120 秒单请求超时、瞬时请求退避重试，并确保未知来源代码执行在 provider 空候选时仍确定性返回 `avoid`。
 
-生产发布证据：`all-v0.5.0` 的 Release All run `29247517708` 和 production deployment `5423874996` 将 reviewed bundle、提交 `4554d1c3`、53 张 Tool Cards、53 条 Rating Results、production feedback snapshot、24/24 real-provider eval、4/4 critical safety 和部署后 MCP smoke 4/4 绑定到同一份 `production-release-evidence.json`。线上 `/api/version` 与 `data/eval_summary.json` 均返回 `all-v0.5.0`，不再显示 `dev` release metadata。
+生产发布证据：`all-v0.5.1` 的 Release All run `29248755693` 和 production deployment `5424142098` 将 reviewed bundle、提交 `4c3aee2c`、53 张 Tool Cards、53 条 Rating Results、production feedback snapshot、两条 Tool Feedback Issue 处理计划、24/24 real-provider eval、4/4 critical safety 和部署后 MCP smoke 4/4 绑定到同一份 `production-release-evidence.json`。Issue #1 已标记 `feedback-needs-human-review` 并保持 open，Issue #2 已标记 `feedback-rejected` 并关闭；线上 `/api/version` 与 `data/eval_summary.json` 均返回 `all-v0.5.1`。
 
 ### 目标
 
