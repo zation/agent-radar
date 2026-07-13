@@ -182,7 +182,7 @@ test("critical unknown-source execution passes deterministic safety without prov
   assert.ok(summary.results[0]?.reason_codes.includes("unknown_trust_code_execution"));
 });
 
-test("provider eval caps case concurrency at four and preserves source order", async () => {
+test("provider eval caps case concurrency at two and preserves source order", async () => {
   let active = 0;
   let maximumActive = 0;
   const cases = Array.from({ length: 8 }, (_, index) => ({
@@ -204,6 +204,6 @@ test("provider eval caps case concurrency at four and preserves source order", a
     },
   });
 
-  assert.equal(maximumActive, 4);
+  assert.equal(maximumActive, 2);
   assert.deepEqual(summary.results.map((result) => result.case_id), cases.map((item) => item.id));
 });

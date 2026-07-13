@@ -25,7 +25,7 @@ export interface EvalSummary {
   release: { release_id: string; commit_sha: string };
 }
 
-const GOLDEN_QUERY_CONCURRENCY = 4;
+const GOLDEN_QUERY_CONCURRENCY = 2;
 
 export async function runGoldenQueries(
   cases: EvalCase[],
