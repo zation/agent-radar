@@ -47,6 +47,7 @@ export interface BuildArtifactsOptions {
   previousSourceRecords?: SourceRecord[];
   allowBenchmarkProxyDns?: boolean;
   feedbackBuildInput?: FeedbackBuildInput;
+  release?: { release_id: string; commit_sha: string };
 }
 
 export interface BuildArtifactsSummary {
@@ -128,9 +129,10 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   const index = buildSearchIndex(toolCards, ratings);
   const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";
   const model = process.env.AGENT_RADAR_LLM_MODEL ?? DEFAULT_RECOMMENDATION_MODEL;
+  const release = options.release ?? { release_id: "dev", commit_sha: "dev" };
   const evalSummary = apiKey
-    ? await runGoldenQueries(goldenQueries, toolCards, ratings, { apiKey, model })
-    : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.");
+    ? await runGoldenQueries(goldenQueries, toolCards, ratings, { apiKey, model, release })
+    : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.", release);
   const providerRegistry = buildProviderRegistryArtifact();
   const mcpToolManifest = buildMcpToolManifest();
   const mcpExamples = buildMcpExamplesArtifact();

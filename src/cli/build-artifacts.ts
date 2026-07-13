@@ -27,5 +27,9 @@ const summary = await buildArtifacts({
   previousSourceRecords: previous.sourceRecords,
   allowBenchmarkProxyDns: process.env.AGENT_RADAR_ALLOW_BENCHMARK_PROXY_DNS === "true",
   feedbackBuildInput,
+  release: {
+    release_id: process.env.AGENT_RADAR_RELEASE_ID ?? "dev",
+    commit_sha: process.env.AGENT_RADAR_COMMIT_SHA ?? process.env.GITHUB_SHA ?? "dev",
+  },
 });
 console.log(JSON.stringify(summary, null, 2));

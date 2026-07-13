@@ -108,7 +108,8 @@ test("builds MVP data artifacts and an eval report", async () => {
     await mkdir(join(outputDir, "data", "approval_requests"), { recursive: true });
     await writeFile(join(outputDir, "data", "approval_requests", "legacy.json"), "{}", "utf8");
 
-    const summary = await buildArtifacts({ outputDir, fetchImpl, checkUrlReachability: false });
+    const release = { release_id: "v0.5-pipeline-test", commit_sha: "0123456789abcdef" };
+    const summary = await buildArtifacts({ outputDir, fetchImpl, checkUrlReachability: false, release });
 
     await assert.rejects(access(join(outputDir, "data", "approval_requests")), { code: "ENOENT" });
     assert.equal(
@@ -122,6 +123,9 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(summary.toolCount <= 150, true);
     assert.equal(summary.goldenQueriesPassed, 0);
     assert.equal(summary.goldenQueriesTotal >= 10, true);
+
+    const releaseArtifact = JSON.parse(await readFile(join(outputDir, "data", "eval_summary.json"), "utf8")) as { release: typeof release };
+    assert.deepEqual(releaseArtifact.release, release);
 
     const manifest = JSON.parse(await readFile(join(outputDir, "data", "manifest.json"), "utf8")) as ManifestFile;
     assert.equal(manifest.rules_versions.rating, "rating_rules.v0.1-draft");

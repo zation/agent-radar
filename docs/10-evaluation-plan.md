@@ -65,6 +65,8 @@ AGENT_RADAR_LLM_API_KEY=... AGENT_RADAR_LLM_MODEL=gpt-4.1 npm run eval
 
 Current reports retain a stable `failure_category` for each case. Provider evaluation runs no more than two cases concurrently, preserves source order in its report, retries one schema error or up to two transient provider request failures, and applies a 120-second timeout to each provider request. Transient request retries use a five-second backoff; authentication, rate-limit, and model-configuration failures are not retried. A release-quality claim must come from Provider Evaluation, not only Contract Evaluation.
 
+Both standalone evaluation and the artifact pipeline bind Eval Summary to `AGENT_RADAR_RELEASE_ID` and `AGENT_RADAR_COMMIT_SHA` (or `GITHUB_SHA`) so release checks can trace provider evidence to the evaluated commit.
+
 ## Eval Case Contract
 
 ```yaml
