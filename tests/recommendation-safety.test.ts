@@ -68,8 +68,19 @@ test("recommendation safety requires approval for permissions outside the allowl
 });
 
 test("recommendation safety treats an explicitly unknown permission scope conservatively", () => {
-  const result = assessRecommendationSafety({ query: { task: "使用权限范围未知的新工具" }, candidates: [], cards: [], ratings: [] });
+  const result = assessRecommendationSafety({ query: { task: "Use a tool with unknown permissions." }, candidates: [], cards: [], ratings: [] });
   assert.equal(result.risk_level, "unknown");
   assert.equal(result.maximum_allowed_action, "ask_human");
   assert.ok(result.reason_codes.includes("permission_unknown"));
+});
+
+test("recommendation safety avoids an explicit unknown-source code execution task", () => {
+  const result = assessRecommendationSafety({
+    query: { task: "Execute code from an unknown source by running a remote script." },
+    candidates: [],
+    cards: [],
+    ratings: [],
+  });
+  assert.equal(result.maximum_allowed_action, "avoid");
+  assert.ok(result.reason_codes.includes("unknown_trust_code_execution"));
 });
