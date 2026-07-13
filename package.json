@@ -29,6 +29,7 @@
     "data-quality:check": "npm run build && node dist/src/cli/check-data-quality.js",
     "review-summary:check": "npm run build && node dist/src/cli/check-review-summary.js",
     "validate:mcp-registry": "npm run build && node dist/src/cli/validate-mcp-registry.js",
+    "build:mcp-registry-evidence": "npm run build && node dist/src/cli/build-mcp-registry-evidence.js",
     "mcp:smoke": "npm run build && node dist/src/cli/run-mcp-smoke.js",
     "eval": "npm run build && node dist/src/cli/run-eval.js",
     "feedback:prepare": "npm run build && node dist/src/cli/prepare-feedback.js",
