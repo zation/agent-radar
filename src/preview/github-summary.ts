@@ -9,6 +9,8 @@ export function renderArtifactManifestSummaryMarkdown(manifest: ArtifactManifest
     `- Data version: \`${manifest.data_version}\``,
     `- Eval: ${manifest.eval.passed}/${manifest.eval.total} using \`${manifest.eval.model}\``,
     `- Eval failure categories: ${formatFailureCategories(manifest.eval.failure_categories)}`,
+    "",
+    ...renderTokenUsageSummary(manifest.eval_token_usage),
     ...(manifest.tool_card_field_provenance ? [`- Tool Card field provenance: ${formatToolCardFieldProvenance(manifest.tool_card_field_provenance)}`] : []),
     ...(manifest.crawl_audit ? [`- Crawl audit: ${formatCrawlAudit(manifest.crawl_audit)}`] : []),
     ...(manifest.source_registry_review ? [`- Source registry review: ${formatSourceRegistryReview(manifest.source_registry_review)}`] : []),
@@ -54,6 +56,8 @@ export function renderCompactReviewSummaryMarkdown(manifest: ArtifactManifest, o
     `- Eval: ${formatStatus(manifest.eval.passed === manifest.eval.total)} ${manifest.eval.passed}/${manifest.eval.total} using \`${manifest.eval.model}\``,
     ...renderDeployOutput(options.deployOutput),
     "",
+    ...renderTokenUsageSummary(manifest.eval_token_usage),
+    "",
     "### Review Required",
     ...renderReviewRequired(manifest),
     "",
@@ -67,6 +71,30 @@ export function renderCompactReviewSummaryMarkdown(manifest: ArtifactManifest, o
   ];
 
   return `${lines.join("\n")}\n`;
+}
+
+function renderTokenUsageSummary(usage: ArtifactManifest["eval_token_usage"]): string[] {
+  const format = new Intl.NumberFormat("en-US");
+  const providers = usage.providers.length === 0
+    ? "unknown"
+    : usage.providers.map(({ provider, model_identifier }) => `\`${provider}/${model_identifier}\``).join(", ");
+  const highest = usage.highest_usage_cases.length === 0
+    ? "none"
+    : usage.highest_usage_cases.map(({ case_id, total_tokens }) => `\`${case_id}=${format.format(total_tokens)}\``).join(", ");
+  const lines = [
+    "### Golden Query Token Usage",
+    `- Provider/model: ${providers}`,
+    `- Cases/requests: ${format.format(usage.case_count)} cases, ${format.format(usage.request_attempts)} attempts, ${format.format(usage.retry_count)} retries`,
+    `- Usage availability: ${format.format(usage.reported_attempts)} reported, ${format.format(usage.unavailable_attempts)} unavailable`,
+    `- Tokens: ${format.format(usage.input_tokens)} input, ${format.format(usage.cached_input_tokens)} cached input, ${format.format(usage.output_tokens)} output, ${format.format(usage.total_tokens)} total`,
+    `- Average total/report: ${usage.average_total_tokens_per_reported_attempt === null ? "unavailable" : format.format(usage.average_total_tokens_per_reported_attempt)}`,
+    `- Highest usage cases: ${highest}`,
+  ];
+  if (usage.unavailable_attempts > 0) {
+    const noun = usage.unavailable_attempts === 1 ? "attempt" : "attempts";
+    lines.push(`- Warning: ${format.format(usage.unavailable_attempts)} provider ${noun} did not report valid token usage.`);
+  }
+  return lines;
 }
 
 function renderDeployOutput(output: string | undefined): string[] {

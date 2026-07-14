@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { isDeepStrictEqual } from "node:util";
+import type { EvalSummary } from "../eval/runner.js";
+import { validateEvalTokenUsageArtifact } from "../eval/token-usage.js";
 import type { DataQualityGateItem, DataQualityReport } from "../validation/data-quality-report.js";
-import { listArtifactFiles, type ArtifactManifest } from "./manifest.js";
+import { buildEvalTokenUsageManifestSummary, listArtifactFiles, type ArtifactManifest } from "./manifest.js";
 
 export interface ReviewSummaryActionItem {
   reason_code: string;
@@ -175,6 +178,18 @@ export async function verifyReviewSummaryChecksums(
 export async function verifyFinalArtifactManifest(distDir: string): Promise<void> {
   const manifest = JSON.parse(await readFile(join(distDir, "artifact-manifest.json"), "utf8")) as ArtifactManifest;
   if (manifest.schema_version !== "artifact_manifest.v1") throw new Error("artifact_manifest_invalid_schema");
+  const evalSummary = JSON.parse(await readFile(join(distDir, "data", "eval_summary.json"), "utf8")) as EvalSummary;
+  if (!evalSummary.release?.release_id || !evalSummary.release.commit_sha) throw new Error("eval_token_usage_eval_release_missing");
+  const evalTokenUsage = validateEvalTokenUsageArtifact(
+    JSON.parse(await readFile(join(distDir, "reports", "eval_token_usage.json"), "utf8")) as unknown,
+    evalSummary.release,
+  );
+  const evalCaseIds = evalSummary.results.map(({ case_id }) => case_id).sort();
+  const usageCaseIds = evalTokenUsage.cases.map(({ case_id }) => case_id);
+  if (!isDeepStrictEqual(evalCaseIds, usageCaseIds)) throw new Error("eval_token_usage_case_identity_mismatch");
+  if (!isDeepStrictEqual(manifest.eval_token_usage, buildEvalTokenUsageManifestSummary(evalTokenUsage))) {
+    throw new Error("eval_token_usage_manifest_summary_mismatch");
+  }
   const actualFiles = (await listArtifactFiles(distDir)).filter((file) => file !== "artifact-manifest.json");
   for (const file of actualFiles) {
     if (!manifest.checksums[file]) throw new Error(`artifact_manifest_unexpected_file: ${file}`);

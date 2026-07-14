@@ -12,6 +12,7 @@ import {
 } from "../src/preview/review-summary.js";
 import type { ArtifactManifest } from "../src/preview/manifest.js";
 import type { DataQualityReport } from "../src/validation/data-quality-report.js";
+import { EvalTokenUsageCollector } from "../src/eval/token-usage.js";
 
 const manifest: ArtifactManifest = {
   schema_version: "artifact_manifest.v1",
@@ -19,6 +20,22 @@ const manifest: ArtifactManifest = {
   built_at: "2026-07-10T00:00:00Z",
   data_version: "data-test",
   eval: { passed: 10, total: 10, model: "test", failure_categories: {} },
+  eval_token_usage: {
+    schema_version: "eval_token_usage.v1",
+    providers: [{ provider: "openai", model_identifier: "gpt-4.1" }],
+    case_count: 1,
+    request_attempts: 1,
+    reported_attempts: 1,
+    unavailable_attempts: 0,
+    retry_count: 0,
+    input_tokens: 10,
+    cached_input_tokens: 0,
+    cached_usage_available_attempts: 0,
+    output_tokens: 2,
+    total_tokens: 12,
+    average_total_tokens_per_reported_attempt: 12,
+    highest_usage_cases: [{ case_id: "gq-a", total_tokens: 12 }],
+  },
   source_registry_diff: { added: 2, removed: 1, changed: 1 },
   feedback: {
     rules_version: "feedback_rules.v0.1", vote_snapshot_checksum: `sha256:${"b".repeat(64)}`,
@@ -128,6 +145,13 @@ test("final manifest verifier detects Review Summary tampering", async () => {
     await mkdir(join(distDir, "data"), { recursive: true });
     await mkdir(join(distDir, "reports"), { recursive: true });
     await writeFile(join(distDir, "data", "input.json"), "input", "utf8");
+    const release = { release_id: "all-v0.7.0-test", commit_sha: "abc123" };
+    const collector = new EvalTokenUsageCollector({ caseIds: ["gq-a"], generatedAt: "2026-07-10T00:00:00Z", release });
+    collector.record({ case_id: "gq-a", attempt: 1, provider: "openai", model_identifier: "gpt-4.1", outcome: "completed", failure_category: "none", usage: { status: "reported", input_tokens: 10, cached_input_tokens: null, output_tokens: 2, total_tokens: 12 } });
+    const usageText = JSON.stringify(collector.build([{ case_id: "gq-a", execution_status: "completed" }]), null, 2);
+    const evalText = JSON.stringify({ passed: 1, total: 1, release, results: [{ case_id: "gq-a", failure_category: "none" }] }, null, 2);
+    await writeFile(join(distDir, "data", "eval_summary.json"), evalText);
+    await writeFile(join(distDir, "reports", "eval_token_usage.json"), usageText);
     const inputDigest = createHash("sha256").update("input").digest("hex");
     const summary = buildReviewSummaryV2({
       manifest: { ...manifest, checksums: { "data/input.json": `sha256:${inputDigest}` } },
@@ -140,10 +164,13 @@ test("final manifest verifier detects Review Summary tampering", async () => {
     await writeFile(join(distDir, "reports", "review_summary.v2.md"), markdown);
     const checksums = Object.fromEntries([
       ["data/input.json", "input"],
+      ["data/eval_summary.json", evalText],
       ["data/review_summary.v2.json", summaryText],
+      ["reports/eval_token_usage.json", usageText],
       ["reports/review_summary.v2.md", markdown],
     ].map(([path, value]) => [path, `sha256:${createHash("sha256").update(value).digest("hex")}`]));
-    await writeFile(join(distDir, "artifact-manifest.json"), JSON.stringify({ ...manifest, checksums }));
+    const finalManifest = { ...manifest, checksums };
+    await writeFile(join(distDir, "artifact-manifest.json"), JSON.stringify(finalManifest));
 
     await assert.doesNotReject(() => verifyFinalArtifactManifest(distDir));
     await writeFile(join(distDir, "data", "unexpected.json"), "{}");
@@ -151,6 +178,14 @@ test("final manifest verifier detects Review Summary tampering", async () => {
     await rm(join(distDir, "data", "unexpected.json"));
     await writeFile(join(distDir, "data", "review_summary.v2.json"), `${summaryText}\n`);
     await assert.rejects(() => verifyFinalArtifactManifest(distDir), /artifact_manifest_checksum_mismatch: data\/review_summary\.v2\.json/);
+    await writeFile(join(distDir, "data", "review_summary.v2.json"), summaryText);
+    const tamperedUsage = JSON.parse(usageText) as { summary: { total_tokens: number } };
+    tamperedUsage.summary.total_tokens += 1;
+    const tamperedUsageText = JSON.stringify(tamperedUsage, null, 2);
+    await writeFile(join(distDir, "reports", "eval_token_usage.json"), tamperedUsageText);
+    finalManifest.checksums["reports/eval_token_usage.json"] = `sha256:${createHash("sha256").update(tamperedUsageText).digest("hex")}`;
+    await writeFile(join(distDir, "artifact-manifest.json"), JSON.stringify(finalManifest));
+    await assert.rejects(() => verifyFinalArtifactManifest(distDir), /eval_token_usage.*total_tokens.*mismatch/);
   } finally {
     await rm(distDir, { recursive: true, force: true });
   }

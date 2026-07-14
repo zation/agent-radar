@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import { readdir, readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import type { EvalSummary } from "../eval/runner.js";
+import { validateEvalTokenUsageArtifact } from "../eval/token-usage.js";
 
 export interface ArtifactManifest {
   schema_version: "artifact_manifest.v1";
@@ -13,6 +15,22 @@ export interface ArtifactManifest {
     total: number;
     model: string;
     failure_categories: Record<string, number>;
+  };
+  eval_token_usage: {
+    schema_version: "eval_token_usage.v1";
+    providers: Array<{ provider: string; model_identifier: string }>;
+    case_count: number;
+    request_attempts: number;
+    reported_attempts: number;
+    unavailable_attempts: number;
+    retry_count: number;
+    input_tokens: number;
+    cached_input_tokens: number;
+    cached_usage_available_attempts: number;
+    output_tokens: number;
+    total_tokens: number;
+    average_total_tokens_per_reported_attempt: number | null;
+    highest_usage_cases: Array<{ case_id: string; total_tokens: number }>;
   };
   crawl_audit?: {
     total: number;
@@ -132,6 +150,14 @@ export interface BuildArtifactManifestOptions {
 export async function buildArtifactManifest(options: BuildArtifactManifestOptions): Promise<ArtifactManifest> {
   const dataManifest = JSON.parse(await readFile(join(options.distDir, "data", "manifest.json"), "utf8")) as { data_version?: string };
   const evalSummary = JSON.parse(await readFile(join(options.distDir, "data", "eval_summary.json"), "utf8")) as EvalSummary;
+  if (!evalSummary.release?.release_id || !evalSummary.release.commit_sha) throw new Error("eval_token_usage_eval_release_missing");
+  const evalTokenUsageArtifact = validateEvalTokenUsageArtifact(
+    JSON.parse(await readFile(join(options.distDir, "reports", "eval_token_usage.json"), "utf8")) as unknown,
+    evalSummary.release,
+  );
+  const evalCaseIds = evalSummary.results.map(({ case_id }) => case_id).sort(compareText);
+  const usageCaseIds = evalTokenUsageArtifact.cases.map(({ case_id }) => case_id);
+  if (!isDeepStrictEqual(evalCaseIds, usageCaseIds)) throw new Error("eval_token_usage_case_identity_mismatch");
   const sourceRegistryDiff = await readSourceRegistryDiffSummary(options.distDir);
   const sourceRegistryReview = await readSourceRegistryReviewSummary(options.distDir);
   const sourceRegistryReviewRequests = await readSourceRegistryReviewRequestsSummary(options.distDir);
@@ -141,6 +167,7 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
   const reviewSummary = await readReviewSummary(options.distDir);
   const checksums = await checksumFiles(options.distDir);
   const feedback = await readFeedbackSummary(options.distDir, checksums);
+  if (!checksums["reports/eval_token_usage.json"]) throw new Error("eval_token_usage_checksum_missing");
 
   return {
     schema_version: "artifact_manifest.v1",
@@ -153,6 +180,7 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
       model: options.providerModel,
       failure_categories: countEvalFailureCategories(evalSummary)
     },
+    eval_token_usage: buildEvalTokenUsageManifestSummary(evalTokenUsageArtifact),
     ...(sourceRegistryDiff ? { source_registry_diff: sourceRegistryDiff } : {}),
     ...(sourceRegistryReview ? { source_registry_review: sourceRegistryReview } : {}),
     ...(sourceRegistryReviewRequests ? { source_registry_review_requests: sourceRegistryReviewRequests } : {}),
@@ -163,6 +191,30 @@ export async function buildArtifactManifest(options: BuildArtifactManifestOption
     ...(feedback ? { feedback } : {}),
     checksums
   };
+}
+
+export function buildEvalTokenUsageManifestSummary(
+  artifact: ReturnType<typeof validateEvalTokenUsageArtifact>,
+): ArtifactManifest["eval_token_usage"] {
+  const providers = [...new Map(artifact.cases.flatMap(({ attempts }) => attempts).map(({ provider, model_identifier }) => [
+    `${provider}\u0000${model_identifier}`,
+    { provider, model_identifier },
+  ])).values()].sort((left, right) => compareText(left.provider, right.provider) || compareText(left.model_identifier, right.model_identifier));
+  const highestUsageCases = artifact.cases
+    .filter(({ reported_attempts }) => reported_attempts > 0)
+    .map(({ case_id, total_tokens }) => ({ case_id, total_tokens }))
+    .sort((left, right) => right.total_tokens - left.total_tokens || compareText(left.case_id, right.case_id))
+    .slice(0, 5);
+  return {
+    schema_version: artifact.schema_version,
+    providers,
+    ...artifact.summary,
+    highest_usage_cases: highestUsageCases,
+  };
+}
+
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
 }
 
 async function readFeedbackSummary(distDir: string, checksums: Record<string, string>): Promise<ArtifactManifest["feedback"] | undefined> {

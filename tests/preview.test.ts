@@ -8,6 +8,30 @@ import { renderArtifactManifestSummaryMarkdown, renderCompactReviewSummaryMarkdo
 import { renderIngestionReviewMarkdown } from "../src/preview/ingestion-review.js";
 import { buildArtifactManifest } from "../src/preview/manifest.js";
 import type { RunIngestionResult } from "../src/ingestion/run.js";
+import { EvalTokenUsageCollector } from "../src/eval/token-usage.js";
+
+const tokenUsageManifestSummary = {
+  schema_version: "eval_token_usage.v1" as const,
+  providers: [{ provider: "minimax", model_identifier: "MiniMax-M3" }],
+  case_count: 24,
+  request_attempts: 26,
+  reported_attempts: 25,
+  unavailable_attempts: 1,
+  retry_count: 2,
+  input_tokens: 30_000,
+  cached_input_tokens: 5_000,
+  cached_usage_available_attempts: 20,
+  output_tokens: 3_000,
+  total_tokens: 33_000,
+  average_total_tokens_per_reported_attempt: 1_320,
+  highest_usage_cases: [
+    { case_id: "gq-a", total_tokens: 2_000 },
+    { case_id: "gq-b", total_tokens: 1_900 },
+    { case_id: "gq-c", total_tokens: 1_800 },
+    { case_id: "gq-d", total_tokens: 1_700 },
+    { case_id: "gq-e", total_tokens: 1_600 },
+  ],
+};
 
 const ingestionResult: RunIngestionResult = {
   crawlPlan: {
@@ -453,6 +477,8 @@ test("builds artifact manifest with checksums and eval summary", async () => {
 
   try {
     await mkdir(join(outputDir, "data"), { recursive: true });
+    await mkdir(join(outputDir, "reports"), { recursive: true });
+    await mkdir(join(outputDir, "reports"), { recursive: true });
     await writeFile(join(outputDir, "index.html"), "<html></html>", "utf8");
     await writeFile(join(outputDir, "data", "manifest.json"), JSON.stringify({ data_version: "data-test" }), "utf8");
     await writeFile(
@@ -460,6 +486,7 @@ test("builds artifact manifest with checksums and eval summary", async () => {
       JSON.stringify({
         passed: 1,
         total: 3,
+        release: { release_id: "all-v0.7.0-test", commit_sha: "abc123" },
         results: [
           { case_id: "a", passed: true, failure_category: "none", failures: [], recommended_action: "use", top_tool_ids: ["tool-a"] },
           { case_id: "b", passed: false, failure_category: "blocked_no_key", failures: ["missing key"], recommended_action: "blocked", top_tool_ids: [] },
@@ -468,6 +495,18 @@ test("builds artifact manifest with checksums and eval summary", async () => {
       }),
       "utf8"
     );
+    const collector = new EvalTokenUsageCollector({
+      caseIds: ["a", "b", "c"],
+      generatedAt: "2026-07-07T00:00:00Z",
+      release: { release_id: "all-v0.7.0-test", commit_sha: "abc123" },
+    });
+    collector.record({ case_id: "a", attempt: 1, provider: "deepseek", model_identifier: "deepseek-v4-flash", outcome: "completed", failure_category: "none", usage: { status: "reported", input_tokens: 10, cached_input_tokens: 2, output_tokens: 3, total_tokens: 13 } });
+    collector.record({ case_id: "c", attempt: 1, provider: "deepseek", model_identifier: "deepseek-v4-flash", outcome: "completed", failure_category: "none", usage: { status: "unavailable", input_tokens: null, cached_input_tokens: null, output_tokens: null, total_tokens: null, unavailable_reason: "missing_provider_usage" } });
+    await writeFile(join(outputDir, "reports", "eval_token_usage.json"), JSON.stringify(collector.build([
+      { case_id: "a", execution_status: "completed" },
+      { case_id: "b", execution_status: "blocked_no_key" },
+      { case_id: "c", execution_status: "completed" },
+    ])), "utf8");
 
     const manifest = await buildArtifactManifest({
       distDir: outputDir,
@@ -482,6 +521,9 @@ test("builds artifact manifest with checksums and eval summary", async () => {
     assert.equal(manifest.eval.passed, 1);
     assert.equal(manifest.eval.model, "deepseek-v4-flash");
     assert.deepEqual(manifest.eval.failure_categories, { none: 1, blocked_no_key: 1, quality_failure: 1 });
+    assert.equal(manifest.eval_token_usage.request_attempts, 2);
+    assert.equal(manifest.eval_token_usage.unavailable_attempts, 1);
+    assert.deepEqual(manifest.eval_token_usage.providers, [{ provider: "deepseek", model_identifier: "deepseek-v4-flash" }]);
     assert.match(manifest.checksums["index.html"] ?? "", /^sha256:/);
     assert.match(manifest.checksums["data/manifest.json"] ?? "", /^sha256:/);
   } finally {
@@ -505,6 +547,7 @@ test("renders artifact manifest summary with eval failure categories for GitHub 
         quality_failure: 1
       }
     },
+    eval_token_usage: tokenUsageManifestSummary,
     tool_card_field_provenance: {
       cards_checked: 20,
       fields_checked: 60,
@@ -615,6 +658,7 @@ test("renders compact review summary with only actionable review items", () => {
         model: "deepseek-v4-flash",
         failure_categories: { none: 9, quality_failure: 1 }
       },
+      eval_token_usage: tokenUsageManifestSummary,
       source_registry_review: {
         total_requirements: 2,
         confirmed: 1,
@@ -681,6 +725,14 @@ test("renders compact review summary with only actionable review items", () => {
 
   assert.match(markdown, /## Agent Radar Preview/);
   assert.match(markdown, /- Preview: https:\/\/example\.pages\.dev/);
+  assert.match(markdown, /### Golden Query Token Usage/);
+  assert.match(markdown, /- Provider\/model: `minimax\/MiniMax-M3`/);
+  assert.match(markdown, /- Cases\/requests: 24 cases, 26 attempts, 2 retries/);
+  assert.match(markdown, /- Usage availability: 25 reported, 1 unavailable/);
+  assert.match(markdown, /- Tokens: 30,000 input, 5,000 cached input, 3,000 output, 33,000 total/);
+  assert.match(markdown, /- Average total\/report: 1,320/);
+  assert.match(markdown, /- Highest usage cases: `gq-a=2,000`/);
+  assert.match(markdown, /Warning: 1 provider attempt did not report valid token usage/);
   assert.match(markdown, /### Review Required/);
   assert.match(markdown, /- Source registry: 1 pending confirmation, 1 required/);
   assert.match(markdown, /- Tool Card interventions: 2 pending, 1 duplicate review, 0 blocked validation/);
@@ -704,6 +756,7 @@ test("renders compact review summary as clean when no action is needed", () => {
       built_at: "2026-07-07T00:00:00Z",
       data_version: "data-test",
       eval: { passed: 10, total: 10, model: "deepseek-v4-flash", failure_categories: { none: 10 } },
+      eval_token_usage: { ...tokenUsageManifestSummary, unavailable_attempts: 0, reported_attempts: 26 },
       source_registry_review: { total_requirements: 0, confirmed: 0, rejected: 0, needs_changes: 0, pending: 0 },
       source_registry_review_requests: { pending_review: 0, confirmation_required: 0 },
       intervention_requests: { pending_intervention: 0, duplicate_review_required: 0, blocked_validation: 0 },
@@ -721,6 +774,7 @@ test("renders compact review summary as clean when no action is needed", () => {
   assert.match(markdown, /- PASS promotion 10\/10 ready/);
   assert.match(markdown, /- PASS source review 0\/0 confirmed/);
   assert.match(markdown, /- PASS MCP smoke skipped/);
+  assert.doesNotMatch(markdown, /Warning: .*provider attempt/);
 });
 
 test("creates preview bundle review assets and artifact manifest", async () => {
@@ -729,10 +783,25 @@ test("creates preview bundle review assets and artifact manifest", async () => {
 
   try {
     await mkdir(join(outputDir, "data"), { recursive: true });
+    await mkdir(join(outputDir, "reports"), { recursive: true });
     await writeIngestionReviewEvidenceFixture(outputDir, ingestionResult);
     await writeFile(join(outputDir, "index.html"), "<html></html>", "utf8");
     await writeFile(join(outputDir, "data", "manifest.json"), JSON.stringify({ data_version: "data-test" }), "utf8");
-    await writeFile(join(outputDir, "data", "eval_summary.json"), JSON.stringify({ passed: 5, total: 5, results: [] }), "utf8");
+    const bundleRelease = { release_id: "all-v0.7.0-bundle", commit_sha: "abc123" };
+    const bundleCaseIds = ["gq-a", "gq-b", "gq-c", "gq-d", "gq-e"];
+    await writeFile(join(outputDir, "data", "eval_summary.json"), JSON.stringify({
+      passed: 5,
+      total: 5,
+      release: bundleRelease,
+      results: bundleCaseIds.map((case_id) => ({ case_id, failure_category: "none" })),
+    }), "utf8");
+    const bundleCollector = new EvalTokenUsageCollector({ caseIds: bundleCaseIds, generatedAt: "2026-07-07T00:00:00Z", release: bundleRelease });
+    for (const case_id of bundleCaseIds) {
+      bundleCollector.record({ case_id, attempt: 1, provider: "deepseek", model_identifier: "deepseek-v4-flash", outcome: "completed", failure_category: "none", usage: { status: "reported", input_tokens: 10, cached_input_tokens: null, output_tokens: 2, total_tokens: 12 } });
+    }
+    await writeFile(join(outputDir, "reports", "eval_token_usage.json"), JSON.stringify(bundleCollector.build(
+      bundleCaseIds.map((case_id) => ({ case_id, execution_status: "completed" })),
+    )), "utf8");
     await writeFile(
       join(outputDir, "data", "source_registry_diff.json"),
       JSON.stringify({
