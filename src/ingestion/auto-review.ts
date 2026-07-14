@@ -1,5 +1,6 @@
-import type { RiskLevel, SourceRecord, ToolCard } from "../schema.js";
+import type { SourceRecord, ToolCard } from "../schema.js";
 import type { ToolCardReviewQueue } from "./review-queue.js";
+import { buildReviewFindings } from "./review-findings.js";
 
 export type AutoReviewSuggestedAction = "promote" | "keep_draft" | "needs_review" | "reject" | "retire";
 
@@ -46,9 +47,13 @@ export function buildToolCardAutoReview(drafts: ToolCard[], sourceRecords: Sourc
     const sourceRecord = recordsById.get(sourceRecordId);
     const reviewItem = reviewItemsByDraft.get(draft.id);
     const scorecard = buildScorecard(draft, sourceRecord, reviewItem);
-    const missingFields = collectMissingFields(draft);
-    const keyRisks = collectKeyRisks(draft);
-    const humanReviewReasons = collectHumanReviewReasons(draft, sourceRecord, reviewItem, missingFields, scorecard.total);
+    const findings = buildReviewFindings(draft, sourceRecord, reviewItem, scorecard.total);
+    const messagesFor = (target: "missing_field" | "risk" | "evidence" | "human_review") => [
+      ...new Set(findings.filter((finding) => finding.target === target).map((finding) => finding.message)),
+    ];
+    const missingFields = messagesFor("missing_field");
+    const keyRisks = messagesFor("risk");
+    const humanReviewReasons = messagesFor("human_review");
     const suggestedAction = chooseSuggestedAction(draft, sourceRecord, reviewItem, humanReviewReasons, scorecard.total);
 
     return {
@@ -57,7 +62,7 @@ export function buildToolCardAutoReview(drafts: ToolCard[], sourceRecords: Sourc
       suggested_action: suggestedAction,
       confidence: suggestedAction === "promote" ? 0.82 : suggestedAction === "keep_draft" ? 0.66 : 0.48,
       evidence_urls: draft.source_urls,
-      key_evidence: collectKeyEvidence(draft, sourceRecord),
+      key_evidence: messagesFor("evidence"),
       key_risks: keyRisks,
       missing_fields: missingFields,
       human_review_reasons: humanReviewReasons,
@@ -156,59 +161,8 @@ function chooseSuggestedAction(
   return "reject";
 }
 
-function collectMissingFields(draft: ToolCard): string[] {
-  const fields: string[] = [];
-  if (!draft.summary.trim()) fields.push("summary");
-  if (draft.source_urls.length === 0) fields.push("source_urls");
-  if (draft.use_cases.length === 0) fields.push("use_cases");
-  if (draft.not_for.length === 0) fields.push("not_for");
-  if (draft.install_methods.length === 0) fields.push("install_methods");
-  if (draft.permissions.length === 0) fields.push("permissions");
-  if (draft.security.risk_level === "unknown") fields.push("security.risk_level");
-  if (draft.maintenance.status === "unknown") fields.push("maintenance.status");
-  return fields;
-}
-
-function collectKeyEvidence(draft: ToolCard, sourceRecord: SourceRecord | undefined): string[] {
-  const evidence = [`source_urls:${draft.source_urls.length}`, `confidence:${draft.confidence}`];
-  if (draft.repo_url) evidence.push(`repo:${draft.repo_url}`);
-  if (typeof sourceRecord?.parsed_fields.stars === "number") evidence.push(`github_stars:${sourceRecord.parsed_fields.stars}`);
-  if (draft.maintenance.last_commit_at) evidence.push(`last_commit_at:${draft.maintenance.last_commit_at}`);
-  if (draft.license) evidence.push(`license:${draft.license}`);
-  return evidence;
-}
-
-function collectKeyRisks(draft: ToolCard): string[] {
-  return [
-    `risk_level:${draft.security.risk_level}`,
-    ...draft.security.known_risks,
-    ...draft.permissions.map((permission) => `${permission.scope}:${permission.access}`)
-  ];
-}
-
-function collectHumanReviewReasons(
-  draft: ToolCard,
-  sourceRecord: SourceRecord | undefined,
-  reviewItem: ToolCardReviewQueue["items"][number] | undefined,
-  missingFields: string[],
-  totalScore: number
-): string[] {
-  const reasons: string[] = [];
-  const sourceProfileReviewed = Boolean(sourceRecord?.parsed_fields.source_profile);
-  if ((isHighRisk(draft.security.risk_level) || draft.security.requires_human_approval) && !sourceProfileReviewed) reasons.push("high_risk_requires_human_review");
-  if (reviewItem && (reviewItem.duplicate_of_tool_ids.length > 0 || reviewItem.duplicate_of_draft_tool_ids.length > 0)) reasons.push("possible_duplicate");
-  if ((sourceRecord?.warnings?.length ?? 0) > 0 && !sourceProfileReviewed) reasons.push("parser_warnings");
-  if (missingFields.length > 0) reasons.push("missing_required_fields");
-  if (totalScore < 8) reasons.push("score_below_auto_promote_threshold");
-  return [...new Set(reasons)];
-}
-
 function isDiscoveryCollection(sourceRecord: SourceRecord | undefined): boolean {
   if (!sourceRecord || sourceRecord.parsed_fields.source_profile) return false;
   const repositoryName = sourceRecord.name.split("/").at(-1)?.toLowerCase() ?? "";
   return repositoryName.startsWith("awesome-") || repositoryName.endsWith("-awesome");
-}
-
-function isHighRisk(riskLevel: RiskLevel): boolean {
-  return riskLevel === "high" || riskLevel === "critical" || riskLevel === "unknown";
 }
