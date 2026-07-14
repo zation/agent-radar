@@ -199,7 +199,7 @@ The workflow resolves exactly one deployment for the current repository, run, SH
 
 ### Smithery Publication
 
-`npm run publish:smithery` publishes the existing production Streamable HTTP endpoint as `zation1/agent-radar` through the pinned `@smithery/cli@4.11.1` package. Run `npx --yes @smithery/cli@4.11.1 auth login` first when the local Smithery session is not authenticated.
+`npm run publish:smithery` publishes the existing production Streamable HTTP endpoint as `zation/agent-radar` through the pinned `@smithery/cli@4.11.1` package. Run `npx --yes @smithery/cli@4.11.1 auth login` first when the local Smithery session is not authenticated.
 
 The command sends a flat config schema in the deployment payload. `llmApiKey` is optional and is transported as the `X-Agent-Radar-LLM-API-Key` request header, so Smithery can render configuration UI without changing the public MCP tool input schema or putting the credential in a query parameter. The command contains no Smithery token or LLM provider key. Smithery publication is a separate directory release and does not replace the evidence-bound official MCP Registry workflow.
 

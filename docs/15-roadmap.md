@@ -49,7 +49,7 @@
 - `/api/mcp` 已增加 Host、Origin、method、CORS 与 65,536-byte UTF-8 body guard；v2 smoke evidence 固定覆盖七项检查及 structured/text parity。
 - 根目录 remote-only `server.json` 已发布为 `io.github.zation/agent-radar@0.6.4`，声明生产 `streamable-http` endpoint、optional secret header 和无 packages 约束；官方 `mcp-publisher` v1.8.0 validation 已通过。
 - 独立 `Publish MCP Registry` workflow 将 successful Release All evidence、不可变 source SHA、生产 version/fresh smoke、固定 publisher checksum、GitHub OIDC、官方 API polling 与 `mcp_registry_publication_evidence.v1` 绑定。run `29269874017` 完成首次 `0.6.3` 发布；run `29307691850` 发布并验证 `0.6.4`。当前官方发布时间为 `2026-07-14T05:07:48.2585Z`，canonical metadata checksum 为 `sha256:33ef07988cbd9f11fe63a8a37b0e1d7eeccd84ad1de37c8f2d0d07ba412393bd`。
-- 项目提供 `npm run publish:smithery`，通过固定版本的官方 `@smithery/cli` 发布生产 MCP URL，并把 optional `llmApiKey` 作为 `X-Agent-Radar-LLM-API-Key` header config 交给 Smithery Gateway；脚本不包含任何密钥。
+- 项目提供 `npm run publish:smithery`，通过固定版本的官方 `@smithery/cli` 把生产 MCP URL 发布到 `zation/agent-radar`，并把 optional `llmApiKey` 作为 `X-Agent-Radar-LLM-API-Key` header config 交给 Smithery Gateway；脚本不包含任何密钥。
 - 本地 Vite dev server 将 `/api/*` 同源代理到 Wrangler Worker，UI 与完整 API 均支持热重载。
 - 推荐路径已从本地关键词/规则排序改为 BYOK LLM-backed 推荐；本地代码负责组装 Tool Card/Rating 上下文、调用 provider、校验已知 `tool_id`、保留风险边界并归一化输出。
 - 当前支持的 LLM provider/model 选项：

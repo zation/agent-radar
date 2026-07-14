@@ -11,7 +11,7 @@ test("Smithery publish script declares the optional recommendation key as a head
   assert.ok(command, "package.json must expose publish:smithery");
   assert.match(command, /^npx --yes @smithery\/cli@4\.11\.1 mcp publish /);
   assert.match(command, /https:\/\/agent-radar\.zation1\.workers\.dev\/api\/mcp/);
-  assert.match(command, /-n zation1\/agent-radar/);
+  assert.match(command, /-n zation\/agent-radar/);
 
   const schemaArgument = command.match(/--config-schema '(.+)'$/)?.[1];
   assert.ok(schemaArgument, "publish command must include an inline config schema");
