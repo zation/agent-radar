@@ -173,7 +173,7 @@ Maintain golden queries, data-quality checks, rating regression, and explanation
 
 Acceptance criteria:
 
-- Rating or recommendation changes can produce an eval diff.
+- Rating or recommendation changes include reproducible before/after evaluation evidence. A formal cross-release Eval Diff remains Backlog and is not a current release dependency.
 - Failures explain impact; do not merely edit expected results.
 - Cover common development tasks, no-match tasks, high-risk permissions, and peer comparison.
 
@@ -209,8 +209,8 @@ Acceptance criteria:
 - Tool Card pages open the `zation/agent-radar` Issue Form with Tool Card key, vote, data version, and Tool Card URL prefilled. The page does not create the Issue; reason is required and is not stored in Agent Radar D1.
 - Feedback never contains private code, email, tokens, secrets, full prompts, or browser content.
 - The reviewed-bundle build deterministically validates legal open feedback Issues, then performs constrained LLM classification as `accepted`, `rejected`, or `needs-human-review`. Accepted/rejected Issues receive a processing comment/build information and close; human-review Issues remain open.
-- `feedback_rules.v0.1` computes each build consistently: an accepted Issue contributes `+1/-1`; otherwise a bare vote contributes `+0.2/-0.2`; per-card adjustment is clamped from `-3` to `+3`. Feedback cannot lower security risk or raise source trust.
-- Feedback classified as `unsafe`, or involving missing permissions, production data, payments, email, databases, or cloud accounts, enters the human intervention queue.
+- `feedback_rules.v0.1` computes each build consistently: D1 contributes `(up_count - down_count) × 0.2`, and the latest accepted Issue per numeric GitHub user ID and Tool ID independently contributes `+1/-1`; per-card adjustment is clamped from `-3` to `+3`. Feedback cannot lower security risk or raise source trust.
+- Security-sensitive reports, rating-rule disputes, evidence conflicts, and insufficient information use `needs-human-review` with an appropriate reason code such as `security_sensitive`; the Issue remains open with `feedback-needs-human-review` rather than entering an ingestion intervention queue.
 - The MVP/v0.2 MCP/API path stays read-only. v0.4 adds only a vote endpoint protected by GitHub login, uniqueness, Origin checks, and basic rate limiting.
 
 ## Non-Functional Requirements
@@ -276,7 +276,7 @@ MVP uses manual review and manually triggered updates, not scheduled ingestion.
 
 The reliable release path is ingestion-first: `npm run pipeline` reads enabled Source Registry entries, collects public sources, creates Source Records, Tool Card drafts, minimal normalizer/deduper output, manual override artifacts, intervention requests, automatic review, release admission, promotion candidates, and a promotion plan, then generates release artifacts only from candidates that pass promotion checks. Source-code seed Tool Cards are not production release inputs.
 
-The feedback loop is not part of the MVP reliable release path. Future feedback writes first produce feedback records and summary reports, then enter Review Summary and evaluation; they never directly rewrite release artifacts.
+The feedback loop was not part of the MVP reliable release path. The implemented v0.4 flow keeps that original boundary: feedback writes produce versioned snapshots, classifications, processing plans, and summaries that enter reviewed-bundle rating and evaluation; they never directly rewrite Tool Cards or bypass release gates.
 
 ## Deferred Scope
 
@@ -289,7 +289,6 @@ The feedback loop is not part of the MVP reliable release path. Future feedback 
 - Closed-source paid data dependencies.
 - Paid services or long-running infrastructure beyond free tiers.
 - Automatic collection from community directories, awesome lists, or news.
-- User feedback loop.
 - Full Provider runtime configuration UI, browser loading of `provider_registry.json`, and direct-to-provider/proxy decisions; these remain Backlog.
 
 ## Prohibited Product Directions
@@ -308,7 +307,7 @@ The feedback loop is not part of the MVP reliable release path. Future feedback 
 | FR-02 | Raw snapshot | v0.2 draft path writes locally | Source response | Raw Snapshot | Hash, timestamp, replay |
 | FR-03 | Tool Card | v0.2 defaults to ingested candidates | Source Record/review evidence/override | Normalized card | Schema, provenance, promotion |
 | FR-04 | Taxonomy | MVP tags used by Tool Cards | Tool Card fields | Multidimensional tags | Taxonomy tests |
-| FR-05 | Rating | `rating_rules.v0.1-draft` implemented | Tool Card, rules version | Rating Result | Unit tests, eval diff |
+| FR-05 | Rating | `rating_result.v2` with bounded `feedback_rules.v0.1` adjustment implemented | Tool Card, rules version, reviewed feedback artifacts | Rating Result | Unit tests, rating regression evidence |
 | FR-06 | Search | Basic search/API/UI implemented | Query and filters | Results | Golden search cases |
 | FR-07 | Recommendation | BYOK LLM-backed baseline passed | Task context, API key, model | Recommendation Result | Golden queries |
 | FR-08 | Agent output | JSON schema implemented; Markdown not systematic | Recommendation Result | JSON/Markdown | Schema validation |
@@ -317,6 +316,7 @@ The feedback loop is not part of the MVP reliable release path. Future feedback 
 | FR-11 | Evaluation | `all-v0.6.4`: provider 24/24, critical safety 4/4, MCP 7/7 | Data, ratings, provider | Eval Report | CI release gate |
 | FR-12 | Reports | Eval report implemented; ecosystem report absent | Structured data | Markdown | Source-citation check |
 | FR-13 | Corrections | Override and break-glass approval implemented | Request and public evidence | Override Record | Provenance and audit |
+| FR-14 | Feedback | GitHub OAuth, D1 current votes, Issue classification/writeback, and bounded rating adjustment implemented | Authenticated vote and reviewed GitHub Issue evidence | Feedback artifacts and Rating Result v2 | Contract tests, replay checks, production evidence |
 
 ## Current Implementation Notes
 

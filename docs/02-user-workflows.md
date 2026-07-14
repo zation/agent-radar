@@ -104,7 +104,7 @@ A maintainer finds a suitable public source, such as an official registry, GitHu
 6. Run data-quality checks.
 7. Run automatic review, release admission, and promotion checks; persist evidence and interventions.
 8. Run recommendation and rating evaluations and confirm there is no material regression.
-9. Submit the change, eval diff, and reviewed bundle. At release time, the GitHub `production` gate provides one human confirmation for the automatically reviewed batch.
+9. Submit the change, reproducible before/after evaluation evidence, and reviewed bundle. At release time, the GitHub `production` gate provides one human confirmation for the automatically reviewed batch. A formal cross-release Eval Diff remains Backlog.
 
 ### Failure Paths
 
@@ -128,7 +128,7 @@ A user, agent, or evaluation finds an unreasonable result, such as a high-risk t
 2. Classify the cause: incorrect Tool Card field, taxonomy error, unreasonable rating weight, recommendation parsing failure, or stale data.
 3. Correct data or taxonomy first.
 4. If rating or recommendation logic must change, update the rules and expected evaluation behavior first.
-5. Run eval diff.
+5. Run the relevant rating and recommendation regression checks, and capture reproducible before/after evidence. A formal cross-release Eval Diff remains Backlog.
 6. Submit the correction and explain the before/after recommendation difference.
 
 ### Constraints
