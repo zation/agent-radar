@@ -441,6 +441,38 @@ export const sourceRegistry: SourceDefinition[] = [
     owner: "agent-radar",
     last_reviewed_at: "2026-07-08T00:00:00Z"
   },
+  {
+    id: "github-topic-agent-skills",
+    name: "GitHub topic agent-skills",
+    url: "https://github.com/topics/agent-skills",
+    source_type: "github",
+    covered_tool_types: ["skill"],
+    collection_method: "api",
+    recommended_frequency: "weekly",
+    trust_level: "active_open_source",
+    field_coverage: ["name", "description", "repo_url", "skill_manifest", "stars", "license", "last_commit_at"],
+    rate_limits: "GitHub public Search, tree, and raw-content API limits; bounded to the current top 2 repositories.",
+    terms_notes: "Public GitHub repository metadata, trees, and raw root skills/**/SKILL.md manifests only; no clone, execution, authentication, cookies, or private repository access.",
+    access_review: {
+      robots_txt: "reviewed",
+      terms: "reviewed",
+      reviewed_by: "agent-radar",
+      reviewed_at: "2026-07-14T00:00:00Z",
+      notes: "Approved bounded public discovery over GitHub Search API, repository tree API, and raw.githubusercontent.com manifests; untrusted Skill text is stored as data and never executed."
+    },
+    parser: "github_skill_topic_parser",
+    github_discovery: {
+      query: "topic:agent-skills",
+      sort: "stars",
+      order: "desc",
+      repository_limit: 2,
+      expansion: { kind: "skill_manifests", root: "skills/", manifest: "SKILL.md" }
+    },
+    failure_policy: "keep successful records from the current crawl only",
+    enabled: true,
+    owner: "agent-radar",
+    last_reviewed_at: "2026-07-14T00:00:00Z"
+  },
   ...curatedGithubSources
 ];
 

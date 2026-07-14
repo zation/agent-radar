@@ -17,7 +17,7 @@ import {
 import { buildToolCardInterventionRequests, type ToolCardInterventionRequests } from "./intervention-requests.js";
 import { normalizeToolCardDraftsWithEvidence, type OverrideRecord } from "./normalizer.js";
 import type { ToolCardNormalizationEvidence } from "./normalization-evidence.js";
-import { parseSnapshot } from "./parser.js";
+import { parseSourceSnapshots } from "./parser.js";
 import { buildToolCardPromotionCheck, type ToolCardPromotionCheck } from "./promotion-check.js";
 import { buildToolCardPromotionCandidates, type ToolCardPromotionCandidates } from "./promotion-candidates.js";
 import { buildToolCardPromotionPlan, type ToolCardPromotionPlan } from "./promotion-plan.js";
@@ -81,11 +81,10 @@ export async function runIngestion(options: RunIngestionOptions): Promise<RunIng
   await writeCrawlAudit(options.outputDir, crawlAudit);
   const recordsBySource = new Map<string, SourceRecord[]>();
 
-  for (const snapshot of snapshots) {
-    const source = enabledSources.find((candidate) => candidate.id === snapshot.source_id);
-    if (!source) continue;
-    let records = await parseSnapshot(snapshot, source, options.outputDir, now);
-    if (snapshot.status !== "success" && records.length === 0 && source.failure_policy.includes("preserve previous stable data")) {
+  for (const source of enabledSources) {
+    const sourceSnapshots = snapshots.filter((snapshot) => snapshot.source_id === source.id);
+    let records = await parseSourceSnapshots(sourceSnapshots, source, options.outputDir, now);
+    if (sourceSnapshots.some((snapshot) => snapshot.status !== "success") && records.length === 0 && source.failure_policy.includes("preserve previous stable data")) {
       records = (options.previousSourceRecords ?? []).filter((record) => record.source_id === source.id);
     }
     recordsBySource.set(source.id, records);

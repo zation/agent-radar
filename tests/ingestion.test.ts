@@ -15,6 +15,7 @@ import type { SourceDefinition } from "../src/schema.js";
 
 const githubTopicSource = sourceRegistry.find((source) => source.id === "github-topic-mcp");
 assert.ok(githubTopicSource);
+const githubSkillTopicSource = sourceRegistry.find((source) => source.id === "github-topic-agent-skills");
 const npmPackageSource = sourceRegistry.find((source) => source.id === "npm-modelcontextprotocol-sdk");
 assert.ok(npmPackageSource);
 const githubRepoSource = sourceRegistry.find((source) => source.id === "github-repo-microsoft-playwright-mcp");
@@ -64,7 +65,7 @@ test("source registry exposes enabled source-backed coverage for golden query do
     "docs-gmail-api",
     "docs-openai-codex"
   ]);
-  assert.equal(enabled.length, 36);
+  assert.equal(enabled.length, 37);
   assert.equal(enabled[0]?.collection_method, "api");
   assert.equal(enabled[0]?.parser, "github_topic_parser");
   assert.equal(enabled[1]?.source_type, "package_registry");
@@ -84,6 +85,20 @@ test("github topic sources declare explicit discovery configuration", () => {
     order: "desc",
     repository_limit: 20,
   });
+});
+
+test("source registry enables bounded agent-skills manifest discovery", () => {
+  assert.ok(githubSkillTopicSource);
+  assert.equal(githubSkillTopicSource.parser, "github_skill_topic_parser");
+  assert.deepEqual(githubSkillTopicSource.covered_tool_types, ["skill"]);
+  assert.deepEqual(githubSkillTopicSource.github_discovery, {
+    query: "topic:agent-skills",
+    sort: "stars",
+    order: "desc",
+    repository_limit: 2,
+    expansion: { kind: "skill_manifests", root: "skills/", manifest: "SKILL.md" },
+  });
+  assert.equal(getEnabledSources(sourceRegistry).length, 37);
 });
 
 test("source registry rejects invalid github discovery limits", () => {

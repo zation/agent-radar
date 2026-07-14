@@ -5,7 +5,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { crawlEnabledSources } from "../src/ingestion/crawler.js";
-import type { SourceDefinition } from "../src/schema.js";
+import { parseSourceSnapshots } from "../src/ingestion/parser.js";
+import { runIngestion } from "../src/ingestion/run.js";
+import type { RawSourceSnapshot, SourceDefinition, SourceRecord } from "../src/schema.js";
 
 const fixtureRoot = join(process.cwd(), "tests", "fixtures", "github-skills");
 
@@ -109,6 +111,134 @@ test("crawler keeps successful repository manifests when the sibling tree fails"
   }
 });
 
+test("grouped parser creates one independent Source Record per successful manifest", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-skill-parse-"));
+  const search = JSON.parse(await readFile(join(fixtureRoot, "topic-search.json"), "utf8")) as Record<string, unknown>;
+  const pdf = await readFile(join(fixtureRoot, "pdf-SKILL.md"), "utf8");
+  const ponytail = await readFile(join(fixtureRoot, "ponytail-SKILL.md"), "utf8");
+  const malformed = await readFile(join(fixtureRoot, "malformed-SKILL.md"), "utf8");
+  const anthropicsBaseTree = withManifestSha(await readJson("anthropics-tree.json"), "skills/pdf/SKILL.md", pdf);
+  const anthropicsTree = {
+    ...anthropicsBaseTree,
+    tree: [
+      ...anthropicsBaseTree.tree,
+      { path: "skills/malformed/SKILL.md", mode: "100644", type: "blob", sha: gitBlobSha(malformed) },
+    ],
+  };
+  const ponytailTree = withManifestSha(await readJson("ponytail-tree.json"), "skills/ponytail/SKILL.md", ponytail);
+
+  try {
+    const snapshots = await crawlEnabledSources({
+      sources: [skillSource],
+      outputDir,
+      now: "2026-07-14T00:00:00Z",
+      fetchImpl: fixtureFetch(search, anthropicsTree, ponytailTree, pdf, ponytail, malformed),
+    });
+    const records = await parseSourceSnapshots(snapshots, skillSource, outputDir, "2026-07-14T00:00:00Z");
+    assert.deepEqual(records.map((record) => record.parsed_fields.skill_manifest_path), [
+      "skills/pdf/SKILL.md",
+      "skills/ponytail/SKILL.md",
+    ]);
+    assert.deepEqual(records.map((record) => record.parsed_fields.tool_id), [
+      "skill-anthropics-skills-pdf",
+      "skill-dietrichgebert-ponytail-ponytail",
+    ]);
+    assert.ok(records.every((record) => record.parser_version === "github_skill_topic_parser.v1"));
+    assert.ok(records.every((record) => record.parsed_fields.canonical_identity !== record.parsed_fields.repo_url));
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test("grouped parser preserves the current 17 plus 6 one-manifest-per-card shape", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-skill-shape-"));
+  const manifest = "---\nname: Example Skill\ndescription: Use this skill when testing grouped ingestion.\n---\n## Steps\n1. Inspect the input.\n";
+  const repositories = [
+    { full_name: "anthropics/skills", name: "skills", html_url: "https://github.com/anthropics/skills", default_branch: "main", stargazers_count: 100 },
+    { full_name: "example/skill-pack", name: "skill-pack", html_url: "https://github.com/example/skill-pack", default_branch: "main", stargazers_count: 50 },
+  ];
+  const pathsByRepository = new Map([
+    ["anthropics/skills", Array.from({ length: 17 }, (_, index) => `skills/skill-${index + 1}/SKILL.md`)],
+    ["example/skill-pack", Array.from({ length: 6 }, (_, index) => `skills/skill-${index + 18}/SKILL.md`)],
+  ]);
+
+  try {
+    const snapshots = await crawlEnabledSources({
+      sources: [skillSource],
+      outputDir,
+      now: "2026-07-14T00:00:00Z",
+      fetchImpl: (input) => {
+        const url = requestUrl(input);
+        if (url.includes("/search/repositories")) return jsonResponse({ items: repositories });
+        for (const repository of repositories) {
+          if (url.includes(`/repos/${repository.full_name}/git/trees/main`)) {
+            return jsonResponse({
+              truncated: false,
+              tree: pathsByRepository.get(repository.full_name)!.map((path) => ({ path, mode: "100644", type: "blob", sha: gitBlobSha(manifest) })),
+            });
+          }
+          if (url.includes(`/${repository.full_name}/main/skills/`)) return textResponse(manifest);
+        }
+        return Promise.resolve(new Response("not found", { status: 404 }));
+      },
+    });
+    const records = await parseSourceSnapshots(snapshots, skillSource, outputDir, "2026-07-14T00:00:00Z");
+
+    assert.equal(records.length, 23);
+    assert.equal(new Set(records.map((record) => record.parsed_fields.canonical_identity)).size, 23);
+    assert.equal(new Set(records.map((record) => record.parsed_fields.tool_id)).size, 23);
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test("runIngestion parses the source as one group and does not restore a failed old Skill", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-skill-run-"));
+  const search = JSON.parse(await readFile(join(fixtureRoot, "topic-search.json"), "utf8")) as Record<string, unknown>;
+  const pdf = await readFile(join(fixtureRoot, "pdf-SKILL.md"), "utf8");
+  const ponytail = await readFile(join(fixtureRoot, "ponytail-SKILL.md"), "utf8");
+  const anthropicsTree = withManifestSha(await readJson("anthropics-tree.json"), "skills/pdf/SKILL.md", pdf);
+  const ponytailTree = withManifestSha(await readJson("ponytail-tree.json"), "skills/ponytail/SKILL.md", ponytail);
+  const previous = {
+    id: "old-failed-skill",
+    schema_version: "source_record.v1",
+    snapshot_id: "old-snapshot",
+    source_id: skillSource.id,
+    record_type: "repository",
+    name: "Old failed Skill",
+    urls: ["https://github.com/example/old/blob/main/skills/old/SKILL.md"],
+    raw_fields: {},
+    parsed_fields: { tool_id: "skill-old-failed" },
+    source_confidence: "medium",
+    parsed_at: "2026-07-07T00:00:00Z",
+    parser_version: "github_skill_topic_parser.v1",
+    warnings: [],
+  } satisfies SourceRecord;
+
+  try {
+    const result = await runIngestion({
+      sources: [skillSource],
+      outputDir,
+      now: "2026-07-14T00:00:00Z",
+      previousSourceRecords: [previous],
+      fetchImpl: (input) => {
+        const url = requestUrl(input);
+        if (url.includes("/search/repositories")) return jsonResponse(search);
+        if (url.includes("/anthropics/skills/git/trees/main")) return jsonResponse(anthropicsTree);
+        if (url.includes("/DietrichGebert/ponytail/git/trees/main")) return jsonResponse(ponytailTree);
+        if (url.includes("/anthropics/skills/main/skills/pdf/SKILL.md")) return textResponse(pdf);
+        if (url.includes("/DietrichGebert/ponytail/main/skills/ponytail/SKILL.md")) return Promise.resolve(new Response("unavailable", { status: 503 }));
+        return Promise.resolve(new Response("not found", { status: 404 }));
+      },
+    });
+
+    assert.deepEqual(result.sourceRecords.map((record) => record.parsed_fields.tool_id), ["skill-anthropics-skills-pdf"]);
+    assert.equal(result.sourceRecords.some((record) => record.id === previous.id), false);
+  } finally {
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 async function readJson(name: string): Promise<{ tree: Array<{ path: string; mode: string; type: string; sha: string }>; truncated: boolean }> {
   return JSON.parse(await readFile(join(fixtureRoot, name), "utf8")) as { tree: Array<{ path: string; mode: string; type: string; sha: string }>; truncated: boolean };
 }
@@ -135,4 +265,24 @@ function jsonResponse(value: unknown): Promise<Response> {
 
 function textResponse(value: string): Promise<Response> {
   return Promise.resolve(new Response(value, { status: 200, headers: { "content-type": "text/markdown" } }));
+}
+
+function fixtureFetch(
+  search: Record<string, unknown>,
+  anthropicsTree: unknown,
+  ponytailTree: unknown,
+  pdf: string,
+  ponytail: string,
+  malformed: string,
+): typeof fetch {
+  return (input) => {
+    const url = requestUrl(input);
+    if (url.includes("/search/repositories")) return jsonResponse(search);
+    if (url.includes("/anthropics/skills/git/trees/main")) return jsonResponse(anthropicsTree);
+    if (url.includes("/DietrichGebert/ponytail/git/trees/main")) return jsonResponse(ponytailTree);
+    if (url.includes("/anthropics/skills/main/skills/pdf/SKILL.md")) return textResponse(pdf);
+    if (url.includes("/anthropics/skills/main/skills/malformed/SKILL.md")) return textResponse(malformed);
+    if (url.includes("/DietrichGebert/ponytail/main/skills/ponytail/SKILL.md")) return textResponse(ponytail);
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  };
 }
