@@ -1,5 +1,8 @@
 import type { EvalCase, RatingResult, RecommendationResult, RiskLevel, SafetyReasonCode, ToolCard } from "../schema.js";
 import { RecommendationProviderError, recommendTools, type RecommendToolsRuntime } from "../recommendation/engine.js";
+import { resolveRecommendationProviderModel } from "../recommendation/provider-registry.js";
+import { unavailableProviderUsage, type ProviderUsageObservation } from "../recommendation/provider-usage.js";
+import type { EvalTokenUsageCollector } from "./token-usage.js";
 
 export type EvalFailureCategory = "blocked_no_key" | "provider_error" | "schema_error" | "quality_failure" | "none";
 
@@ -31,6 +34,7 @@ const PROVIDER_RETRY_DELAY_MS = 5_000;
 export interface EvalRunOptions {
   retryDelayMs?: number;
   sleep?: (delayMs: number) => Promise<void>;
+  tokenUsageCollector?: EvalTokenUsageCollector;
 }
 
 export async function runGoldenQueries(
@@ -83,10 +87,41 @@ async function evaluateGoldenQuery(
   options: EvalRunOptions
 ): Promise<EvalResult> {
   for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const resolved = resolveRecommendationProviderModel(runtime.model, { baseUrl: runtime.baseUrl });
+    let observation: ProviderUsageObservation | undefined;
+    let requestRecorded = false;
     try {
-      return evaluateCase(evalCase, await recommendTools(evalCase.query, cards, ratings, runtime), cards);
+      const recommendation = await recommendTools(evalCase.query, cards, ratings, {
+        ...runtime,
+        onUsage(value) {
+          observation = value;
+          runtime.onUsage?.(value);
+        },
+      });
+      recordTokenUsageAttempt(options.tokenUsageCollector, {
+        caseId: evalCase.id,
+        attempt,
+        resolved,
+        observation,
+        outcome: "completed",
+        failureCategory: "none",
+      });
+      requestRecorded = true;
+      return evaluateCase(evalCase, recommendation, cards);
     } catch (error) {
       const category = classifyEvalError(error);
+      if (!requestRecorded) {
+        const outcome = category === "provider_error" ? "provider_error" : "schema_error";
+        recordTokenUsageAttempt(options.tokenUsageCollector, {
+          caseId: evalCase.id,
+          attempt,
+          resolved,
+          observation,
+          outcome,
+          failureCategory: outcome,
+        });
+      }
+      if (requestRecorded) return createFailedEvalResult(evalCase, category, describeEvalError(error));
       if (shouldRetryEvalError(error, category, attempt)) {
         if (error instanceof RecommendationProviderError && error.code === "provider_request_failed") {
           await (options.sleep ?? sleep)(options.retryDelayMs ?? PROVIDER_RETRY_DELAY_MS);
@@ -97,6 +132,29 @@ async function evaluateGoldenQuery(
     }
   }
   return createFailedEvalResult(evalCase, "schema_error", "provider_schema_error: retry exhausted");
+}
+
+function recordTokenUsageAttempt(
+  collector: EvalTokenUsageCollector | undefined,
+  input: {
+    caseId: string;
+    attempt: number;
+    resolved: ReturnType<typeof resolveRecommendationProviderModel>;
+    observation: ProviderUsageObservation | undefined;
+    outcome: "completed" | "provider_error" | "schema_error";
+    failureCategory: "none" | "provider_error" | "schema_error";
+  },
+): void {
+  if (!collector) return;
+  collector.record({
+    case_id: input.caseId,
+    attempt: input.attempt,
+    provider: input.observation?.provider ?? input.resolved.provider,
+    model_identifier: input.observation?.model_identifier ?? input.resolved.apiModel,
+    outcome: input.outcome,
+    failure_category: input.failureCategory,
+    usage: input.observation?.usage ?? unavailableProviderUsage("request_failed"),
+  });
 }
 
 function sleep(delayMs: number): Promise<void> {

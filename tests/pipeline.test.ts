@@ -8,6 +8,7 @@ import { assertDataTrustArtifacts, buildArtifacts } from "../src/pipeline/build-
 import { sourceRegistry as defaultSourceRegistry } from "../src/ingestion/source-registry.js";
 import type { ToolCard } from "../src/schema.js";
 import { buildFeedbackArtifacts } from "../src/feedback-processing/artifacts.js";
+import { validateEvalTokenUsageArtifact } from "../src/eval/token-usage.js";
 
 interface EvalSummaryFile {
   results: Array<{ failure_category: string; failures: string[] }>;
@@ -15,8 +16,9 @@ interface EvalSummaryFile {
 
 interface ManifestFile {
   eval_report: string;
+  eval_token_usage: string;
   rules_versions: { rating: string; feedback: string };
-  schema_versions: { tool_card: string; source_registry: string; rating_result: string };
+  schema_versions: { tool_card: string; source_registry: string; rating_result: string; eval_token_usage: string };
   source_registry: string;
   source_registry_diff: string;
   source_registry_review: string;
@@ -149,6 +151,8 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.mcp_tools, "data/mcp_tools.json");
     assert.equal(manifest.mcp_examples, "data/mcp_examples.json");
     assert.equal(manifest.mcp_smoke_checklist, "data/mcp_smoke_checklist.json");
+    assert.equal(manifest.eval_token_usage, "reports/eval_token_usage.json");
+    assert.equal(manifest.schema_versions.eval_token_usage, "eval_token_usage.v1");
 
     const sourceRegistry = JSON.parse(await readFile(join(outputDir, "data", "source_registry.json"), "utf8"));
     assert.equal(sourceRegistry.schema_version, "source_registry.v1");
@@ -282,12 +286,55 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.match(evalSummary.results[0].failures[0], /AGENT_RADAR_LLM_API_KEY/);
     const evalReport = await readFile(join(outputDir, manifest.eval_report), "utf8");
     assert.match(evalReport, /category=blocked_no_key/);
+    const tokenUsage = validateEvalTokenUsageArtifact(
+      JSON.parse(await readFile(join(outputDir, "reports", "eval_token_usage.json"), "utf8")),
+      release,
+    );
+    assert.equal(tokenUsage.summary.case_count, 24);
+    assert.equal(tokenUsage.summary.request_attempts, 0);
+    assert.ok(tokenUsage.cases.every(({ execution_status }) => execution_status === "blocked_no_key"));
 
     const d1SeedSql = await readFile(join(outputDir, "data", "d1_seed.sql"), "utf8");
     assert.match(d1SeedSql, /INSERT INTO tool_cards/);
     assert.match(d1SeedSql, /INSERT INTO ratings/);
     assert.match(d1SeedSql, /INSERT INTO search_documents/);
   } finally {
+    if (originalApiKey === undefined) delete process.env.AGENT_RADAR_LLM_API_KEY;
+    else process.env.AGENT_RADAR_LLM_API_KEY = originalApiKey;
+    if (originalModel === undefined) delete process.env.AGENT_RADAR_LLM_MODEL;
+    else process.env.AGENT_RADAR_LLM_MODEL = originalModel;
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test("pipeline records real provider response usage for every golden query", async () => {
+  const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-token-pipeline-"));
+  const originalApiKey = process.env.AGENT_RADAR_LLM_API_KEY;
+  const originalModel = process.env.AGENT_RADAR_LLM_MODEL;
+  const originalFetch = globalThis.fetch;
+  const release = { release_id: "all-v0.7.0-test", commit_sha: "feedface" };
+  try {
+    process.env.AGENT_RADAR_LLM_API_KEY = "test-secret";
+    process.env.AGENT_RADAR_LLM_MODEL = "OpenAI GPT-4.1";
+    globalThis.fetch = () => Promise.resolve(new Response(JSON.stringify({
+      choices: [{ message: { content: JSON.stringify({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] }) } }],
+      usage: { prompt_tokens: 100, prompt_tokens_details: { cached_tokens: 20 }, completion_tokens: 10, total_tokens: 110 },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    await buildArtifacts({ outputDir, toolCards: reviewedToolCardFixtures, checkUrlReachability: false, release });
+
+    const artifact = validateEvalTokenUsageArtifact(
+      JSON.parse(await readFile(join(outputDir, "reports", "eval_token_usage.json"), "utf8")),
+      release,
+    );
+    assert.equal(artifact.summary.request_attempts, 24);
+    assert.equal(artifact.summary.reported_attempts, 24);
+    assert.equal(artifact.summary.input_tokens, 2400);
+    assert.equal(artifact.summary.cached_input_tokens, 480);
+    assert.equal(artifact.summary.output_tokens, 240);
+    assert.equal(artifact.summary.total_tokens, 2640);
+  } finally {
+    globalThis.fetch = originalFetch;
     if (originalApiKey === undefined) delete process.env.AGENT_RADAR_LLM_API_KEY;
     else process.env.AGENT_RADAR_LLM_API_KEY = originalApiKey;
     if (originalModel === undefined) delete process.env.AGENT_RADAR_LLM_MODEL;

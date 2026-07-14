@@ -5,6 +5,7 @@ import { buildMcpSmokeChecklistArtifact } from "../api/mcp-smoke-checklist.js";
 import { buildMcpToolManifest } from "../api/mcp-manifest.js";
 import { goldenQueries } from "../eval/golden-queries.js";
 import { createBlockedEvalSummary, runGoldenQueries, type EvalSummary } from "../eval/runner.js";
+import { EvalTokenUsageCollector, type EvalCaseExecutionStatus } from "../eval/token-usage.js";
 import { runIngestion, writeIngestionReviewEvidence } from "../ingestion/run.js";
 import { buildToolCardConflictReport, type ToolCardConflictReport } from "../ingestion/field-conflicts.js";
 import {
@@ -130,9 +131,18 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";
   const model = process.env.AGENT_RADAR_LLM_MODEL ?? DEFAULT_RECOMMENDATION_MODEL;
   const release = options.release ?? { release_id: "dev", commit_sha: "dev" };
+  const tokenUsageCollector = new EvalTokenUsageCollector({
+    caseIds: goldenQueries.map(({ id }) => id),
+    generatedAt,
+    release,
+  });
   const evalSummary = apiKey
-    ? await runGoldenQueries(goldenQueries, toolCards, ratings, { apiKey, model, release })
+    ? await runGoldenQueries(goldenQueries, toolCards, ratings, { apiKey, model, release }, { tokenUsageCollector })
     : createBlockedEvalSummary(goldenQueries, "AGENT_RADAR_LLM_API_KEY is required for LLM-backed recommendation eval.", release);
+  const evalTokenUsage = tokenUsageCollector.build(evalSummary.results.map(({ case_id, failure_category }) => ({
+    case_id,
+    execution_status: evalExecutionStatus(failure_category),
+  })));
   const providerRegistry = buildProviderRegistryArtifact();
   const mcpToolManifest = buildMcpToolManifest();
   const mcpExamples = buildMcpExamplesArtifact();
@@ -156,6 +166,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   await writeFile(join(publicDataDir, "d1_seed.sql"), renderD1SeedSql(toolCards, ratings, index.documents), "utf8");
   await writeFile(join(publicDataDir, "golden_queries.json"), JSON.stringify(goldenQueries, null, 2), "utf8");
   await writeFile(join(publicDataDir, "eval_summary.json"), JSON.stringify(evalSummary, null, 2), "utf8");
+  await writeFile(join(reportsDir, "eval_token_usage.json"), JSON.stringify(evalTokenUsage, null, 2), "utf8");
   await writeFile(join(reportsDir, `eval-${dataVersion}.md`), renderEvalReport(dataVersion, evalSummary), "utf8");
   await writeFile(
     join(publicDataDir, "manifest.json"),
@@ -170,7 +181,8 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
           feedback_processing_plan: "feedback_processing_plan.v1",
           feedback_summary: "feedback_summary.v1",
           search_index: "search_index.v1",
-          source_registry: "source_registry.v1"
+          source_registry: "source_registry.v1",
+          eval_token_usage: "eval_token_usage.v1"
         },
         rules_versions: {
           rating: "rating_rules.v0.1-draft",
@@ -199,6 +211,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         feedback_summary: "data/feedback_summary.json",
         d1_seed: "data/d1_seed.sql",
         eval_report: `reports/eval-${dataVersion}.md`,
+        eval_token_usage: "reports/eval_token_usage.json",
         published_at: generatedAt
       },
       null,
@@ -213,6 +226,12 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
     goldenQueriesPassed: evalSummary.passed,
     goldenQueriesTotal: evalSummary.total
   };
+}
+
+function evalExecutionStatus(failureCategory: EvalSummary["results"][number]["failure_category"]): EvalCaseExecutionStatus {
+  if (failureCategory === "blocked_no_key") return "blocked_no_key";
+  if (failureCategory === "provider_error" || failureCategory === "schema_error") return "failed";
+  return "completed";
 }
 
 function buildEmptyFeedbackInput(generatedAt: string): FeedbackBuildInput {

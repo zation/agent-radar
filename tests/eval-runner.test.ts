@@ -4,6 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { goldenQueries } from "../src/eval/golden-queries.js";
 import { createBlockedEvalSummary, runGoldenQueries } from "../src/eval/runner.js";
+import { EvalTokenUsageCollector } from "../src/eval/token-usage.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 import { RecommendationProviderError } from "../src/recommendation/engine.js";
 import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
@@ -209,3 +210,98 @@ test("provider eval caps case concurrency at two and preserves source order", as
   assert.equal(maximumActive, 2);
   assert.deepEqual(summary.results.map((result) => result.case_id), cases.map((item) => item.id));
 });
+
+test("eval records reported usage for a successful provider attempt", async () => {
+  const evalCase = goldenQueries.find((item) => item.id === "gq-unknown-permission-evidence");
+  assert.ok(evalCase);
+  const collector = createCollector([evalCase.id]);
+  const summary = await runGoldenQueries([evalCase], reviewedToolCardFixtures, ratings, {
+    apiKey: "secret",
+    model: "OpenAI GPT-4.1",
+    client: {
+      recommend(input) {
+        input.onUsage?.({ provider: "openai", model_identifier: "gpt-4.1", usage: { status: "reported", input_tokens: 10, cached_input_tokens: 2, output_tokens: 3, total_tokens: 13 } });
+        return Promise.resolve({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] });
+      },
+    },
+  }, { tokenUsageCollector: collector });
+
+  const artifact = collector.build(summary.results.map(({ case_id }) => ({ case_id, execution_status: "completed" })));
+  assert.equal(artifact.summary.request_attempts, 1);
+  assert.deepEqual(artifact.cases[0]?.attempts[0], {
+    attempt: 1,
+    provider: "openai",
+    model_identifier: "gpt-4.1",
+    outcome: "completed",
+    failure_category: "none",
+    usage: { status: "reported", input_tokens: 10, cached_input_tokens: 2, output_tokens: 3, total_tokens: 13 },
+  });
+});
+
+test("eval preserves schema-error usage and the successful retry", async () => {
+  const evalCase = goldenQueries.find((item) => item.id === "gq-unknown-permission-evidence");
+  assert.ok(evalCase);
+  const collector = createCollector([evalCase.id]);
+  let attempt = 0;
+  const summary = await runGoldenQueries([evalCase], reviewedToolCardFixtures, ratings, {
+    apiKey: "secret",
+    model: "MiniMax M3",
+    client: {
+      recommend(input) {
+        attempt += 1;
+        input.onUsage?.({ provider: "minimax", model_identifier: "MiniMax-M3", usage: { status: "reported", input_tokens: attempt * 10, cached_input_tokens: null, output_tokens: 2, total_tokens: attempt * 10 + 2 } });
+        if (attempt === 1) throw new Error("provider_schema_error: invalid JSON");
+        return Promise.resolve({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] });
+      },
+    },
+  }, { tokenUsageCollector: collector });
+
+  const artifact = collector.build(summary.results.map(({ case_id }) => ({ case_id, execution_status: "completed" })));
+  assert.deepEqual(artifact.cases[0]?.attempts.map(({ outcome }) => outcome), ["schema_error", "completed"]);
+  assert.equal(artifact.summary.request_attempts, 2);
+  assert.equal(artifact.summary.total_tokens, 34);
+  assert.equal(artifact.summary.retry_count, 1);
+});
+
+test("eval records all provider request failures as unavailable attempts", async () => {
+  const evalCase = goldenQueries.find((item) => item.id === "gq-unknown-permission-evidence");
+  assert.ok(evalCase);
+  const collector = createCollector([evalCase.id]);
+  const summary = await runGoldenQueries([evalCase], reviewedToolCardFixtures, ratings, {
+    apiKey: "secret",
+    model: "OpenAI GPT-4.1",
+    client: { recommend() { throw new RecommendationProviderError({ code: "provider_request_failed", message: "timeout", provider: "openai" }); } },
+  }, { tokenUsageCollector: collector, sleep: () => Promise.resolve() });
+
+  const artifact = collector.build(summary.results.map(({ case_id }) => ({ case_id, execution_status: "failed" })));
+  assert.equal(summary.results[0]?.failure_category, "provider_error");
+  assert.equal(artifact.summary.request_attempts, 3);
+  assert.equal(artifact.summary.unavailable_attempts, 3);
+  assert.deepEqual(artifact.cases[0]?.attempts.map(({ attempt }) => attempt), [1, 2, 3]);
+  assert.ok(artifact.cases[0]?.attempts.every(({ usage }) => usage.unavailable_reason === "request_failed"));
+});
+
+test("concurrent eval completion still builds token evidence in case order", async () => {
+  const cases = [
+    { ...goldenQueries[0]!, id: "gq-z", expected: {} },
+    { ...goldenQueries[0]!, id: "gq-a", expected: {} },
+  ];
+  const collector = createCollector(cases.map(({ id }) => id));
+  const summary = await runGoldenQueries(cases, [], [], {
+    apiKey: "secret",
+    model: "gpt-4.1",
+    client: {
+      async recommend(input) {
+        if (input.prompt.includes("gq-z")) await new Promise((resolve) => setTimeout(resolve, 5));
+        input.onUsage?.({ provider: "openai", model_identifier: "gpt-4.1", usage: { status: "reported", input_tokens: 1, cached_input_tokens: null, output_tokens: 1, total_tokens: 2 } });
+        return { recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] };
+      },
+    },
+  }, { tokenUsageCollector: collector });
+  const artifact = collector.build(summary.results.map(({ case_id }) => ({ case_id, execution_status: "completed" })));
+  assert.deepEqual(artifact.cases.map(({ case_id }) => case_id), ["gq-a", "gq-z"]);
+});
+
+function createCollector(caseIds: string[]): EvalTokenUsageCollector {
+  return new EvalTokenUsageCollector({ caseIds, generatedAt: "2026-07-14T00:00:00.000Z", release: { release_id: "dev", commit_sha: "dev" } });
+}
