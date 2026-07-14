@@ -13,13 +13,17 @@ const reviewDir = process.env.AGENT_RADAR_REVIEW_DIR ?? "artifacts/review";
 const gitSha = process.env.GITHUB_SHA ?? (await readGitSha());
 const builtAt = process.env.AGENT_RADAR_PREVIEW_BUILT_AT ?? new Date().toISOString();
 const providerModel = process.env.AGENT_RADAR_LLM_MODEL ?? DEFAULT_RECOMMENDATION_MODEL;
+const releaseTag = process.env.AGENT_RADAR_RELEASE_TAG
+  ?? process.env.AGENT_RADAR_RELEASE_ID
+  ?? "all-v0.0.0-dev";
 
 await createPreviewBundle({
   distDir,
   reviewDir,
   gitSha,
   builtAt,
-  providerModel
+  providerModel,
+  releaseTag,
 });
 
 console.log(
@@ -27,6 +31,7 @@ console.log(
     {
       distDir,
       gitSha,
+      releaseTag,
       review: `${reviewDir}/ingestion.md`,
       manifest: `${distDir}/artifact-manifest.json`
     },

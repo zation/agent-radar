@@ -4,12 +4,18 @@ import test from "node:test";
 
 test("all release workflow gates promotion candidates before Worker validation", async () => {
   const workflow = await readFile(".github/workflows/release-all.yml", "utf8");
+  const buildStepIndex = workflow.indexOf("- name: Build reviewed bundle");
+  const registryMetadataCheckStepIndex = workflow.indexOf("- name: Validate generated MCP Registry metadata");
   const promotionCheckStepIndex = workflow.indexOf("- name: Check promotion candidates");
   const dryRunStepIndex = workflow.indexOf("- name: Validate Worker bundle");
 
+  assert.notEqual(registryMetadataCheckStepIndex, -1);
+  assert.notEqual(buildStepIndex, -1);
   assert.notEqual(promotionCheckStepIndex, -1);
   assert.notEqual(dryRunStepIndex, -1);
+  assert.equal(buildStepIndex < registryMetadataCheckStepIndex, true);
   assert.equal(promotionCheckStepIndex < dryRunStepIndex, true);
+  assert.match(workflow, /npm run validate:mcp-registry -- --release-tag "\$GITHUB_REF_NAME" --metadata dist-pages\/server\.json/);
   assert.match(workflow, /run:\s*npm run promotion:check -- dist-pages\/data\/promotion_candidates\/promotion_check\.json/);
   assert.match(workflow, /run:\s*npm run data-quality:check -- dist-pages\/data\/data_quality_report\.json/);
   assert.match(workflow, /run:\s*npm run review-summary:check -- dist-pages/);
@@ -128,11 +134,10 @@ test("MCP Registry workflow publishes only evidence-bound Release All runs throu
   const workflow = await readFile(".github/workflows/publish-mcp-registry.yml", "utf8");
   const downloadEvidence = workflow.indexOf("Download source production evidence");
   const checkoutImplementation = workflow.indexOf("Checkout trusted publication workflow implementation");
-  const checkout = workflow.indexOf("Checkout evidence SHA");
-  const validate = workflow.indexOf("mcp-publisher validate evidence-source/server.json");
+  const validate = workflow.indexOf('mcp-publisher validate "$REGISTRY_METADATA_PATH"');
   const validateReleaseInputs = workflow.indexOf("validate-mcp-registry-release.js");
   const login = workflow.indexOf("mcp-publisher login github-oidc");
-  const publish = workflow.indexOf("mcp-publisher publish evidence-source/server.json");
+  const publish = workflow.indexOf('mcp-publisher publish "$REGISTRY_METADATA_PATH"');
 
   assert.match(workflow, /workflow_run:\s*\n\s*workflows:\s*\["Release All"\]\s*\n\s*types:\s*\[completed\]/);
   assert.match(workflow, /workflow_dispatch:[\s\S]*release_run_id:[\s\S]*required:\s*true/);
@@ -142,20 +147,21 @@ test("MCP Registry workflow publishes only evidence-bound Release All runs throu
   assert.match(workflow, /\.head_repository\.full_name == \$repository/);
   assert.match(workflow, /\.conclusion == "success"/);
   assert.match(workflow, /\[\[ "\$SOURCE_TAG" != all-v\* \]\]/);
-  assert.match(workflow, /ref:\s*\$\{\{ env\.SOURCE_SHA \}\}/);
-  assert.match(workflow, /ref:\s*\$\{\{ env\.SOURCE_SHA \}\}[\s\S]*path:\s*evidence-source/);
-  assert.ok(downloadEvidence >= 0 && checkoutImplementation > downloadEvidence && checkout > checkoutImplementation);
-  assert.ok(validateReleaseInputs > checkout && validateReleaseInputs < login);
+  assert.doesNotMatch(workflow, /Checkout evidence SHA|path:\s*evidence-source/);
+  assert.ok(downloadEvidence >= 0 && checkoutImplementation > downloadEvidence);
+  assert.ok(validateReleaseInputs > checkoutImplementation && validateReleaseInputs < login);
 
   assert.match(workflow, /agent-radar-mcp-smoke-\$\{SOURCE_RUN_ID\}/);
   assert.match(workflow, /agent-radar-all-\$\{SOURCE_RUN_ID\}/);
   assert.equal(workflow.match(/gh run download "\$SOURCE_RUN_ID"[\s\S]*?--repo "\$GITHUB_REPOSITORY"/g)?.length, 2);
   assert.match(workflow, /RUNNER_TEMP\/agent-radar-source-evidence/);
   assert.match(workflow, /RUNNER_TEMP\/agent-radar-source-reviewed-bundle\/dist-pages\/artifact-manifest\.json/);
+  assert.match(workflow, /REGISTRY_METADATA_PATH="\$RUNNER_TEMP\/agent-radar-source-reviewed-bundle\/dist-pages\/server\.json"/);
+  assert.match(workflow, /REGISTRY_METADATA_PATH=\$REGISTRY_METADATA_PATH.*\$GITHUB_ENV/);
   assert.match(workflow, /production-release-evidence\.json/);
   assert.match(workflow, /\/api\/version/);
   assert.match(workflow, /AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);
-  assert.match(workflow, /evidence-source\/server\.json.*remotes\[0\]\.url|remotes\[0\]\.url.*evidence-source\/server\.json/s);
+  assert.match(workflow, /jq -r '\.remotes\[0\]\.url' "\$REGISTRY_METADATA_PATH"/);
   assert.match(workflow, /classifyMcpRegistryRecord/);
   assert.match(workflow, /registry\/releases\/download\/v1\.8\.0\/mcp-publisher_linux_amd64\.tar\.gz/);
   assert.match(workflow, /1370446bbe74d562608e8005a6ccce02d146a661fbd78674e11cc70b9618d6cf/);

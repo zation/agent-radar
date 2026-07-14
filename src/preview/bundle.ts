@@ -5,6 +5,7 @@ import type { PublishedDataTrustEvidence, RunIngestionResult } from "../ingestio
 import { renderIngestionReviewMarkdown, type SourceRegistryReviewRequestSummary, type SourceRegistryReviewRequirementSummary } from "./ingestion-review.js";
 import { buildArtifactManifest } from "./manifest.js";
 import type { DataQualityReport } from "../validation/data-quality-report.js";
+import { buildMcpRegistryMetadata } from "../release/mcp-registry.js";
 import {
   buildReviewSummaryV2,
   renderReviewSummaryV2Markdown,
@@ -17,9 +18,15 @@ export interface CreatePreviewBundleOptions {
   gitSha: string;
   builtAt: string;
   providerModel: string;
+  releaseTag: string;
 }
 
 export async function createPreviewBundle(options: CreatePreviewBundleOptions): Promise<void> {
+  await writeFile(
+    join(options.distDir, "server.json"),
+    `${JSON.stringify(buildMcpRegistryMetadata(options.releaseTag), null, 2)}\n`,
+    "utf8",
+  );
   const ingestion = await loadIngestionReviewEvidence(options.distDir);
   await mkdir(options.reviewDir, { recursive: true });
   const sourceRegistryReviewRequirements = await readSourceRegistryReviewRequirements(options.distDir);

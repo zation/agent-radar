@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import { readFile } from "node:fs/promises";
-import { validateMcpRegistryReleaseInputs } from "../release/mcp-registry-release.js";
+import { validateMcpRegistryArtifactBinding, validateMcpRegistryReleaseInputs } from "../release/mcp-registry-release.js";
 import { buildProductionReleaseEvidence } from "../release/production-evidence.js";
 
 function option(name: string, fallback?: string): string {
@@ -20,18 +20,22 @@ const repository = option("--repository");
 const runId = option("--run-id");
 const releaseTag = option("--release-tag");
 const gitSha = option("--git-sha");
+const metadataPath = option("--metadata", "dist-pages/server.json");
+const manifestPath = option("--manifest");
 const productionEvidence = await readJson(productionEvidencePath);
+const metadataContents = await readFile(metadataPath);
+validateMcpRegistryArtifactBinding(metadataContents, await readJson(manifestPath));
 const validated = validateMcpRegistryReleaseInputs(
   productionEvidence,
   await readJson(smokeResultPath),
-  await readJson(option("--metadata", "server.json")),
+  JSON.parse(metadataContents.toString("utf8")) as unknown,
   { repository, runId, releaseTag, gitSha }
 );
 const evidenceRecord = requireRecord(productionEvidence, "Production evidence");
 const deployment = requireRecord(evidenceRecord.deployment, "Production deployment evidence");
 const bundle = requireRecord(evidenceRecord.bundle, "Production bundle evidence");
 const rebuilt = await buildProductionReleaseEvidence({
-  manifestPath: option("--manifest"),
+  manifestPath,
   d1SeedPath: option("--d1-seed"),
   smokeResultPath,
   repository,

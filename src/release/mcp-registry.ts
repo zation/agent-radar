@@ -41,6 +41,21 @@ export interface McpRegistryMetadata {
   }>;
 }
 
+export function buildMcpRegistryMetadata(releaseTag: string): McpRegistryMetadata {
+  return {
+    $schema: REGISTRY_SCHEMA,
+    name: SERVER_NAME,
+    title: SERVER_TITLE,
+    description: SERVER_DESCRIPTION,
+    version: registryVersionFromTag(releaseTag),
+    repository: { ...REPOSITORY },
+    remotes: [{
+      ...REMOTE,
+      headers: REMOTE.headers.map((header) => ({ ...header }))
+    }]
+  };
+}
+
 const ALL_VERSION_TAG = /^all-v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 
 export function registryVersionFromTag(tag: string): string {

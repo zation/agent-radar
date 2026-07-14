@@ -85,6 +85,9 @@ jobs:
       - name: Build reviewed bundle
         run: npm run preview:build
 
+      - name: Validate generated MCP Registry metadata
+        run: npm run validate:mcp-registry -- --release-tag "$GITHUB_REF_NAME" --metadata dist-pages/server.json
+
       - name: Check data quality
         run: npm run data-quality:check -- dist-pages/data/data_quality_report.json
 

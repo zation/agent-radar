@@ -11,7 +11,7 @@ function option(name: string, fallback?: string): string {
 const outputPath = option("--output", "mcp-registry-publication-evidence.json");
 const evidence = await buildMcpRegistryPublicationEvidence({
   productionEvidencePath: option("--production-evidence", "production-release-evidence.json"),
-  metadataPath: option("--metadata", "server.json"),
+  metadataPath: option("--metadata", "dist-pages/server.json"),
   registryResponsePath: option("--registry-response"),
   repository: option("--repository"),
   runId: option("--run-id"),

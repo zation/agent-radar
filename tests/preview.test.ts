@@ -894,7 +894,8 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       reviewDir: artifactsDir,
       gitSha: "abc123",
       builtAt: "2026-07-07T00:00:00Z",
-      providerModel: "deepseek-v4-flash"
+      providerModel: "deepseek-v4-flash",
+      releaseTag: "all-v0.7.2-test",
     });
 
     const reviewMarkdown = await readFile(join(artifactsDir, "ingestion.md"), "utf8");
@@ -917,6 +918,7 @@ test("creates preview bundle review assets and artifact manifest", async () => {
       promotion_candidates: { candidates: number };
       promotion_plan: { candidates: number; reliable_publish_ready: boolean };
       promotion_check: { candidates: number; ready_for_publish: number; blocked: number; duplicate_tool_ids: number; validation_errors: number; validation_warnings: number; passed: boolean };
+      checksums: Record<string, string>;
     };
 
     assert.match(reviewMarkdown, /# Ingestion Review/);
@@ -929,6 +931,9 @@ test("creates preview bundle review assets and artifact manifest", async () => {
     assert.match(reviewMarkdown, /## Source Registry Review Requests/);
     assert.match(reviewMarkdown, /github-topic-mcp:enabled action=review_in_production_gate/);
     assert.equal(artifactManifest.git_sha, "abc123");
+    assert.match(artifactManifest.checksums["server.json"] ?? "", /^sha256:/);
+    const registryMetadata = JSON.parse(await readFile(join(outputDir, "server.json"), "utf8"));
+    assert.equal(registryMetadata.version, "0.7.2-test");
     assert.deepEqual(artifactManifest.crawl_audit, { total: 1, success: 1, partial: 0, failed: 0 });
     assert.deepEqual(artifactManifest.source_registry_diff, { added: 2, removed: 0, changed: 1 });
     assert.deepEqual(artifactManifest.source_registry_review, { total_requirements: 1, confirmed: 0, rejected: 0, needs_changes: 0, pending: 1 });
@@ -979,7 +984,8 @@ test("rejects preview evidence that differs from the reviewed bundle artifacts",
         reviewDir: artifactsDir,
         gitSha: "abc123",
         builtAt: "2026-07-07T00:00:00Z",
-        providerModel: "deepseek-v4-flash"
+        providerModel: "deepseek-v4-flash",
+        releaseTag: "all-v0.7.2-test",
       }),
       /promotion check does not match ingestion review evidence/
     );

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -8,12 +8,14 @@ import {
   canonicalMetadataSha256,
   classifyMcpRegistryRecord
 } from "../src/release/mcp-registry-evidence.js";
+import { buildMcpRegistryMetadata } from "../src/release/mcp-registry.js";
 
-const metadata = JSON.parse(await readFile("server.json", "utf8")) as Record<string, unknown>;
+const registryVersion = "0.7.2-test";
+const metadata = buildMcpRegistryMetadata(`all-v${registryVersion}`) as unknown as Record<string, unknown>;
 const source = {
   repository: "zation/agent-radar",
   runId: "31000000001",
-  releaseTag: "all-v0.6.4",
+  releaseTag: `all-v${registryVersion}`,
   gitSha: "abcdef1234567890"
 };
 
@@ -61,7 +63,7 @@ test("builds publication evidence bound to the exact production release and Regi
     const evidence = await buildMcpRegistryPublicationEvidence({
       ...paths,
       ...source,
-      registryQueryUrl: "https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.zation%2Fagent-radar&version=0.6.4",
+      registryQueryUrl: `https://registry.modelcontextprotocol.io/v0.1/servers?search=io.github.zation%2Fagent-radar&version=${registryVersion}`,
       registryQueriedAt: "2026-07-13T08:01:00Z"
     });
 
@@ -75,7 +77,7 @@ test("builds publication evidence bound to the exact production release and Regi
     assert.equal(evidence.production_evidence.sha256.startsWith("sha256:"), true);
     assert.deepEqual(evidence.registry, {
       name: "io.github.zation/agent-radar",
-      version: "0.6.4",
+      version: registryVersion,
       status: "active",
       is_latest: true,
       published_at: "2026-07-13T08:00:00.123456Z",

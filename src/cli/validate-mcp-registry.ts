@@ -8,7 +8,7 @@ function optionValue(name: string): string | undefined {
 
 async function main(): Promise<void> {
   const releaseTag = optionValue("--release-tag");
-  const metadataPath = optionValue("--metadata") ?? "server.json";
+  const metadataPath = optionValue("--metadata") ?? "dist-pages/server.json";
   if (!releaseTag) {
     throw new Error("Missing required --release-tag");
   }

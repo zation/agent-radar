@@ -1,22 +1,24 @@
 import assert from "node:assert/strict";
 import { execFile as execFileCallback } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import { REQUIRED_MCP_SMOKE_CHECK_IDS } from "../src/api/mcp-smoke-contract.js";
-import { validateMcpRegistryReleaseInputs } from "../src/release/mcp-registry-release.js";
+import { buildMcpRegistryMetadata } from "../src/release/mcp-registry.js";
+import { validateMcpRegistryArtifactBinding, validateMcpRegistryReleaseInputs } from "../src/release/mcp-registry-release.js";
 import { buildProductionReleaseEvidence } from "../src/release/production-evidence.js";
 
 const execFile = promisify(execFileCallback);
 
-const metadata = JSON.parse(await readFile("server.json", "utf8")) as Record<string, unknown>;
+const registryVersion = "0.7.2-test";
+const metadata = buildMcpRegistryMetadata(`all-v${registryVersion}`) as unknown as Record<string, unknown>;
 const source = {
   repository: "zation/agent-radar",
   runId: "31000000001",
-  releaseTag: "all-v0.6.4",
+  releaseTag: `all-v${registryVersion}`,
   gitSha: "abcdef1234567890"
 };
 
@@ -52,6 +54,18 @@ test("binds production evidence and source smoke to the immutable Registry remot
   assert.equal(validated.mcpEndpoint, "https://agent-radar.zation1.workers.dev/api/mcp");
 });
 
+test("binds generated Registry metadata to the reviewed artifact manifest", () => {
+  const contents = Buffer.from(`${JSON.stringify(metadata, null, 2)}\n`);
+  validateMcpRegistryArtifactBinding(contents, {
+    schema_version: "artifact_manifest.v1",
+    checksums: { "server.json": sha256(contents) },
+  });
+  assert.throws(() => validateMcpRegistryArtifactBinding(Buffer.from("{}\n"), {
+    schema_version: "artifact_manifest.v1",
+    checksums: { "server.json": sha256(contents) },
+  }), /reviewed artifact manifest/i);
+});
+
 test("rejects production evidence or smoke for a different Worker", () => {
   assert.throws(
     () => validateMcpRegistryReleaseInputs(production("https://other.workers.dev/api/mcp"), smoke(), metadata, source),
@@ -73,13 +87,14 @@ test("rejects incomplete, failed, or identity-mismatched source smoke", () => {
 test("release validation CLI rebuilds checksum-bound production evidence before publication", async () => {
   const directory = await mkdtemp(join(tmpdir(), "agent-radar-registry-release-"));
   const paths = Object.fromEntries(["manifest", "seed", "smoke", "production", "metadata"].map((name) => [name, join(directory, `${name}.json`)])) as Record<string, string>;
-  const seed = "INSERT INTO release_meta VALUES ('all-v0.6.4');\n";
+  const seed = `INSERT INTO release_meta VALUES ('${source.releaseTag}');\n`;
   const manifest = {
     schema_version: "artifact_manifest.v1",
     git_sha: source.gitSha,
     checksums: {
       "data/d1_seed.sql": sha256(seed),
-      "data/feedback_processing_plan.json": `sha256:${"c".repeat(64)}`
+      "data/feedback_processing_plan.json": `sha256:${"c".repeat(64)}`,
+      "server.json": sha256(Buffer.from(`${JSON.stringify(metadata, null, 2)}\n`)),
     },
     feedback: {
       rules_version: "feedback_rules.v0.1",
@@ -92,7 +107,7 @@ test("release validation CLI rebuilds checksum-bound production evidence before 
       writeFile(paths.manifest, JSON.stringify(manifest), "utf8"),
       writeFile(paths.seed, seed, "utf8"),
       writeFile(paths.smoke, JSON.stringify(smoke()), "utf8"),
-      writeFile(paths.metadata, JSON.stringify(metadata), "utf8")
+      writeFile(paths.metadata, `${JSON.stringify(metadata, null, 2)}\n`, "utf8")
     ]);
     const evidence = await buildProductionReleaseEvidence({
       manifestPath: paths.manifest,
@@ -129,6 +144,6 @@ test("release validation CLI rebuilds checksum-bound production evidence before 
   }
 });
 
-function sha256(value: string): string {
+function sha256(value: string | Buffer): string {
   return `sha256:${createHash("sha256").update(value).digest("hex")}`;
 }

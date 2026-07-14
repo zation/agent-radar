@@ -175,13 +175,15 @@ immutable all-v* tag
 
 The build job forces live URL checks, attempts to restore the last successful Release All baselines, and records `no_baseline` explicitly when none exists. A failed source may preserve only its previous records when its policy allows stable fallback.
 
+Preview finalization derives `dist-pages/server.json` from the immutable `all-v*` tag that Release All also injects into the Worker. The generated file is validated before approval and covered by the artifact manifest checksum, so there is no separately maintained Registry version to drift from the deployed release.
+
 The production job does not rerun ingestion, pipeline, evaluation, URL checks, rating, or data-quality reporting.
 
 ### Reviewed Bundle Evidence
 
 `agent-radar-all-<run_id>` contains `dist-pages`, full review Markdown under `artifacts/review`, and Wrangler dry-run output. The GitHub Actions summary presents compact release ID and SHA, data version, golden results, provider/model pairs, token totals and availability, retry count, average reported usage, five highest-usage cases, source-attention signals, interventions, admission blockers, promotion failures, missing provenance, and crawl failures before approval.
 
-The artifact manifest records Git SHA, data version, eval model and categories, the validated compact token-usage summary, source diffs, crawl, overrides, discovery, intervention, provenance, automatic review, admission, promotion, timestamps, and critical checksums. Finalization recomputes token arithmetic and case/release identity before trusting the checksum; a self-consistent checksum cannot legitimize corrupted evidence. Missing or malformed provider usage remains a visible warning and does not create a token threshold. The checksum-covered data manifest records rules and index versions.
+The artifact manifest records Git SHA, data version, eval model and categories, the validated compact token-usage summary, source diffs, crawl, overrides, discovery, intervention, provenance, automatic review, admission, promotion, generated Registry metadata, timestamps, and critical checksums. Finalization recomputes token arithmetic and case/release identity before trusting the checksum; a self-consistent checksum cannot legitimize corrupted evidence. Missing or malformed provider usage remains a visible warning and does not create a token threshold. The checksum-covered data manifest records rules and index versions.
 
 ### Production Evidence
 
@@ -194,9 +196,9 @@ The workflow resolves exactly one deployment for the current repository, run, SH
 
 ### MCP Registry Publication Evidence
 
-`.github/workflows/publish-mcp-registry.yml` runs only after a successful `Release All` run or for an explicitly selected successful run ID. It downloads production evidence, source smoke, and the reviewed bundle before checkout; checks out the evidence SHA; rebuilds the production evidence from the reviewed manifest, D1 seed, and smoke result; requires exact endpoint/run/tag/SHA/checksum equality with `server.json`; revalidates `/api/version`; runs fresh MCP smoke against the metadata-derived endpoint; verifies the pinned `mcp-publisher` v1.8.0 archive checksum; validates `server.json`; and authenticates with GitHub OIDC only when publication is required.
+`.github/workflows/publish-mcp-registry.yml` runs only after a successful `Release All` run or for an explicitly selected successful run ID. It downloads production evidence, source smoke, and the reviewed bundle before checkout; rebuilds the production evidence from the reviewed manifest, D1 seed, and smoke result; requires the bundle's `server.json` checksum and endpoint/run/tag/SHA identity to match that evidence; revalidates `/api/version`; runs fresh MCP smoke against the metadata-derived endpoint; verifies the pinned `mcp-publisher` v1.8.0 archive checksum; validates the generated `server.json`; and authenticates with GitHub OIDC only when publication is required.
 
-`server.json` is remote-only and declares `io.github.zation/agent-radar`, one production `streamable-http` endpoint, the optional secret recommendation header, and no installable package. The publication workflow treats an active/latest identical record as idempotent success and a mismatch at the same name/version as an immutable conflict. After bounded official API polling, `mcp-registry-publication-evidence.json` records the source run/tag/SHA, production-evidence checksum, canonical metadata checksum, Registry active/latest status and timestamps, endpoint, repository, and query identity without request headers.
+Generated `dist-pages/server.json` is remote-only and declares `io.github.zation/agent-radar`, the tag-derived version, one production `streamable-http` endpoint, the optional secret recommendation header, and no installable package. The same file is served as a Worker Static Asset at `/server.json`. The publication workflow treats an active/latest identical record as idempotent success and a mismatch at the same name/version as an immutable conflict. After bounded official API polling, `mcp-registry-publication-evidence.json` records the source run/tag/SHA, production-evidence checksum, canonical metadata checksum, Registry active/latest status and timestamps, endpoint, repository, and query identity without request headers.
 
 ### Smithery Publication
 
@@ -221,6 +223,7 @@ Votes and Issues created after the build snapshot wait for the next release. Mis
 All of these must pass:
 
 - Public-document language validation, schema and Source Registry validation.
+- Tag-derived MCP Registry metadata validated in the reviewed bundle and covered by its artifact manifest checksum.
 - `data_quality_report.v1` and `review_summary.v2`, including checksums and no blocking item.
 - 24/24 provider-backed golden queries and 4/4 critical safety cases.
 - Index build, automatic review, release admission, and promotion check.

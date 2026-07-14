@@ -72,6 +72,9 @@ jobs:
           test -f "$RUNNER_TEMP/agent-radar-source-evidence/mcp-smoke-result.json"
           test -f "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/artifact-manifest.json"
           test -f "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/data/d1_seed.sql"
+          REGISTRY_METADATA_PATH="$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/server.json"
+          test -f "$REGISTRY_METADATA_PATH"
+          echo "REGISTRY_METADATA_PATH=$REGISTRY_METADATA_PATH" >> "$GITHUB_ENV"
 
       - name: Validate source production evidence before checkout
         run: |
@@ -108,12 +111,6 @@ jobs:
       - name: Checkout trusted publication workflow implementation
         uses: actions/checkout@v6
 
-      - name: Checkout evidence SHA
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ env.SOURCE_SHA }}
-          path: evidence-source
-
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
@@ -124,7 +121,7 @@ jobs:
         run: npm ci
 
       - name: Validate immutable Registry metadata
-        run: npm run validate:mcp-registry -- --release-tag "$SOURCE_TAG" --metadata evidence-source/server.json
+        run: npm run validate:mcp-registry -- --release-tag "$SOURCE_TAG" --metadata "$REGISTRY_METADATA_PATH"
 
       - name: Bind production evidence to Registry metadata
         run: |
@@ -132,14 +129,14 @@ jobs:
           node dist/src/cli/validate-mcp-registry-release.js \
             --production-evidence "$RUNNER_TEMP/agent-radar-source-evidence/production-release-evidence.json" \
             --smoke-result "$RUNNER_TEMP/agent-radar-source-evidence/mcp-smoke-result.json" \
-            --metadata evidence-source/server.json \
+            --metadata "$REGISTRY_METADATA_PATH" \
             --manifest "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/artifact-manifest.json" \
             --d1-seed "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/data/d1_seed.sql" \
             --repository "$GITHUB_REPOSITORY" \
             --run-id "$SOURCE_RUN_ID" \
             --release-tag "$SOURCE_TAG" \
             --git-sha "$SOURCE_SHA"
-          MCP_ENDPOINT="$(jq -r '.remotes[0].url' evidence-source/server.json)"
+          MCP_ENDPOINT="$(jq -r '.remotes[0].url' "$REGISTRY_METADATA_PATH")"
           echo "WORKER_BASE_URL=${MCP_ENDPOINT%/api/mcp}" >> "$GITHUB_ENV"
 
       - name: Revalidate deployed version
@@ -178,7 +175,7 @@ jobs:
           import { appendFileSync, readFileSync } from "node:fs";
           import { classifyMcpRegistryRecord } from "./dist/src/release/mcp-registry-evidence.js";
           const response = JSON.parse(readFileSync("registry-response-before.json", "utf8"));
-          const metadata = JSON.parse(readFileSync("evidence-source/server.json", "utf8"));
+          const metadata = JSON.parse(readFileSync(process.env.REGISTRY_METADATA_PATH, "utf8"));
           const result = classifyMcpRegistryRecord(response, metadata);
           appendFileSync(process.env.GITHUB_OUTPUT, `publication_action=${result.kind === "identical" ? "idempotent" : "publish"}\n`);
           NODE
@@ -197,14 +194,14 @@ jobs:
           echo "$RUNNER_TEMP/mcp-publisher-bin" >> "$GITHUB_PATH"
 
       - name: Validate metadata with MCP publisher
-        run: mcp-publisher validate evidence-source/server.json
+        run: mcp-publisher validate "$REGISTRY_METADATA_PATH"
 
       - name: Publish metadata with GitHub OIDC
         if: steps.registry_preflight.outputs.publication_action == 'publish'
         run: |
           set -euo pipefail
           mcp-publisher login github-oidc
-          mcp-publisher publish evidence-source/server.json
+          mcp-publisher publish "$REGISTRY_METADATA_PATH"
 
       - name: Poll official MCP Registry
         run: |
@@ -215,7 +212,7 @@ jobs:
           import { readFileSync } from "node:fs";
           import { classifyMcpRegistryRecord } from "./dist/src/release/mcp-registry-evidence.js";
           const response = JSON.parse(readFileSync("registry-response.json", "utf8"));
-          const metadata = JSON.parse(readFileSync("evidence-source/server.json", "utf8"));
+          const metadata = JSON.parse(readFileSync(process.env.REGISTRY_METADATA_PATH, "utf8"));
           console.log(classifyMcpRegistryRecord(response, metadata).kind);
           NODE
             )"
@@ -233,7 +230,7 @@ jobs:
           set -euo pipefail
           node dist/src/cli/build-mcp-registry-evidence.js \
             --production-evidence "$RUNNER_TEMP/agent-radar-source-evidence/production-release-evidence.json" \
-            --metadata evidence-source/server.json \
+            --metadata "$REGISTRY_METADATA_PATH" \
             --registry-response registry-response.json \
             --output mcp-registry-publication-evidence.json \
             --repository "$GITHUB_REPOSITORY" \

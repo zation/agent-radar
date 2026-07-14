@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { REQUIRED_MCP_SMOKE_CHECK_IDS } from "../api/mcp-smoke-contract.js";
 import { validateMcpRegistryMetadata } from "./mcp-registry.js";
 
@@ -6,6 +7,18 @@ export interface McpRegistryReleaseSource {
   runId: string;
   releaseTag: string;
   gitSha: string;
+}
+
+export function validateMcpRegistryArtifactBinding(
+  metadataContents: Buffer,
+  artifactManifest: unknown,
+): void {
+  const manifest = requireRecord(artifactManifest, "Artifact manifest");
+  const checksums = requireRecord(manifest.checksums, "Artifact manifest checksums");
+  const actual = `sha256:${createHash("sha256").update(metadataContents).digest("hex")}`;
+  if (manifest.schema_version !== "artifact_manifest.v1" || checksums["server.json"] !== actual) {
+    throw new Error("MCP Registry metadata checksum must match the reviewed artifact manifest");
+  }
 }
 
 export function validateMcpRegistryReleaseInputs(

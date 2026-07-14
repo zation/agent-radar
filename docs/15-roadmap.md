@@ -50,7 +50,7 @@ v0.7 P1 已实现并完成生产验收：`eval_token_usage.v1` 记录 MiniMax M3
 - 四个 MCP 工具的所有公开输入参数（包括嵌套 `filters`）均已在共享 Zod contract 中提供 JSON Schema `description`，递归契约测试会阻止后续新增无说明参数。
 - `recommend_tools` 已移除 body/tool input 中的 `api_key`，统一使用可选 secret header `X-Agent-Radar-LLM-API-Key`，优先级为 request header、显式 Worker fallback、typed missing-key error；Web key 只保留在 component memory。
 - `/api/mcp` 已增加 Host、Origin、method、CORS 与 65,536-byte UTF-8 body guard；v2 smoke evidence 固定覆盖七项检查及 structured/text parity。
-- 根目录 remote-only `server.json` 已发布为 `io.github.zation/agent-radar@0.6.4`，声明生产 `streamable-http` endpoint、optional secret header 和无 packages 约束；官方 `mcp-publisher` v1.8.0 validation 已通过。
+- 官方 remote-only Registry 记录仍为 `io.github.zation/agent-radar@0.6.4`，声明生产 `streamable-http` endpoint、optional secret header 和无 packages 约束。Release All 现从不可变 `all-v*` tag 自动派生 `dist-pages/server.json`，把同一 tag 注入 Worker，并将生成文件纳入 reviewed bundle checksum；Registry workflow 只验证和发布这份 bundle artifact，不再手工维护 metadata version。
 - 独立 `Publish MCP Registry` workflow 将 successful Release All evidence、不可变 source SHA、生产 version/fresh smoke、固定 publisher checksum、GitHub OIDC、官方 API polling 与 `mcp_registry_publication_evidence.v1` 绑定。run `29269874017` 完成首次 `0.6.3` 发布；run `29307691850` 发布并验证 `0.6.4`。当前官方发布时间为 `2026-07-14T05:07:48.2585Z`，canonical metadata checksum 为 `sha256:33ef07988cbd9f11fe63a8a37b0e1d7eeccd84ad1de37c8f2d0d07ba412393bd`。
 - 项目提供 `npm run publish:smithery`，通过固定版本的官方 `@smithery/cli` 把生产 MCP URL 发布到 `zation/agent-radar`，并把 optional `llmApiKey` 作为 `X-Agent-Radar-LLM-API-Key` header config 交给 Smithery Gateway；脚本不包含任何密钥。
 - 本地 Vite dev server 将 `/api/*` 同源代理到 Wrangler Worker，UI 与完整 API 均支持热重载。
