@@ -12,6 +12,7 @@ import type {
   ToolType
 } from "../schema.js";
 import { resolveRecommendationProviderModel, type RecommendationProvider } from "./provider-registry.js";
+import { normalizeProviderUsage, type ProviderUsageObservation } from "./provider-usage.js";
 import { assessRecommendationSafety } from "./safety.js";
 
 export interface RecommendationLlmInput {
@@ -19,6 +20,7 @@ export interface RecommendationLlmInput {
   baseUrl?: string;
   model: string;
   prompt: string;
+  onUsage?: (observation: ProviderUsageObservation) => void;
 }
 
 export interface RecommendationLlmCandidate {
@@ -75,6 +77,7 @@ export interface RecommendToolsRuntime {
   model: string;
   release?: { release_id: string; commit_sha: string };
   client?: RecommendationLlmClient;
+  onUsage?: (observation: ProviderUsageObservation) => void;
 }
 
 const allowedActions: RecommendedAction[] = ["use", "compare", "ask_human", "avoid", "no_reliable_match"];
@@ -97,7 +100,8 @@ export async function recommendTools(
     apiKey: runtime.apiKey,
     baseUrl: runtime.baseUrl,
     model: runtime.model.trim(),
-    prompt: buildRecommendationPrompt(query, cards, ratings)
+    prompt: buildRecommendationPrompt(query, cards, ratings),
+    onUsage: runtime.onUsage,
   });
 
   const rejectedCandidates = [...(llmOutput.rejected_candidates ?? [])];
@@ -196,7 +200,13 @@ export function createOpenAiRecommendationClient(
 
       const body = (await response.json()) as {
         choices?: Array<{ message?: { content?: string } }>;
+        usage?: unknown;
       };
+      input.onUsage?.({
+        provider: modelRequest.provider,
+        model_identifier: modelRequest.model,
+        usage: normalizeProviderUsage(body.usage),
+      });
       const content = body.choices?.[0]?.message?.content;
       if (!content) {
         throw new RecommendationProviderError({

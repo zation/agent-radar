@@ -127,6 +127,62 @@ test("does not send MiniMax thinking controls to non-MiniMax providers", async (
   assert.equal(calls[0]?.body.thinking, undefined);
 });
 
+test("reports normalized token usage from a successful provider response", async () => {
+  const observations: unknown[] = [];
+  const client = createOpenAiRecommendationClient(() => Promise.resolve(new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify({ recommended_action: "no_reliable_match" }) } }],
+    usage: { prompt_tokens: 12, prompt_tokens_details: { cached_tokens: 2 }, completion_tokens: 3, total_tokens: 15 },
+  }))));
+
+  await client.recommend({
+    apiKey: "secret",
+    model: "MiniMax M3",
+    prompt: "{}",
+    onUsage: (observation) => observations.push(observation),
+  });
+
+  assert.deepEqual(observations, [{
+    provider: "minimax",
+    model_identifier: "MiniMax-M3",
+    usage: { status: "reported", input_tokens: 12, cached_input_tokens: 2, output_tokens: 3, total_tokens: 15 },
+  }]);
+});
+
+test("reports usage before rejecting invalid recommendation JSON", async () => {
+  const observations: unknown[] = [];
+  const client = createOpenAiRecommendationClient(() => Promise.resolve(new Response(JSON.stringify({
+    choices: [{ message: { content: "not-json" } }],
+    usage: { input_tokens: 10, output_tokens: 2, total_tokens: 12 },
+  }))));
+
+  await assert.rejects(
+    client.recommend({ apiKey: "secret", model: "OpenAI GPT-4.1", prompt: "{}", onUsage: (value) => observations.push(value) }),
+    (error: unknown) => error instanceof RecommendationProviderError && error.code === "provider_schema_error",
+  );
+  assert.equal(observations.length, 1);
+});
+
+test("missing provider usage remains non-blocking", async () => {
+  const observations: unknown[] = [];
+  const client = createOpenAiRecommendationClient(() => Promise.resolve(new Response(JSON.stringify({
+    choices: [{ message: { content: JSON.stringify({ recommended_action: "no_reliable_match" }) } }],
+  }))));
+
+  const output = await client.recommend({
+    apiKey: "secret",
+    model: "OpenAI GPT-4.1",
+    prompt: "{}",
+    onUsage: (value) => observations.push(value),
+  });
+
+  assert.equal(output.recommended_action, "no_reliable_match");
+  assert.deepEqual(observations, [{
+    provider: "openai",
+    model_identifier: "gpt-4.1",
+    usage: { status: "unavailable", input_tokens: null, cached_input_tokens: null, output_tokens: null, total_tokens: null, unavailable_reason: "missing_provider_usage" },
+  }]);
+});
+
 test("aborts provider requests that exceed the configured timeout", async () => {
   const fetchImpl: typeof fetch = (_url, init) =>
     new Promise((_resolve, reject) => {
