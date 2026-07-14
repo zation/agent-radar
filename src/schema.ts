@@ -117,7 +117,7 @@ export interface RatingResult {
   schema_version: "rating_result.v2";
   tool_id: string;
   tool_type: ToolType;
-  rules_version: "rating_rules.v0.1-draft";
+  rules_version: "rating_rules.v0.2";
   base_score: number;
   overall_score: number;
   feedback_adjustment: FeedbackAdjustment;
