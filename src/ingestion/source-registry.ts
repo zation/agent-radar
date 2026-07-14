@@ -23,6 +23,12 @@ export const sourceRegistry: SourceDefinition[] = [
       notes: "Enabled for controlled public metadata discovery; no Authorization header, cookies, private repositories, or bypassed surfaces."
     },
     parser: "github_topic_parser",
+    github_discovery: {
+      query: "topic:mcp",
+      sort: "stars",
+      order: "desc",
+      repository_limit: 20,
+    },
     failure_policy: "skip this source and preserve previous stable data",
     enabled: true,
     owner: "agent-radar",
@@ -563,6 +569,21 @@ export function validateSourceRegistry(sources: SourceDefinition[]): string[] {
     if (source.enabled && source.parser?.trim() && !isSupportedSourceParser(source.parser)) {
       errors.push(`${source.id}: parser ${source.parser} is not implemented`);
     }
+    if (source.github_discovery) {
+      if (!source.github_discovery.query.trim()) errors.push(`${source.id}: github_discovery query is required`);
+      if (source.github_discovery.sort !== "stars") errors.push(`${source.id}: github_discovery sort must be stars`);
+      if (source.github_discovery.order !== "desc") errors.push(`${source.id}: github_discovery order must be desc`);
+      if (!Number.isInteger(source.github_discovery.repository_limit) || source.github_discovery.repository_limit < 1 || source.github_discovery.repository_limit > 100) {
+        errors.push(`${source.id}: github_discovery repository_limit must be between 1 and 100`);
+      }
+      if (source.github_discovery.expansion && (
+        source.github_discovery.expansion.kind !== "skill_manifests"
+        || source.github_discovery.expansion.root !== "skills/"
+        || source.github_discovery.expansion.manifest !== "SKILL.md"
+      )) {
+        errors.push(`${source.id}: github_discovery skill expansion must use skills/ and SKILL.md`);
+      }
+    }
   }
 
   return errors;
@@ -585,6 +606,7 @@ const sourceReviewReasonByField: Record<string, string> = {
   collection_method: "Collection method changes can alter network access, rate limits, and parser assumptions.",
   enabled: "Source enablement changes crawl scope and require maintainer confirmation.",
   field_coverage: "Field coverage changes affect draft completeness and provenance expectations.",
+  github_discovery: "GitHub discovery changes alter network scope, ordering, and result cardinality.",
   parser: "Parser changes affect how raw snapshots become Source Records and Tool Card drafts.",
   profile: "Source profile changes affect domain tags, permission mapping, safety notes, and downstream recommendation behavior.",
   rate_limits: "Rate limit changes affect crawler safety and source terms compliance.",

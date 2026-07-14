@@ -75,15 +75,14 @@ async function crawlSource(source: SourceDefinition, outputDir: string, now: str
   }
 }
 
-function buildSourceRequest(source: SourceDefinition): { url: string; headers: HeadersInit } {
-  if (source.parser === "github_topic_parser") {
-    const topic = parseGitHubTopic(source.url);
-    if (topic) {
+export function buildSourceRequest(source: SourceDefinition): { url: string; headers: HeadersInit } {
+  if (source.parser === "github_topic_parser" && source.github_discovery) {
+    if (parseGitHubTopic(source.url)) {
       const params = new URLSearchParams({
-        q: `topic:${topic}`,
-        sort: "stars",
-        order: "desc",
-        per_page: "20"
+        q: source.github_discovery.query,
+        sort: source.github_discovery.sort,
+        order: source.github_discovery.order,
+        per_page: String(source.github_discovery.repository_limit)
       });
 
       return {

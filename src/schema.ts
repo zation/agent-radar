@@ -13,6 +13,18 @@ export type SafetyReasonCode =
 export type SourceType = "official_registry" | "official_docs" | "github" | "package_registry" | "community_list" | "news" | "manual";
 export type CollectionMethod = "api" | "http" | "git_clone" | "manual" | "rss";
 
+export interface GitHubDiscoveryConfig {
+  query: string;
+  sort: "stars";
+  order: "desc";
+  repository_limit: number;
+  expansion?: {
+    kind: "skill_manifests";
+    root: "skills/";
+    manifest: "SKILL.md";
+  };
+}
+
 export interface InstallMethod {
   method: "npm" | "pip" | "brew" | "docker" | "source" | "hosted" | "manual" | "unknown";
   command: string;
@@ -255,6 +267,7 @@ export interface SourceDefinition {
     notes: string;
   };
   parser?: string;
+  github_discovery?: GitHubDiscoveryConfig;
   profile?: {
     tool_id?: string;
     name?: string;

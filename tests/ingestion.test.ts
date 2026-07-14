@@ -73,6 +73,34 @@ test("source registry exposes enabled source-backed coverage for golden query do
   assert.equal(enabled.find((source) => source.id === "docs-stripe-checkout")?.parser, "official_docs_parser");
 });
 
+test("github topic sources declare explicit discovery configuration", () => {
+  const configured = githubTopicSource as SourceDefinition & {
+    github_discovery?: { query: string; sort: string; order: string; repository_limit: number };
+  };
+
+  assert.deepEqual(configured.github_discovery, {
+    query: "topic:mcp",
+    sort: "stars",
+    order: "desc",
+    repository_limit: 20,
+  });
+});
+
+test("source registry rejects invalid github discovery limits", () => {
+  const configured = githubTopicSource as SourceDefinition & {
+    github_discovery?: { query: string; sort: string; order: string; repository_limit: number };
+  };
+  const errors = validateSourceRegistry([{
+    ...githubTopicSource,
+    github_discovery: {
+      ...configured.github_discovery!,
+      repository_limit: 0,
+    },
+  } as SourceDefinition]);
+
+  assert.match(errors.join("\n"), /repository_limit must be between 1 and 100/);
+});
+
 test("ingestion CLI summary includes auto review and release gates", () => {
   const summary = formatIngestionCliSummary({
     snapshots: [{ source_id: "manual-agent-radar-seed" }],
