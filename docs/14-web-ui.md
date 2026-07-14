@@ -19,6 +19,7 @@ Primary files:
 - `src/ui/mobile-drill-in.ts`: mobile list-to-detail state, history, and restoration.
 - `src/ui/data.ts`: browser artifact assembly.
 - `src/ui/styles.css`: design tokens and global responsive rules.
+- `public/logo.svg`: tightly cropped shared brand mark used by the Web header, favicon, and README.
 
 ## Information Architecture
 

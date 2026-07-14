@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="./public/logo.svg" alt="Agent Radar" width="180" />
+</p>
+
 # Agent Radar
 
 **Choose AI tools with evidence, not hype.**
