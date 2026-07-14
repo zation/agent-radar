@@ -30,6 +30,7 @@
     "review-summary:check": "npm run build && node dist/src/cli/check-review-summary.js",
     "validate:mcp-registry": "npm run build && node dist/src/cli/validate-mcp-registry.js",
     "build:mcp-registry-evidence": "npm run build && node dist/src/cli/build-mcp-registry-evidence.js",
+    "publish:smithery": "npx --yes @smithery/cli@4.11.1 mcp publish https://agent-radar.zation1.workers.dev/api/mcp -n zation1/agent-radar --config-schema '{\"type\":\"object\",\"properties\":{\"llmApiKey\":{\"type\":\"string\",\"title\":\"LLM API Key\",\"description\":\"Optional LLM provider API key used only by recommend_tools.\",\"x-from\":{\"header\":\"X-Agent-Radar-LLM-API-Key\"}}}}'",
     "mcp:smoke": "npm run build && node dist/src/cli/run-mcp-smoke.js",
     "eval": "npm run build && node dist/src/cli/run-eval.js",
     "feedback:prepare": "npm run build && node dist/src/cli/prepare-feedback.js",

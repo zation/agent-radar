@@ -197,6 +197,12 @@ The workflow resolves exactly one deployment for the current repository, run, SH
 
 `server.json` is remote-only and declares `io.github.zation/agent-radar`, one production `streamable-http` endpoint, the optional secret recommendation header, and no installable package. The publication workflow treats an active/latest identical record as idempotent success and a mismatch at the same name/version as an immutable conflict. After bounded official API polling, `mcp-registry-publication-evidence.json` records the source run/tag/SHA, production-evidence checksum, canonical metadata checksum, Registry active/latest status and timestamps, endpoint, repository, and query identity without request headers.
 
+### Smithery Publication
+
+`npm run publish:smithery` publishes the existing production Streamable HTTP endpoint as `zation1/agent-radar` through the pinned `@smithery/cli@4.11.1` package. Run `npx --yes @smithery/cli@4.11.1 auth login` first when the local Smithery session is not authenticated.
+
+The command sends a flat config schema in the deployment payload. `llmApiKey` is optional and is transported as the `X-Agent-Radar-LLM-API-Key` request header, so Smithery can render configuration UI without changing the public MCP tool input schema or putting the credential in a query parameter. The command contains no Smithery token or LLM provider key. Smithery publication is a separate directory release and does not replace the evidence-bound official MCP Registry workflow.
+
 ## Feedback Release Order
 
 1. Restore the previous reviewed Tool Cards as the valid feedback Tool-ID boundary.
