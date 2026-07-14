@@ -325,7 +325,7 @@ checkout
 
 Normal review does not generate per-item approval requests. Scripts, rules, LLM evaluation, automatic review, release admission, and promotion-check results remain in the reviewed bundle. The GitHub `production` environment gate is the only routine human release confirmation. `Approval Record` is evidence-backed break-glass only; high-risk execution, destructive actions, and safety-boundary changes still require confirmation.
 
-`all-v0.7.0` is the current verified production baseline. Release All run `29326321908`, commit `f4f53290367d0e5bfda6347f2f372f7cca061c6e`, and deployment `5439377930` bind the reviewed bundle and production evidence; real-provider golden evaluation 24/24, critical safety 4/4, and deployed `/api/mcp` smoke 7/7 passed. The reviewed bundle also binds `eval_token_usage.v1` with 24/24 reported attempts and 639,795 total tokens. The active/latest official Registry record remains `io.github.zation/agent-radar@0.6.4` and points to the same production remote.
+`all-v0.7.1` is the current verified production baseline. Release All run `29344911914`, commit `595c3ee9fd49375aa3405cfdb5ebd3903d37d996`, and deployment `5443347512` bind the immutable reviewed bundle and production evidence; the deployed catalog contains 76 Tool Cards, including 23 dynamically discovered Skills. Real-provider golden evaluation 24/24, critical safety 4/4, and deployed `/api/mcp` smoke 7/7 passed. The reviewed bundle also binds `eval_token_usage.v1` with 24/24 reported attempts, no unavailable usage or retries, and 965,948 total tokens. The active/latest official Registry record remains `io.github.zation/agent-radar@0.6.4` and points to the same production remote.
 
 ## v0.4 P2 Feedback Processing
 
