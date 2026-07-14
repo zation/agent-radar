@@ -231,7 +231,7 @@ Review may keep the automatic result, correct data or classification, change rat
 
 ## Verified Baseline
 
-`all-v0.6.3` is the current verified production baseline. Release All run `29268660945` and production deployment `5428271939` bind evidence to commit `bbcc85fd2c9a041ad117e01e197861460df4148b`. Real-provider golden evaluation passed 24/24, critical safety passed 4/4, and deployed MCP smoke passed 7/7. Registry workflow run `29270224157` produced `mcp_registry_publication_evidence.v1` for the active/latest official record and canonical metadata checksum `sha256:dc694a6a7b5c7bd465932c95a21e838ee4715aeea1445edb2396606d550ade8b`.
+`all-v0.6.4` is the current verified production baseline. Release All run `29307115828` and production deployment `5435538293` bind evidence to commit `f7902af30e2d566c0a7900a8e03ed00e9067a856`. Real-provider golden evaluation passed 24/24, critical safety passed 4/4, and deployed MCP smoke passed 7/7. Registry workflow run `29307691850` produced `mcp_registry_publication_evidence.v1` for the active/latest official record and canonical metadata checksum `sha256:33ef07988cbd9f11fe63a8a37b0e1d7eeccd84ad1de37c8f2d0d07ba412393bd`.
 
 The first real Issue classification and writeback observation completed in `all-v0.5.1`: Issue #1 produced `needs-human-review` with reason code `insufficient_information` and remained open, while Issue #2 produced `rejected` with reason code `invalid_context` and closed. Both received the expected processing label, classifier comment, release marker, and final state.
 
