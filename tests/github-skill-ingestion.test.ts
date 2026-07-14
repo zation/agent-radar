@@ -7,7 +7,7 @@ import test from "node:test";
 import { crawlEnabledSources } from "../src/ingestion/crawler.js";
 import { parseSourceSnapshots } from "../src/ingestion/parser.js";
 import { runIngestion } from "../src/ingestion/run.js";
-import type { RawSourceSnapshot, SourceDefinition, SourceRecord } from "../src/schema.js";
+import type { SourceDefinition, SourceRecord } from "../src/schema.js";
 
 const fixtureRoot = join(process.cwd(), "tests", "fixtures", "github-skills");
 

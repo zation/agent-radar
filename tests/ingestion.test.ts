@@ -111,7 +111,7 @@ test("source registry rejects invalid github discovery limits", () => {
       ...configured.github_discovery!,
       repository_limit: 0,
     },
-  } as SourceDefinition]);
+  }]);
 
   assert.match(errors.join("\n"), /repository_limit must be between 1 and 100/);
 });

@@ -121,7 +121,7 @@ test("Skill findings map missing resources and dangerous instructions into Auto 
     dangerous_instruction_patterns: ["approval_bypass"],
   });
   const result = buildToolCardAutoReview([draft], [sourceRecord], reviewQueueFor(draft, sourceRecord), "2026-07-14T00:00:00Z");
-  const item = result.items[0]!;
+  const item = result.items[0];
 
   assert.deepEqual(item.missing_fields, ["referenced_resource:references/missing.md"]);
   assert.ok(item.key_risks.includes("dangerous_instruction:approval_bypass"));
@@ -136,8 +136,8 @@ test("Skill evidence ambiguity blocks promotion while fully evidenced known risk
   const knownRiskDraft = skillDraft("skill-known-risk");
   const knownRiskRecord = skillRecord(knownRiskDraft.id, { dangerous_instruction_patterns: ["approval_bypass"] });
 
-  const ambiguous = buildToolCardAutoReview([ambiguousDraft], [ambiguousRecord], reviewQueueFor(ambiguousDraft, ambiguousRecord), "2026-07-14T00:00:00Z").items[0]!;
-  const knownRisk = buildToolCardAutoReview([knownRiskDraft], [knownRiskRecord], reviewQueueFor(knownRiskDraft, knownRiskRecord), "2026-07-14T00:00:00Z").items[0]!;
+  const ambiguous = buildToolCardAutoReview([ambiguousDraft], [ambiguousRecord], reviewQueueFor(ambiguousDraft, ambiguousRecord), "2026-07-14T00:00:00Z").items[0];
+  const knownRisk = buildToolCardAutoReview([knownRiskDraft], [knownRiskRecord], reviewQueueFor(knownRiskDraft, knownRiskRecord), "2026-07-14T00:00:00Z").items[0];
 
   assert.ok(ambiguous.human_review_reasons.includes("skill_evidence_ambiguous"));
   assert.notEqual(ambiguous.suggested_action, "promote");

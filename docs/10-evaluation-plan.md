@@ -247,6 +247,8 @@ The first real Issue classification and writeback observation completed in `all-
 
 Dynamic Skill expansion does not add Golden Queries or change the 24-case provider contract. Provider requests receive normalized Tool Cards and Rating Results only; raw `SKILL.md` bodies remain in content-hashed ingestion evidence. Data expansion must still pass 24/24 provider evaluation, all four critical safety cases, and token-usage evidence validation before production approval.
 
+The completed local P2 reviewed bundle `v0.7-p2-local` binds commit `0fbdcc6c1f24b96743af9404e1eefb61e8e96309` and expands the catalog from the 53-card P1 production baseline to 76 cards by adding 23 dynamic Skills. MiniMax M3 evaluation passed 24/24 with all four critical cases passing. All 24 request attempts reported usage with no retry or unavailable record: 902,771 input, 3,300 cached input, 61,361 output, and 964,132 total tokens. Relative to P1, input increased by 320,952 (55.16%), output by 3,385 (5.84%), and total by 324,337 (50.69%). These are whole-suite observations for the expanded catalog, not a per-card attribution or release-cost threshold. Production evidence remains `all-v0.7.0` until a separately approved deployment completes.
+
 ## Release Criteria
 
 All of the following must pass:
