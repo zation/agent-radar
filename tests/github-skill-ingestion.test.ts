@@ -233,6 +233,8 @@ test("runIngestion parses the source as one group and does not restore a failed 
     });
 
     assert.deepEqual(result.sourceRecords.map((record) => record.parsed_fields.tool_id), ["skill-anthropics-skills-pdf"]);
+    assert.deepEqual(result.toolCardDrafts.map((card) => card.id), ["skill-anthropics-skills-pdf"]);
+    assert.equal(result.toolCardDrafts[0]?.docs_url, "https://github.com/anthropics/skills/blob/main/skills/pdf/SKILL.md");
     assert.equal(result.sourceRecords.some((record) => record.id === previous.id), false);
   } finally {
     await rm(outputDir, { recursive: true, force: true });

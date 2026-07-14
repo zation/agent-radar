@@ -250,17 +250,17 @@ export function mergeNormalizationEvidence(
 
 function candidateInputs(record: SourceRecord): CandidateInput[] {
   if (record.record_type === "manual") return manualCandidateInputs(record);
-  const profile = isRecord(record.parsed_fields.source_profile)
-    ? record.parsed_fields.source_profile
-    : undefined;
+  const profileInfo = sourceProfileInfo(record);
+  const profile = profileInfo?.profile;
+  const profilePath = profileInfo?.path ?? "source_profile";
   const inputs: CandidateInput[] = [];
-  addInput(inputs, "summary", profile?.summary !== undefined ? "parsed_fields.source_profile.summary" : "description", profile?.summary ?? record.description);
-  addInput(inputs, "type", "parsed_fields.source_profile.type", profile?.type);
+  addInput(inputs, "summary", profile?.summary !== undefined ? `parsed_fields.${profilePath}.summary` : "description", profile?.summary ?? record.description);
+  addInput(inputs, "type", `parsed_fields.${profilePath}.type`, profile?.type);
   addInput(inputs, "license", "parsed_fields.license", record.parsed_fields.license);
-  addInput(inputs, "permissions", "parsed_fields.source_profile.permissions", profile?.permissions);
-  addInput(inputs, "security", "parsed_fields.source_profile.security", profile?.security);
-  addInput(inputs, "maintenance", "parsed_fields.source_profile.maintenance", profile?.maintenance);
-  addInput(inputs, "install_methods", "parsed_fields.source_profile.install_methods", profile?.install_methods);
+  addInput(inputs, "permissions", `parsed_fields.${profilePath}.permissions`, profile?.permissions);
+  addInput(inputs, "security", `parsed_fields.${profilePath}.security`, profile?.security);
+  addInput(inputs, "maintenance", `parsed_fields.${profilePath}.maintenance`, profile?.maintenance);
+  addInput(inputs, "install_methods", `parsed_fields.${profilePath}.install_methods`, profile?.install_methods);
   addInput(inputs, "confidence", "source_confidence", record.source_confidence);
 
   for (const [index, url] of record.urls.entries()) {
@@ -270,10 +270,11 @@ function candidateInputs(record: SourceRecord): CandidateInput[] {
     addInput(inputs, "source_urls", `parsed_fields.${field}`, record.parsed_fields[field]);
   }
 
+  const explicitIdentity = readString(record.parsed_fields.canonical_identity);
   const repo = readString(record.parsed_fields.repo_url) ?? record.urls.find((url) => url.includes("github.com"));
   const packageUrl = readString(record.parsed_fields.package_url);
   const docs = readString(record.parsed_fields.docs_url);
-  addInput(inputs, "canonical_identity", repo ? "parsed_fields.repo_url" : packageUrl ? "parsed_fields.package_url" : "parsed_fields.docs_url", repo ?? packageUrl ?? docs);
+  addInput(inputs, "canonical_identity", explicitIdentity ? "parsed_fields.canonical_identity" : repo ? "parsed_fields.repo_url" : packageUrl ? "parsed_fields.package_url" : "parsed_fields.docs_url", explicitIdentity ?? repo ?? packageUrl ?? docs);
 
   return inputs;
 }
@@ -342,10 +343,10 @@ function leafPaths(path: string, value: unknown): string[] {
 }
 
 function fallbackDependencyPaths(field: string, record: SourceRecord): string[] {
-  const profile = isRecord(record.parsed_fields.source_profile) ? record.parsed_fields.source_profile : undefined;
-  if (profile && field in profile) return leafPaths(`parsed_fields.source_profile.${field}`, profile[field]);
+  const profileInfo = sourceProfileInfo(record);
+  if (profileInfo && field in profileInfo.profile) return leafPaths(`parsed_fields.${profileInfo.path}.${field}`, profileInfo.profile[field]);
   if (field === "license") return ["raw_fields.license", "parsed_fields.license"];
-  if (field === "canonical_identity") return ["parsed_fields.repo_url", "parsed_fields.package_url", "parsed_fields.docs_url"];
+  if (field === "canonical_identity") return ["parsed_fields.canonical_identity", "parsed_fields.repo_url", "parsed_fields.package_url", "parsed_fields.docs_url"];
   if (field === "source_urls") return record.urls.map((_, index) => `urls[${index}]`);
   if (field === "summary") return ["description"];
   if (field === "confidence") return ["source_confidence"];
@@ -450,8 +451,15 @@ function confidenceRank(confidence: SourceRecord["source_confidence"]): number {
 }
 
 function readDraftField(draft: ToolCard, field: string): unknown {
-  if (field === "canonical_identity") return draft.repo_url ?? draft.package_urls?.[0] ?? draft.docs_url;
+  if (field === "canonical_identity") return draft.type === "skill" && draft.docs_url ? draft.docs_url : draft.repo_url ?? draft.package_urls?.[0] ?? draft.docs_url;
   return (draft as unknown as Record<string, unknown>)[field];
+}
+
+function sourceProfileInfo(record: SourceRecord): { profile: Record<string, unknown>; path: "source_profile" | "generated_tool_profile" } | undefined {
+  const reviewed = record.parsed_fields.source_profile;
+  if (isRecord(reviewed)) return { profile: reviewed, path: "source_profile" };
+  const generated = record.parsed_fields.generated_tool_profile;
+  return isRecord(generated) ? { profile: generated, path: "generated_tool_profile" } : undefined;
 }
 
 function comparableValue(value: unknown): string {

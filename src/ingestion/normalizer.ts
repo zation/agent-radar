@@ -133,7 +133,7 @@ function normalizeSourceBackedToolCardDraft(records: SourceRecord[], overridesBy
       security_notes: "Generated from public GitHub metadata only; review code, permissions, and install path before use."
     },
     maturity: profile.maturity ?? "unknown",
-    evidence_refs: [...records.map((record) => record.id), ...buildProfileFieldEvidenceRefs(profile, mergedFields)],
+    evidence_refs: [...records.map((record) => record.id), ...buildProfileFieldEvidenceRefs(records, profile, mergedFields)],
     last_checked_at: primaryRecord.parsed_at,
     confidence: records.some((record) => record.source_confidence === "high") ? "high" : "medium",
     created_at: primaryRecord.parsed_at,
@@ -154,11 +154,15 @@ function normalizeSourceBackedToolCardDraft(records: SourceRecord[], overridesBy
   return draft;
 }
 
-function buildProfileFieldEvidenceRefs(profile: SourceProfile, fields: Record<string, unknown>): string[] {
+function buildProfileFieldEvidenceRefs(records: SourceRecord[], profile: SourceProfile, fields: Record<string, unknown>): string[] {
   const refs: string[] = [];
-  if (profile.permissions) refs.push("field:permissions:source_profile");
-  if (profile.security) refs.push("field:security:source_profile");
-  if (profile.maintenance) refs.push("field:maintenance:source_profile");
+  const profileFieldRef = (field: keyof SourceProfile): string => {
+    const profileInfo = records.map(readProfileInfo).find((candidate) => candidate?.profile[field] !== undefined);
+    return `field:${String(field)}:${profileInfo?.path ?? "source_profile"}`;
+  };
+  if (profile.permissions) refs.push(profileFieldRef("permissions"));
+  if (profile.security) refs.push(profileFieldRef("security"));
+  if (profile.maintenance) refs.push(profileFieldRef("maintenance"));
   else if (typeof fields.last_commit_at === "string" || typeof fields.last_release_at === "string") refs.push("field:maintenance:source_record");
   return refs;
 }
@@ -182,6 +186,8 @@ function groupSourceBackedRecords(sourceRecords: SourceRecord[]): SourceRecord[]
 
 function canonicalRecordKey(record: SourceRecord): string | undefined {
   const profile = readSourceProfile(record);
+  const canonicalIdentity = readString(record.parsed_fields.canonical_identity);
+  if (canonicalIdentity) return `identity:${canonicalUrl(canonicalIdentity)}`;
   const repoUrl = readString(record.parsed_fields.repo_url) ?? record.urls.find((url) => url.includes("github.com"));
   if (repoUrl) return `repo:${canonicalUrl(repoUrl)}`;
   const packageUrl = readString(record.parsed_fields.package_url);
@@ -263,8 +269,14 @@ function mergeSourceProfiles(records: SourceRecord[]): SourceProfile {
 }
 
 function readSourceProfile(record: SourceRecord): SourceProfile | undefined {
-  const profile = record.parsed_fields.source_profile;
-  return isRecord(profile) ? profile : undefined;
+  return readProfileInfo(record)?.profile;
+}
+
+function readProfileInfo(record: SourceRecord): { profile: SourceProfile; path: "source_profile" | "generated_tool_profile" } | undefined {
+  const reviewed = record.parsed_fields.source_profile;
+  if (isRecord(reviewed)) return { profile: reviewed, path: "source_profile" };
+  const generated = record.parsed_fields.generated_tool_profile;
+  return isRecord(generated) ? { profile: generated, path: "generated_tool_profile" } : undefined;
 }
 
 function validateOverrideRecords(overrideRecords: OverrideRecord[]): void {

@@ -302,3 +302,64 @@ test("normalizer rejects override records without evidence", () => {
 
   assert.throws(() => normalizeToolCardDrafts([sourceRecord], [override]), /evidence_urls is required/);
 });
+
+test("normalizer preserves independent Skill cards from the same repository", () => {
+  const records = [skillRecord("pdf", "PDF Skill"), skillRecord("xlsx", "Spreadsheet Skill")];
+
+  const drafts = normalizeToolCardDrafts(records).sort((left, right) => left.id.localeCompare(right.id));
+
+  assert.equal(drafts.length, 2);
+  assert.deepEqual(drafts.map((card) => card.id), [
+    "skill-anthropics-skills-pdf",
+    "skill-anthropics-skills-xlsx",
+  ]);
+  assert.equal(drafts[0]?.repo_url, drafts[1]?.repo_url);
+  assert.notEqual(drafts[0]?.docs_url, drafts[1]?.docs_url);
+  assert.ok(drafts.every((card) => card.source_urls.includes(card.docs_url!)));
+  assert.ok(drafts.every((card) => card.install_methods.some((method) => method.docs_url === card.docs_url)));
+});
+
+function skillRecord(directory: string, name: string): SourceRecord {
+  const repoUrl = "https://github.com/anthropics/skills";
+  const docsUrl = `${repoUrl}/blob/main/skills/${directory}/SKILL.md`;
+  return {
+    id: `github-topic-agent-skills-${directory}`,
+    schema_version: "source_record.v1",
+    snapshot_id: `snapshot-${directory}`,
+    source_id: "github-topic-agent-skills",
+    record_type: "repository",
+    name,
+    description: `Use this skill when working with ${name}.`,
+    urls: [repoUrl, docsUrl],
+    raw_fields: {},
+    parsed_fields: {
+      tool_id: `skill-anthropics-skills-${directory}`,
+      canonical_identity: docsUrl,
+      repo_url: repoUrl,
+      docs_url: docsUrl,
+      generated_tool_profile: {
+        tool_id: `skill-anthropics-skills-${directory}`,
+        name,
+        type: "skill",
+        summary: `Use this skill when working with ${name}.`,
+        primary_purpose: `skill_${directory}`,
+        use_cases: [`Work with ${name}.`],
+        not_for: ["Unreviewed execution."],
+        install_methods: [{ method: "manual", command: "", docs_url: docsUrl, confidence: "medium" }],
+        permissions: [],
+        security: {
+          risk_level: "low",
+          trust_level: "active_open_source",
+          known_risks: ["untrusted_skill_instructions"],
+          requires_human_approval: false,
+          security_notes: "Review instructions before use.",
+        },
+        maturity: "unknown",
+      },
+    },
+    source_confidence: "medium",
+    parsed_at: "2026-07-14T00:00:00Z",
+    parser_version: "github_skill_topic_parser.v1",
+    warnings: [],
+  };
+}

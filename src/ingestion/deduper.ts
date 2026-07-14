@@ -91,7 +91,9 @@ function findDuplicateSignals(draft: ToolCard, drafts: ToolCard[], existingToolC
 }
 
 function canonicalToolKeys(card: ToolCard): string[] {
-  const identityUrls = card.repo_url
+  const identityUrls = card.type === "skill" && card.docs_url
+    ? [card.docs_url]
+    : card.repo_url
     ? [card.repo_url]
     : [card.homepage_url, card.docs_url];
   return identityUrls

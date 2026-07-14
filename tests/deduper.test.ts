@@ -122,3 +122,39 @@ test("deduper does not merge distinct tools that only share a docs or homepage u
 
   assert.equal(report.summary.possible_duplicates, 0);
 });
+
+test("deduper uses manifest identity for Skills and repository identity for non-Skills", () => {
+  const base = reviewedToolCardFixtures.find((card) => card.id === "agent-codex");
+  assert.ok(base);
+  const repoUrl = "https://github.com/anthropics/skills";
+  const pdfUrl = `${repoUrl}/blob/main/skills/pdf/SKILL.md`;
+  const xlsxUrl = `${repoUrl}/blob/main/skills/xlsx/SKILL.md`;
+  const skill = (id: string, docsUrl: string) => ({
+    ...base,
+    id,
+    type: "skill" as const,
+    repo_url: repoUrl,
+    docs_url: docsUrl,
+    source_urls: [repoUrl, docsUrl],
+  });
+
+  const distinctSkills = buildToolCardDuplicateReport(
+    [skill("skill-pdf", pdfUrl), skill("skill-xlsx", xlsxUrl)],
+    [],
+    "2026-07-14T00:00:00Z",
+  );
+  const sameSkill = buildToolCardDuplicateReport(
+    [skill("skill-pdf-a", pdfUrl), skill("skill-pdf-b", `${pdfUrl}/`)],
+    [],
+    "2026-07-14T00:00:00Z",
+  );
+  const sameRepoAgents = buildToolCardDuplicateReport(
+    [{ ...base, id: "agent-a", repo_url: repoUrl }, { ...base, id: "agent-b", repo_url: `${repoUrl}/` }],
+    [],
+    "2026-07-14T00:00:00Z",
+  );
+
+  assert.equal(distinctSkills.summary.possible_duplicates, 0);
+  assert.equal(sameSkill.summary.possible_duplicates, 2);
+  assert.equal(sameRepoAgents.summary.possible_duplicates, 2);
+});

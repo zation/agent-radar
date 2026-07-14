@@ -363,3 +363,38 @@ test("normalizer merges discovery and profiled exact records by canonical reposi
   assert.equal(result.drafts[0]?.id, "mcp-example-tool");
   assert.deepEqual(result.drafts[0]?.evidence_refs.slice(0, 2), ["record-exact", "record-discovery"]);
 });
+
+test("normalization evidence attributes generated Skill profile fields to their real paths", () => {
+  const docsUrl = "https://github.com/anthropics/skills/blob/main/skills/pdf/SKILL.md";
+  const record = repositoryRecord({
+    id: "record-skill-pdf",
+    source_id: "github-topic-agent-skills",
+    name: "PDF Skill",
+    description: "Use this skill when working with PDFs.",
+    urls: ["https://github.com/anthropics/skills", docsUrl],
+    parsed_fields: {
+      canonical_identity: docsUrl,
+      repo_url: "https://github.com/anthropics/skills",
+      docs_url: docsUrl,
+      generated_tool_profile: {
+        tool_id: "skill-anthropics-skills-pdf",
+        type: "skill",
+        summary: "Use this skill when working with PDFs.",
+        permissions: [],
+        security: {
+          risk_level: "low",
+          trust_level: "active_open_source",
+          known_risks: ["untrusted_skill_instructions"],
+          requires_human_approval: false,
+          security_notes: "Review first.",
+        },
+      },
+    },
+  });
+
+  const result = normalizeToolCardDraftsWithEvidence([record]);
+
+  assert.equal(result.drafts[0]?.id, "skill-anthropics-skills-pdf");
+  assert.ok(result.evidence.field_candidates.some((item) => item.tool_card_field === "type" && item.source_field_path === "parsed_fields.generated_tool_profile.type"));
+  assert.ok(result.evidence.field_candidates.some((item) => item.tool_card_field === "canonical_identity" && item.source_field_path === "parsed_fields.canonical_identity"));
+});
