@@ -32,7 +32,7 @@ export function buildReviewFindings(
   const skillSignals = draft.type === "skill" && isRecord(sourceRecord?.parsed_fields.skill_signals)
     ? sourceRecord.parsed_fields.skill_signals
     : undefined;
-  if (draft.type === "skill") {
+  if (skillSignals) {
     const canonicalIdentity = readString(sourceRecord?.parsed_fields.canonical_identity);
     if (!canonicalIdentity || !/\/skills\/(?:[^/]+\/)+SKILL\.md$/i.test(new URL(canonicalIdentity, "https://invalid.local").pathname)) {
       add({ code: "skill_manifest_identity_invalid", severity: "blocking", target: "missing_field", message: "skill_manifest_identity", evidence_refs: refs });
