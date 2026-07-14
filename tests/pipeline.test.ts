@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { access, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -52,6 +53,14 @@ function mockGitHubRepo(fullName: string): Record<string, unknown> {
   };
 }
 
+const anthropicSkillManifest = "---\nname: PDF Skill\ndescription: Use this skill when processing PDF workspace files.\n---\n## Steps\n1. Inspect the workspace file.\n## Boundaries\nDo not overwrite source files before approval.\n";
+const ponytailSkillManifest = "---\nname: Ponytail Skill\ndescription: Use this skill when organizing workspace files.\n---\n## Workflow\n1. Read the workspace file.\n## Limits\nNever modify files without approval.\n";
+
+function gitBlobSha(content: string): string {
+  const bytes = Buffer.from(content, "utf8");
+  return createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
+}
+
 test("builds MVP data artifacts and an eval report", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-"));
   const originalApiKey = process.env.AGENT_RADAR_LLM_API_KEY;
@@ -59,6 +68,12 @@ test("builds MVP data artifacts and an eval report", async () => {
   const fetchImpl: typeof fetch = (url) => {
     const requestUrl = typeof url === "string" ? url : url instanceof URL ? url.toString() : url.url;
     if (requestUrl.startsWith("https://api.github.com/search/repositories")) {
+      if (requestUrl.includes("q=topic%3Aagent-skills")) {
+        return Promise.resolve(new Response(JSON.stringify({ items: [
+          { ...mockGitHubRepo("anthropics/skills"), default_branch: "main" },
+          { ...mockGitHubRepo("DietrichGebert/ponytail"), default_branch: "main" },
+        ] }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
       return Promise.resolve(new Response(
         JSON.stringify({
           items: Array.from({ length: 15 }, (_, index) => ({
@@ -74,6 +89,22 @@ test("builds MVP data artifacts and an eval report", async () => {
         }),
         { status: 200, headers: { "content-type": "application/json" } }
       ));
+    }
+    if (requestUrl === "https://api.github.com/repos/anthropics/skills/git/trees/main?recursive=1") {
+      return Promise.resolve(new Response(JSON.stringify({ truncated: false, tree: [
+        { path: "skills/pdf/SKILL.md", mode: "100644", type: "blob", sha: gitBlobSha(anthropicSkillManifest) },
+      ] }), { status: 200, headers: { "content-type": "application/json" } }));
+    }
+    if (requestUrl === "https://api.github.com/repos/DietrichGebert/ponytail/git/trees/main?recursive=1") {
+      return Promise.resolve(new Response(JSON.stringify({ truncated: false, tree: [
+        { path: "skills/ponytail/SKILL.md", mode: "100644", type: "blob", sha: gitBlobSha(ponytailSkillManifest) },
+      ] }), { status: 200, headers: { "content-type": "application/json" } }));
+    }
+    if (requestUrl === "https://raw.githubusercontent.com/anthropics/skills/main/skills/pdf/SKILL.md") {
+      return Promise.resolve(new Response(anthropicSkillManifest, { status: 200, headers: { "content-type": "text/markdown" } }));
+    }
+    if (requestUrl === "https://raw.githubusercontent.com/DietrichGebert/ponytail/main/skills/ponytail/SKILL.md") {
+      return Promise.resolve(new Response(ponytailSkillManifest, { status: 200, headers: { "content-type": "text/markdown" } }));
     }
     if (requestUrl === "https://registry.npmjs.org/@modelcontextprotocol/sdk") {
       return Promise.resolve(new Response(
@@ -130,7 +161,7 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.deepEqual(releaseArtifact.release, release);
 
     const manifest = JSON.parse(await readFile(join(outputDir, "data", "manifest.json"), "utf8")) as ManifestFile;
-    assert.equal(manifest.rules_versions.rating, "rating_rules.v0.1-draft");
+    assert.equal(manifest.rules_versions.rating, "rating_rules.v0.2");
     assert.equal(manifest.schema_versions.tool_card, "tool_card.v1");
     assert.equal(manifest.schema_versions.rating_result, "rating_result.v2");
     assert.equal(manifest.rules_versions.feedback, "feedback_rules.v0.1");
@@ -280,6 +311,24 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.ok(indexedToolIds.includes("mcp-browser-automation"));
     assert.ok(indexedToolIds.includes("skill-stripe-checkout-guidance"));
     assert.ok(indexedToolIds.includes("mcp-github-server"));
+    assert.ok(indexedToolIds.includes("skill-anthropics-skills-pdf"));
+    assert.ok(indexedToolIds.includes("skill-dietrichgebert-ponytail-ponytail"));
+
+    const ratings = (await readFile(join(outputDir, "data", "ratings.jsonl"), "utf8")).trim().split("\n").map((line) => JSON.parse(line) as { tool_id: string; rules_version: string; dimension_scores: Record<string, number> });
+    const skillRating = ratings.find((rating) => rating.tool_id === "skill-anthropics-skills-pdf");
+    assert.equal(skillRating?.rules_version, "rating_rules.v0.2");
+    assert.ok(skillRating?.dimension_scores.trigger_clarity);
+    assert.equal(skillRating?.dimension_scores.documentation_quality, undefined);
+
+    const ingestionReview = JSON.parse(await readFile(join(outputDir, "data", "review", "ingestion.json"), "utf8")) as {
+      result: { snapshots: Array<{ source_id: string }>; sourceRecords: Array<{ source_id: string }> };
+    };
+    assert.equal(ingestionReview.result.snapshots.filter((item) => item.source_id === "github-topic-agent-skills").length, 5);
+    assert.equal(ingestionReview.result.sourceRecords.filter((item) => item.source_id === "github-topic-agent-skills").length, 2);
+    for (const artifactPath of ["tool_cards.jsonl", "ratings.jsonl", "search_index.json", "manifest.json"]) {
+      const artifact = await readFile(join(outputDir, "data", artifactPath), "utf8");
+      assert.equal(artifact.includes("Do not overwrite source files before approval."), false);
+    }
 
     const evalSummary = JSON.parse(await readFile(join(outputDir, "data", "eval_summary.json"), "utf8")) as EvalSummaryFile;
     assert.equal(evalSummary.results[0].failure_category, "blocked_no_key");

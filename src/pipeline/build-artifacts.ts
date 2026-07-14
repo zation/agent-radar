@@ -16,6 +16,7 @@ import { normalizeToolCardDraftsWithEvidence } from "../ingestion/normalizer.js"
 import { buildSourceRegistryReviewArtifact, buildSourceRegistryReviewRequests } from "../ingestion/source-review.js";
 import { buildSourceRegistryArtifact, buildSourceRegistryDiff, sourceRegistry } from "../ingestion/source-registry.js";
 import { rateAllToolCards } from "../rating/engine.js";
+import type { RatingContext } from "../rating/policy.js";
 import { buildFeedbackArtifacts } from "../feedback-processing/artifacts.js";
 import { calculateFeedbackAdjustment, emptyFeedbackAdjustment } from "../feedback-processing/scoring.js";
 import { validateFeedbackBuildInput, type FeedbackBuildInput } from "../feedback-processing/preparer.js";
@@ -126,7 +127,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
   for (const summary of feedbackInput.artifacts.summary.tools) {
     feedbackByTool.set(summary.tool_id, calculateFeedbackAdjustment(summary, voteSnapshotChecksum));
   }
-  const ratings = rateAllToolCards(toolCards, feedbackByTool);
+  const ratings = rateAllToolCards(toolCards, feedbackByTool, reliableInput.ratingContextByTool);
   const index = buildSearchIndex(toolCards, ratings);
   const apiKey = process.env.AGENT_RADAR_LLM_API_KEY ?? "";
   const model = process.env.AGENT_RADAR_LLM_MODEL ?? DEFAULT_RECOMMENDATION_MODEL;
@@ -185,7 +186,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
           eval_token_usage: "eval_token_usage.v1"
         },
         rules_versions: {
-          rating: "rating_rules.v0.1-draft",
+          rating: "rating_rules.v0.2",
           recommendation: "recommendation_rules.v1",
           feedback: "feedback_rules.v0.1"
         },
@@ -247,6 +248,7 @@ function buildEmptyFeedbackInput(generatedAt: string): FeedbackBuildInput {
 
 interface ReliableToolCardInput {
   toolCards: ToolCard[];
+  ratingContextByTool: ReadonlyMap<string, RatingContext>;
   fieldProvenanceV2: ToolCardFieldValueProvenanceV2;
   conflictReport: ToolCardConflictReport;
   duplicateCandidates: number;
@@ -271,6 +273,14 @@ async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOption
   }
 
   const toolCards = ingestion.promotionCandidates.items.map((item) => item.draft);
+  const sourceRecordsById = new Map(ingestion.sourceRecords.map((record) => [record.id, record]));
+  const ratingContextByTool = new Map(toolCards.map((card) => [
+    card.id,
+    { sourceRecords: card.evidence_refs.flatMap((reference) => {
+      const record = sourceRecordsById.get(reference);
+      return record ? [record] : [];
+    }) },
+  ]));
   const fieldProvenanceV2 = buildToolCardFieldValueProvenanceV2(
     toolCards,
     ingestion.normalizationEvidence,
@@ -284,6 +294,7 @@ async function buildReliableToolCardsFromIngestion(options: BuildArtifactsOption
   await writeIngestionReviewEvidence(options.outputDir, ingestion, { fieldProvenanceV2, conflictReport });
   return {
     toolCards,
+    ratingContextByTool,
     fieldProvenanceV2,
     conflictReport,
     duplicateCandidates: ingestion.duplicateReport.summary.possible_duplicates,
@@ -317,6 +328,7 @@ function buildProvidedToolCardInput(toolCards: ToolCard[], generatedAt: string):
   const normalized = normalizeToolCardDraftsWithEvidence(records);
   return {
     toolCards,
+    ratingContextByTool: new Map(),
     fieldProvenanceV2: buildToolCardFieldValueProvenanceV2(
       toolCards,
       normalized.evidence,
