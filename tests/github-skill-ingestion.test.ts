@@ -152,7 +152,7 @@ test("grouped parser creates one independent Source Record per successful manife
 
 test("grouped parser preserves the current 17 plus 6 one-manifest-per-card shape", async () => {
   const outputDir = await mkdtemp(join(tmpdir(), "agent-radar-skill-shape-"));
-  const manifest = "---\nname: Example Skill\ndescription: Use this skill when testing grouped ingestion.\n---\n## Steps\n1. Inspect the input.\n";
+  const manifest = "---\nname: Example Skill\ndescription: Use this skill when testing grouped ingestion with Python.\n---\n## Steps\n1. Inspect the input.\n";
   const repositories = [
     { full_name: "anthropics/skills", name: "skills", html_url: "https://github.com/anthropics/skills", default_branch: "main", stargazers_count: 100 },
     { full_name: "example/skill-pack", name: "skill-pack", html_url: "https://github.com/example/skill-pack", default_branch: "main", stargazers_count: 50 },
@@ -187,6 +187,9 @@ test("grouped parser preserves the current 17 plus 6 one-manifest-per-card shape
     assert.equal(records.length, 23);
     assert.equal(new Set(records.map((record) => record.parsed_fields.canonical_identity)).size, 23);
     assert.equal(new Set(records.map((record) => record.parsed_fields.tool_id)).size, 23);
+    assert.ok(records.every((record) => (
+      record.parsed_fields.generated_tool_profile as { permissions: Array<{ scope: string }> }
+    ).permissions.some((permission) => permission.scope === "code_execution")));
   } finally {
     await rm(outputDir, { recursive: true, force: true });
   }

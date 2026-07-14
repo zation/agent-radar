@@ -147,7 +147,10 @@ function buildSkillSourceRecord(
 ): SourceRecord {
   const manifestUrl = `${repository.html_url}/blob/${encodeURIComponent(branch)}/${skillPath.split("/").map(encodeURIComponent).join("/")}`;
   const toolId = stableSkillId(repository.full_name, skillPath);
-  const permissions = inferSkillPermissions(`${parsed.frontmatter.description}\n${parsed.body}`);
+  const permissions = inferSkillPermissions(
+    `${parsed.frontmatter.description}\n${parsed.body}`,
+    parsed.signals.platform_dependencies,
+  );
   const riskLevel = permissions.some((permission) => permission.scope === "shell" || permission.scope === "code_execution") ? "high" : permissions.length > 0 ? "medium" : "low";
   const license = parsed.frontmatter.license ?? normalizeGitHubLicense(repository.license);
   const generatedToolProfile = {
@@ -294,7 +297,7 @@ function normalizeRelativePath(baseDirectory: string, relativePath: string): str
   return normalized.join("/");
 }
 
-function inferSkillPermissions(content: string): ToolCard["permissions"] {
+function inferSkillPermissions(content: string, platformDependencies: string[]): ToolCard["permissions"] {
   const permissions: ToolCard["permissions"] = [];
   if (/\b(?:file|pdf|document|code|repository|workspace)\b/i.test(content)) {
     permissions.push({ scope: "filesystem", access: "read_write", required: true, notes: "The Skill instructions operate on workspace files or code." });
@@ -302,7 +305,8 @@ function inferSkillPermissions(content: string): ToolCard["permissions"] {
   if (/```(?:bash|sh|shell)|\b(?:run|execute) (?:a )?(?:command|script)\b/i.test(content)) {
     permissions.push({ scope: "shell", access: "execute", required: true, notes: "The Skill instructions include shell command or script execution." });
   }
-  if (/```(?:python|javascript|typescript)|\bexecute (?:generated )?code\b/i.test(content)) {
+  if (platformDependencies.some((dependency) => dependency === "python" || dependency === "node")
+    || /```(?:python|javascript|typescript)|\bexecute (?:generated )?code\b/i.test(content)) {
     permissions.push({ scope: "code_execution", access: "execute", required: true, notes: "The Skill instructions include executable code examples." });
   }
   if (/\b(?:api|network|download|upload|http request)\b/i.test(content)) {
