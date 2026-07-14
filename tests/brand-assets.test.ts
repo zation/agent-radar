@@ -24,3 +24,18 @@ test("the new Agent Radar logo is used consistently across public surfaces", asy
     assert.doesNotMatch(surface, /agent-radar-logo\.svg/);
   }
 });
+
+test("the initial loading state uses a reduced-motion-safe branded radar", async () => {
+  const [app, styles] = await Promise.all([
+    readFile("src/ui/App.tsx", "utf8"),
+    readFile("src/ui/styles.css", "utf8"),
+  ]);
+
+  assert.match(app, /className="loading-radar"/);
+  assert.match(app, /<img src="\/logo\.svg" alt="" aria-hidden="true" className="loading-radar-logo"/);
+  assert.match(app, /className="loading-radar-wave" aria-hidden="true"/);
+  assert.doesNotMatch(app, /<Bot\b|className="spin"/);
+  assert.match(styles, /\.loading-radar-wave\s*\{[^}]*animation:/s);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(styles, /prefers-reduced-motion: reduce[\s\S]*\.loading-radar-wave[\s\S]*animation: none/);
+});

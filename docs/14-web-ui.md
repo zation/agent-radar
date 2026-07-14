@@ -21,6 +21,8 @@ Primary files:
 - `src/ui/styles.css`: design tokens and global responsive rules.
 - `public/logo.svg`: tightly cropped shared brand mark used by the Web header, favicon, and README.
 
+The initial artifact-loading state reuses the stationary shared brand mark with a subtle radar pulse and a visible loading label. Recommendation execution keeps its conventional button spinner. Reduced-motion preferences disable the radar animation without hiding loading status.
+
 ## Information Architecture
 
 Top navigation contains only `Tools` and `Evaluation`. Recommendation is part of Tools. Retired Compare, Review, and golden-query popover surfaces do not appear in navigation.

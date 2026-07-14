@@ -84,12 +84,45 @@ body {
   text-align: center;
 }
 
-.spin {
-  animation: radar-spin 900ms linear infinite;
+.loading-radar {
+  position: relative;
+  display: grid;
+  width: 4.75rem;
+  height: 3rem;
+  place-items: center;
 }
 
-@keyframes radar-spin {
+.loading-radar-logo {
+  position: relative;
+  z-index: 1;
+  width: auto;
+  height: 3rem;
+}
+
+.loading-radar-wave {
+  position: absolute;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 42%, transparent);
+  border-radius: 50%;
+  animation: radar-pulse 1.6s ease-out infinite;
+}
+
+@keyframes radar-pulse {
+  from {
+    opacity: 0.55;
+    transform: scale(0.72);
+  }
+
   to {
-    transform: rotate(360deg);
+    opacity: 0;
+    transform: scale(1.55);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-radar-wave {
+    animation: none;
+    opacity: 0.22;
   }
 }

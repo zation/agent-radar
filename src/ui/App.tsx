@@ -1,4 +1,4 @@
-import { AlertTriangle, Bot } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { AppShell, type Page } from "./app-shell.js";
 import { loadUiArtifacts, type UiArtifacts } from "./data.js";
@@ -13,7 +13,13 @@ export default function App() {
   const [loadError, setLoadError] = useState("");
   useEffect(() => { void loadUiArtifacts().then(setArtifacts).catch((error: unknown) => setLoadError(error instanceof Error ? error.message : "Failed to load Agent Radar data.")); }, []);
   useEffect(() => { window.scrollTo({ top: 0, left: 0 }); }, [activePage]);
-  if (!artifacts) return <main className="loading-screen">{loadError ? <div><AlertTriangle /><strong>Agent Radar data is not available</strong><p>{loadError}</p></div> : <div><Bot className="spin" />Loading Agent Radar data</div>}</main>;
+  if (!artifacts) return <main className="loading-screen">{loadError ? <div><AlertTriangle /><strong>Agent Radar data is not available</strong><p>{loadError}</p></div> : <div>
+    <span className="loading-radar">
+      <span className="loading-radar-wave" aria-hidden="true" />
+      <img src="/logo.svg" alt="" aria-hidden="true" className="loading-radar-logo" />
+    </span>
+    Loading Agent Radar data
+  </div>}</main>;
   return <FeedbackProvider><AppShell activePage={activePage} onPageChange={setActivePage} releaseId={artifacts.evalSummary.release.release_id}>
     {activePage === "tools" ? <ToolsWorkspace tools={artifacts.tools} /> : <EvaluationPage cases={artifacts.goldenQueries} summary={artifacts.evalSummary} />}
   </AppShell></FeedbackProvider>;
