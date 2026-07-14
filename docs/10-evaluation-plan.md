@@ -158,6 +158,8 @@ Incomplete required fields block the reliable index. A rise in unknown permissio
 
 Verify that every Tool has a Rating Result, overall scores are within 0 through 100, dimension weights total 100, safety ceilings hold, low-quality evidence cannot become `recommended`, deprecated tools remain excluded, and feedback adjustment cannot improve risk or trust.
 
+For `rating_rules.v0.2`, regression tests freeze Agent, MCP, Framework, and CLI semantic projections while separately checking the Skill 18/20/20/12/10/10/5/5 weighted dimensions. Missing trigger, boundary, or referenced-resource evidence must lower the relevant Skill dimensions. Increasing repository stars must not change Skill content dimensions.
+
 ```yaml
 id: rating-low-evidence-not-recommended
 input:
@@ -242,6 +244,8 @@ Review may keep the automatic result, correct data or classification, change rat
 `all-v0.7.0` is the current verified production baseline. Release All run `29326321908` and production deployment `5439377930` bind evidence to commit `f4f53290367d0e5bfda6347f2f372f7cca061c6e`. Real-provider golden evaluation passed 24/24, critical safety passed 4/4, and deployed MCP smoke passed 7/7. The reviewed `eval_token_usage.v1` evidence records MiniMax M3 with 24 requests, 24 reported usage records, no unavailable attempts or retries, and 639,795 total tokens. The active/latest official Registry record remains `io.github.zation/agent-radar@0.6.4` for the same remote.
 
 The first real Issue classification and writeback observation completed in `all-v0.5.1`: Issue #1 produced `needs-human-review` with reason code `insufficient_information` and remained open, while Issue #2 produced `rejected` with reason code `invalid_context` and closed. Both received the expected processing label, classifier comment, release marker, and final state.
+
+Dynamic Skill expansion does not add Golden Queries or change the 24-case provider contract. Provider requests receive normalized Tool Cards and Rating Results only; raw `SKILL.md` bodies remain in content-hashed ingestion evidence. Data expansion must still pass 24/24 provider evaluation, all four critical safety cases, and token-usage evidence validation before production approval.
 
 ## Release Criteria
 

@@ -31,6 +31,8 @@ Filesystem writes, shell, browser, database, cloud, and other access may exceed 
 
 Web pages, email, documents, issues, Skills, prompts, and rules may contain hostile instructions. Browser, email, document, and web-collection tools are at least medium risk. Untrusted content must remain data, not instructions.
 
+For dynamic GitHub Skills, `SKILL.md` content is untrusted collection data. The crawler never clones or executes it; the parser performs bounded deterministic extraction only. Raw bodies remain in Raw Snapshots and ingestion evidence and are excluded from Tool Cards, ratings, search documents, HTTP/MCP output, and recommendation-provider Golden Query context. Approval-bypass and persistent-instruction patterns become visible risk findings and cannot themselves authorize execution.
+
 For v0.4 feedback processing:
 
 - GitHub Issue titles, bodies, comments, user names, and links are untrusted input.
@@ -194,6 +196,8 @@ For an unknown tool, Agent Radar does not install, run, provide secrets, grant f
 ## Collection Boundaries
 
 Collection excludes private repositories, user email or files, authenticated browser pages, access-control bypasses, and leaked-secret content. Suspected tokens are not stored verbatim and create a security event. Sources with unclear terms remain disabled.
+
+The admitted `github-topic-agent-skills` boundary is public GitHub Search, recursive tree metadata, and raw eligible manifests for the current top two repositories. Requests carry no authorization, cookies, browser state, or private repository access. Redirect hosts, response sizes, paths, symlinks, tree completeness, and Git blob identity are checked before a manifest becomes evidence.
 
 ## Security Evaluation
 

@@ -87,6 +87,19 @@ A source-local structured record parsed from a Raw Snapshot without cross-source
 
 Preserve source fields where possible without secrets. Record uncertainty in warnings rather than silently dropping it.
 
+### Dynamic Skill Source Records
+
+`github_skill_topic_parser.v1` retains `source_record.v1` and adds parser-owned fields under `parsed_fields`:
+
+- `tool_id`: stable repository-and-Skill-directory ID.
+- `canonical_identity`: the exact GitHub manifest blob URL.
+- `repo_url`, `docs_url`, and `skill_manifest_path`.
+- repository stars, license, activity, and topics when present.
+- `generated_tool_profile`: deterministic normalized draft inputs; this is not a reviewed Registry `source_profile`.
+- `skill_signals`: trigger, actionable-step, boundary, heading, code-block, resource, missing-resource, platform-dependency, and dangerous-instruction evidence.
+
+One eligible manifest produces one Source Record and one Tool Card identity, even when several Skills share a repository. Raw manifest bodies remain in Raw Snapshot/Source Record ingestion evidence and do not enter Tool Cards, Rating Results, search documents, recommendation provider context, or public recommendation results.
+
 ## Tool Card
 
 The central normalized recommendation record.
@@ -209,7 +222,7 @@ The Rating Engine output for a Tool Card.
 | `schema_version` | string | yes | `rating_result.v2` | Schema |
 | `tool_id` | string | yes | `model-context-protocol-filesystem` | Tool |
 | `tool_type` | enum | yes | `mcp` | Type |
-| `rules_version` | string | yes | `rating_rules.v0.1-draft` | Rules |
+| `rules_version` | string | yes | `rating_rules.v0.2` | Rules |
 | `base_score` | number | yes | `82` | Pre-feedback score |
 | `feedback_adjustment` | object | yes | below | Reviewed feedback adjustment and evidence |
 | `overall_score` | number | yes | `82.2` | Final 0–100 score |
@@ -225,6 +238,8 @@ The Rating Engine output for a Tool Card.
 Recommendation levels: `recommended`, `consider`, `situational`, `avoid`, `insufficient_evidence`.
 
 `feedback_adjustment` contains `d1`, `accepted_issues`, `raw`, `applied`, fixed `cap: 3`, `rules_version: feedback_rules.v0.1`, `vote_snapshot_checksum`, and `accepted_issue_ids`. `overall_score` equals the clamped final score after applying `feedback_adjustment.applied` to `base_score`.
+
+`rating_rules.v0.2` keeps `rating_result.v2`. Skill results use `trigger_clarity`, `instruction_quality`, `task_fit`, `boundary_clarity`, `portability`, `evidence_quality`, `maintenance_health`, and `security_posture`. Other current tool types retain the compatibility-policy dimension semantics from v0.1 while sharing risk, feedback, recommendation-ceiling, and result construction logic.
 
 ```json
 [{

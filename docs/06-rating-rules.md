@@ -19,6 +19,8 @@ The question is not "Which tool is most popular?" but "Which tool deserves recom
 
 `Rating Result` is defined in `docs/04-data-model.md`. Core fields are `base_score`, structured `feedback_adjustment`, final `overall_score` (0–100), `dimension_scores`, `recommendation_level`, `risk_level`, `explanations`, `evidence_quality`, and `rules_version`.
 
+The current build-wide version is `rating_rules.v0.2`. It introduces a type-policy boundary and implements the Skill policy below. Agent, MCP, Framework, and CLI currently run through a compatibility policy that preserves their v0.1 seven-dimension scores and arithmetic mean; the more specialized tables below remain the intended evolution unless explicitly identified as implemented.
+
 ## Shared Dimensions
 
 | Dimension | Default weight | Definition |
@@ -116,6 +118,10 @@ This MCP fits {task} because it provides {capability}. Its primary risk is {perm
 | `security_posture` | 5 |
 
 Rate trigger clarity, executable steps, required references, limits/failure/safety, and platform dependence. Penalize generic prompts, instructions that bypass approval, and missing resources.
+
+This table is implemented in `rating_rules.v0.2`. The deterministic inputs are normalized Tool Card fields plus validated `skill_signals` from referenced Source Records. Stars do not affect trigger, instruction, task-fit, boundary, portability, or security content scores. Missing context falls back to conservative Tool Card-derived booleans so existing manual Skill cards remain rateable.
+
+The weighted base score uses 18/20/20/12/10/10/5/5 percent in the table order. Trigger guidance, actionable steps, explicit boundaries, required-resource availability, platform dependencies, dangerous instruction patterns, confidence, maintenance status, and derived risk are clamped within 0 through 100 before weighting.
 
 ```text
 This Skill fits {task} because its triggers and steps are explicit. Its limit is {boundary}; before using it in {agent_context}, confirm {requirement}.

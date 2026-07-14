@@ -9,7 +9,7 @@ The goal is not to collect everything that is technically accessible. Agent Rada
 ## Source Principles
 
 - Prefer official and publicly verifiable sources.
-- Controlled automation currently includes official sources, manually maintained sources, `github-topic-mcp`, `npm-modelcontextprotocol-sdk`, and reviewed exact-repository sources. Every output must still pass parsing, validation, deduplication, automatic review, release admission, and the promotion check.
+- Controlled automation currently includes official sources, manually maintained sources, `github-topic-mcp`, bounded `github-topic-agent-skills`, `npm-modelcontextprotocol-sdk`, and reviewed exact-repository sources. Every output must still pass parsing, validation, deduplication, automatic review, release admission, and the promotion check.
 - Never bypass authentication, CAPTCHAs, paywalls, access controls, or terms of service.
 - Source trust affects field confidence and rating inputs; it does not prove tool quality.
 - Community lists, Awesome lists, news, blogs, and launch posts remain outside controlled automatic collection. Any future admission must use the same release gates.
@@ -37,6 +37,12 @@ access_review:
   reviewed_at:
   notes:
 parser:
+github_discovery:
+  query:
+  sort:
+  order:
+  repository_limit:
+  expansion:
 profile:
 failure_policy:
 enabled:
@@ -59,6 +65,7 @@ last_reviewed_at:
 | `terms_notes` | string | yes | Terms and usage constraints |
 | `access_review` | object | for enabled sources | Robots and terms review record |
 | `parser` | string | no | Parser name |
+| `github_discovery` | object | for configured GitHub discovery | Exact query, stars-desc order, bounded repository limit, and optional reviewed expansion rule |
 | `profile` | object | no | Reviewed source-level mapping for fields that generic metadata cannot infer reliably |
 | `failure_policy` | string | yes | Failure behavior |
 | `enabled` | boolean | yes | Whether automatic collection is enabled |
@@ -106,7 +113,7 @@ Documentation sites, READMEs, releases, and repository metadata published by a t
 
 ### GitHub
 
-Public repositories, organizations, releases, READMEs, and controlled topic searches provide discovery, maintenance, community, and license signals. `github-topic-mcp` is enabled through the public GitHub Search API; other topic sources require source admission first.
+Public repositories, organizations, releases, READMEs, and controlled topic searches provide discovery, maintenance, community, and license signals. `github-topic-mcp` and bounded `github-topic-agent-skills` are enabled through public GitHub APIs; other topic sources require source admission first.
 
 A topic, star count, repository, or package is only a discovery signal. It does not establish trust or permit release. Repository drafts must pass every standard release gate.
 
@@ -197,6 +204,32 @@ enabled: false
 
 This topic remains disabled because its discovery noise is high.
 
+### GitHub Topic: Agent Skills
+
+```yaml
+id: github-topic-agent-skills
+url: https://github.com/topics/agent-skills
+source_type: github
+covered_tool_types: [skill]
+collection_method: api
+recommended_frequency: weekly
+trust_level: active_open_source
+parser: github_skill_topic_parser
+github_discovery:
+  query: topic:agent-skills
+  sort: stars
+  order: desc
+  repository_limit: 2
+  expansion:
+    kind: skill_manifests
+    root: skills/
+    manifest: SKILL.md
+failure_policy: keep successful records from the current crawl only
+enabled: true
+```
+
+The Source reads public GitHub Search, tree, and raw-content endpoints without authentication. Every eligible `skills/**/SKILL.md` is one Skill candidate; the repository collection is not a Skill. The current successful crawl is authoritative, so ranking changes may remove old cards and failures never restore prior records. Stars determine only which two repositories are inspected and do not raise trust, content-quality scores, or release eligibility.
+
 ### npm Model Context Protocol SDK
 
 ```yaml
@@ -279,7 +312,7 @@ Manual review is not unconditionally authoritative. Package registries may be ne
 | --- | --- |
 | Official registry | weekly |
 | Official documentation | weekly or monthly |
-| GitHub topic | `github-topic-mcp` weekly; others disabled by default |
+| GitHub topic | `github-topic-mcp` and bounded `github-topic-agent-skills` weekly; others disabled by default |
 | Package registry | `npm-modelcontextprotocol-sdk` weekly; others require admission |
 | Community directory | disabled for the MVP |
 | News and launch posts | disabled for the MVP |

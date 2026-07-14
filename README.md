@@ -62,6 +62,8 @@ reviewed public sources
 
 Collection is controlled by a Source Registry. Candidates pass normalization, validation, review, admission, and promotion gates before entering reliable recommendation data. Dynamic recommendations use an LLM for task interpretation and candidate selection, while local deterministic logic validates known tools and enforces safety boundaries.
 
+The v0.7 data path also discovers the current top two public repositories for GitHub topic `agent-skills` and expands eligible `skills/**/SKILL.md` manifests into one Tool Card per Skill. Repository rank is discovery evidence, not quality evidence. Each current build keeps only successfully fetched Skill manifests; raw Skill text stays inside ingestion evidence and is never sent to the recommendation provider.
+
 ## Who It Is For
 
 - **AI-first developers** choosing among agents, Skills, MCP Servers, CLIs, and Frameworks for a concrete task.

@@ -58,9 +58,10 @@ data/promotion_candidates/promotion_check.json
 
 ### Enabled Collection and Parsers
 
-Controlled enabled inputs include GitHub topic discovery, npm package metadata, exact GitHub repository metadata, and official documentation pages.
+Controlled enabled inputs include GitHub topic discovery, bounded GitHub Skill-manifest expansion, npm package metadata, exact GitHub repository metadata, and official documentation pages.
 
 - `github_topic_parser` parses public GitHub Search API repository payloads and records rate-limit response metadata. Collection sends no authorization header, cookie, or private token.
+- `github_skill_topic_parser` groups staged Search, repository-tree, and raw-manifest snapshots. It emits one Source Record per successful eligible `skills/**/SKILL.md`, a manifest-level canonical identity, `generated_tool_profile`, and deterministic `skill_signals`. It never clones or executes repository content.
 - `github_repo_parser` handles a reviewed exact public repository and avoids relying only on incidental topic-search coverage.
 - `npm_package_parser` extracts package name and URL, repository and homepage URLs, license, latest version, and last release time.
 - `official_docs_parser` extracts only the fixed page title and description and copies the reviewed `SourceDefinition.profile` into the Source Record. It does not infer permission facts from body text.
@@ -72,9 +73,11 @@ GitHub topics, stars, repositories, and packages are discovery signals only. Eve
 
 ### Normalization, Review, and Promotion
 
-The minimum cross-source normalizer groups evidence by canonical repository or package key and merges evidence references, source URLs, and package URLs. The review queue reports duplicate signals against published Tool Cards and same-batch drafts. Intervention artifacts distinguish `published_duplicates` from `draft_duplicates` and include validation context.
+The minimum cross-source normalizer groups evidence by explicit canonical identity, then repository or package key, and merges evidence references, source URLs, and package URLs. Skill cards with a manifest URL use that manifest for duplicate identity; non-Skill cards retain repository-first behavior. The review queue reports duplicate signals against published Tool Cards and same-batch drafts. Intervention artifacts distinguish `published_duplicates` from `draft_duplicates` and include validation context.
 
 Automatic review emits `tool_card_auto_review.v1` with a suggested action, evidence URLs, primary risks, missing fields, reasons for review, and a release-admission scorecard. A reviewed exact-source profile can explain optional upstream metadata gaps, such as description or license, but parser warnings still count in the quality report. Unprofiled discovery collections such as `awesome-*` are rejected as individual tools and do not create unresolved interventions.
+
+Auto Review retains the same v1 artifact for every type. Internally, common findings and Skill findings map back to `key_evidence`, `key_risks`, `missing_fields`, and `human_review_reasons`. Tree-backed known risks remain visible without automatically creating intervention debt; invalid identity, missing evidence, ambiguous dependencies, and unknown execution requirements fail closed.
 
 Default release admission requires an automatic-review recommendation of `promote` and no unresolved duplicates, critical conflicts, missing required fields, or other review reasons. `approval_record.v1` is only a break-glass `approval_override`, never the normal review path.
 
@@ -103,6 +106,12 @@ Redirects are validated one hop at a time. HTTPS downgrade, private or non-publi
 Release All restores the previous reviewed bundle's Source Registry, Data Quality Report, and ingestion Source Records. If a source with `preserve previous stable data` fails, only that source falls back to its prior records. The crawl audit and Review Summary retain the failure signal; an empty response must not silently remove reliable cards.
 
 Source Registry and Tool Card semantic diffs compare against the previous reviewed bundle. Build timestamps and refreshed evidence references are not treated as content changes.
+
+`github-topic-agent-skills` is the explicit exception to stable-data fallback. Its current-build successful records are the complete Source snapshot: search failure yields zero records, tree failure removes that repository, manifest failure removes that Skill, and successful sibling repositories or manifests remain. Previous Skill Source Records are never merged or restored.
+
+### Staged Skill Crawl Safety
+
+The crawler selects exactly the configured top two repositories, rejects truncated trees, symlinks, traversal, hidden compatibility copies, templates, fixtures, benchmarks, generated paths, oversized paths, and non-manifest blobs. Search, tree, manifest, and total Source byte limits are enforced before decoding. Redirects are manual and bounded to reviewed GitHub API/raw hosts. Manifest bytes must match the Git blob SHA from the tree, preventing mixed revisions.
 
 ### Data-Quality and Immutable-Bundle Gates
 
@@ -138,7 +147,7 @@ The following capabilities remain partial:
 
 - Crawl Plan generation currently emits a minimum artifact with `ready`, `disabled`, or `blocked` state.
 - General external HTTP and API throttling and retry are incomplete; the GitHub topic path records rate-limit metadata.
-- Parser coverage currently centers on `manual_seed_parser`, `github_topic_parser`, `github_repo_parser`, `npm_package_parser`, and `official_docs_parser`.
+- Parser coverage currently centers on `manual_seed_parser`, `github_topic_parser`, `github_skill_topic_parser`, `github_repo_parser`, `npm_package_parser`, and `official_docs_parser`.
 - Cross-source normalization, deduplication, and override auditing currently cover minimum repository and package keys and duplicate signals against published and same-batch drafts.
 - Source Registry validation checks enabled parser support, owner, `last_reviewed_at`, and robots and terms reviews, then emits field-level production-gate evidence.
 - Reviewed-bundle Markdown currently shows discovery, interventions, automatic review, blocked release-admission reasons, promotion details, the promotion plan, and promotion-check results.
@@ -222,7 +231,7 @@ Source Registry
 Daily incremental and weekly full runs are not scheduled in the MVP. Maintainers trigger collection, import, rating, indexing, and release manually.
 
 - Daily incremental is intended for high-priority official sources, known repository and package updates, stale links, and retries.
-- Weekly full is intended for official and manual sources plus controlled `github-topic-mcp` and `npm-modelcontextprotocol-sdk` metadata. Community directories stay disabled.
+- Weekly full is intended for official and manual sources plus controlled `github-topic-mcp`, bounded `github-topic-agent-skills`, and `npm-modelcontextprotocol-sdk` metadata. Community directories stay disabled.
 - Monthly quality review samples automatic-review and bundle evidence, retires stale sources, and produces quality reports.
 - Manual runs add sources, fix parsers, investigate recommendation errors, and verify releases.
 
@@ -263,7 +272,7 @@ data/raw/<source_id>/<YYYY-MM-DD>/<content_hash>.meta.json
 
 A source-specific parser converts Raw Snapshots to Source Records. It preserves original fields, performs no cross-source merge or rating, never represents guesses as facts, emits warnings and errors, and records its version. Every parser requires fixtures, and source-shape changes must fail clearly.
 
-Deduplication signals, in order, are canonical repository URL, package name plus registry, homepage URL, reciprocal official links, similar name plus maintainer, and similar name plus description. Strong matches may merge automatically. Weak matches emit `possible_duplicates`, block promotion, and enter production-gate review. Uncertain records remain separate drafts.
+Deduplication signals, in order, are explicit canonical identity, type-aware canonical URL, package name plus registry, homepage URL, reciprocal official links, similar name plus maintainer, and similar name plus description. Skill cards prefer their manifest `docs_url`; non-Skill cards prefer repository URL. Strong matches may merge automatically. Weak matches emit `possible_duplicates`, block promotion, and enter production-gate review. Uncertain records remain separate drafts.
 
 Canonical URLs remove trailing slashes, normalize GitHub casing and `.git` suffixes, and retain the validated canonical redirect target.
 

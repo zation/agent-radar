@@ -4,6 +4,14 @@
 
 `src/recommendation/safety.ts` runs after LLM candidate normalization and before Recommendation Result v2 assembly. It reads the query, Tool Cards, Ratings, and candidates and deterministically produces risk, reason codes, human-confirmation details, and action ceilings. Web, HTTP API, MCP, and build-time golden evaluation reuse the same recommendation path.
 
+## v0.7 P2 Dynamic Skill Expansion
+
+`github-topic-agent-skills` uses a bounded staged crawl: GitHub Search selects the current top two `topic:agent-skills` repositories by stars, each repository tree identifies eligible `skills/**/SKILL.md` manifests, and raw content is accepted only when its Git blob SHA matches the tree. Grouped parsing produces one Source Record per successful manifest. Normalization and deduplication use the manifest URL as Skill identity, so multiple Skills from one repository remain independent Tool Cards.
+
+The Source's current successful crawl is authoritative. It never restores previous Skill records: search failure yields no records, repository-tree failure drops that repository, and manifest failure drops that Skill while preserving successful siblings. Other Sources retain their declared stable-data fallback behavior.
+
+Rating uses a shared engine boundary and a Skill policy under `rating_rules.v0.2`. The pipeline resolves only Source Records referenced by a Tool Card into rating context. Raw manifest bodies remain in Raw Snapshots and ingestion evidence; Tool Cards, Rating Results, search, HTTP/MCP responses, and provider-backed Golden Query context contain normalized fields only.
+
 ## Document Purpose
 
 This document defines Agent Radar's modules, data flows, interface boundaries, and deployment shape. It guides code structure, technology choices, and module evolution.
@@ -67,6 +75,8 @@ Failure handling: retry network failures, back off on rate limiting, and leave s
 
 Tests: HTTP fixtures and error-snapshot persistence.
 
+The dynamic Skill path additionally enforces bounded search/tree/manifest response sizes, path length, redirect count, allowed GitHub hosts, non-symlink manifests, non-truncated trees, and tree-to-content blob integrity.
+
 ### Raw Snapshot Store
 
 Responsibility: store immutable raw data for parser replay.
@@ -94,6 +104,8 @@ Dependencies: source-specific logic and the data-model document.
 Failure handling: one record failure does not stop the whole source; preserve unparsed fields in `raw_fields`; record parser failure on structural change.
 
 Tests: source fixtures and structural-regression cases.
+
+`github_skill_topic_parser.v1` consumes all snapshots for its Source as one group, parses minimal plain/folded/literal frontmatter, records deterministic instruction/resource/platform/risk signals, and emits a parser-derived `generated_tool_profile`. This profile is distinct from a reviewed Source Registry `source_profile`.
 
 ### Normalizer
 
@@ -215,7 +227,8 @@ source definition -> crawl -> raw snapshot -> parse source record
 ### Rating and Indexing
 
 ```text
-tool card -> rating engine -> rating result -> index builder
+tool card + referenced source-record context -> type policy -> rating engine
+  -> rating result -> index builder
   -> static index -> search/recommendation
 ```
 
