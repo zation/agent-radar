@@ -15,7 +15,7 @@ export interface EvalTokenUsageAttemptInput {
   usage: NormalizedProviderUsage;
 }
 
-export interface EvalTokenUsageAttempt extends Omit<EvalTokenUsageAttemptInput, "case_id"> {}
+export type EvalTokenUsageAttempt = Omit<EvalTokenUsageAttemptInput, "case_id">;
 
 export interface EvalTokenUsageCaseResult {
   case_id: string;
@@ -140,11 +140,12 @@ export function validateEvalTokenUsageArtifact(
 
 function parseCase(value: unknown): EvalTokenUsageCase {
   if (!isRecord(value) || typeof value.case_id !== "string" || !value.case_id) throw new Error("eval_token_usage invalid case");
+  const caseId = value.case_id;
   if (!isExecutionStatus(value.execution_status)) throw new Error(`eval_token_usage invalid execution status: ${value.case_id}`);
   if (!Array.isArray(value.attempts)) throw new Error(`eval_token_usage attempts invalid: ${value.case_id}`);
   const attempts = value.attempts.map(parseAttempt);
   attempts.forEach((attempt, index) => {
-    if (attempt.attempt !== index + 1) throw new Error(`eval_token_usage attempt order invalid: ${value.case_id}`);
+    if (attempt.attempt !== index + 1) throw new Error(`eval_token_usage attempt order invalid: ${caseId}`);
   });
   const finalOutcome = attempts.at(-1)?.outcome;
   if (value.execution_status === "blocked_no_key" && attempts.length !== 0) throw new Error(`eval_token_usage blocked case has attempts: ${value.case_id}`);
@@ -184,7 +185,7 @@ function parseUsage(value: unknown): NormalizedProviderUsage {
     return {
       status: "reported",
       input_tokens: value.input_tokens as number,
-      cached_input_tokens: value.cached_input_tokens as number | null,
+      cached_input_tokens: value.cached_input_tokens,
       output_tokens: value.output_tokens as number,
       total_tokens: value.total_tokens as number,
     };

@@ -283,8 +283,8 @@ test("eval records all provider request failures as unavailable attempts", async
 
 test("concurrent eval completion still builds token evidence in case order", async () => {
   const cases = [
-    { ...goldenQueries[0]!, id: "gq-z", expected: {} },
-    { ...goldenQueries[0]!, id: "gq-a", expected: {} },
+    { ...goldenQueries[0], id: "gq-z", expected: {} },
+    { ...goldenQueries[0], id: "gq-a", expected: {} },
   ];
   const collector = createCollector(cases.map(({ id }) => id));
   const summary = await runGoldenQueries(cases, [], [], {

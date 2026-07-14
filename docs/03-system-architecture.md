@@ -197,9 +197,11 @@ Inputs: Tool Cards, Rating Results, Recommendation Results, and Eval Cases.
 
 Outputs: Eval Report and critical safety gate. Eval Diff remains Backlog.
 
-Failure handling: critical failures block release; non-critical failures produce a risk report.
+v0.7 adds internal token-usage evidence beside the Eval Report. The OpenAI-compatible provider adapter normalizes response-level input, cached-input, output, and total token counts through an optional observer; it does not add usage to `RecommendationResult`. The Eval Runner owns case and retry identity, records one attempt for every actual provider request, and gives the build pipeline a concurrency-safe collector. The collector emits sorted `eval_token_usage.v1` evidence, while HTTP, MCP, Web, and the Eval Summary keep their existing contracts.
 
-Tests: runner self-tests and report fixtures.
+Failure handling: critical failures block release; non-critical failures produce a risk report. Missing or malformed provider usage becomes non-blocking `unavailable` evidence. Invalid usage artifact schema, release identity, ordering, arithmetic, case identity, manifest summary, or checksum blocks reviewed-bundle finalization.
+
+Tests: runner self-tests, retry/concurrency usage accounting, artifact tamper detection, public-contract leakage checks, and report fixtures.
 
 ## Data Flows
 
@@ -285,6 +287,7 @@ v0.4 P1 added GitHub OAuth, signed session cookies, and vote writes to the produ
 - Recommendation Engine never bypasses safety; LLM output passes local schema, known-ID, and high-risk action validation.
 - Web UI never implements recommendation logic different from the API.
 - Eval Runner evaluates and never silently changes expected results.
+- Eval token accounting observes provider requests and never changes recommendation, safety, or pass/fail decisions.
 
 ## Release Pipeline
 

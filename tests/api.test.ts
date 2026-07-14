@@ -140,6 +140,7 @@ test("recommend_tools returns recommendation result", async () => {
   assert.equal(body.schema_version, "recommendation_result.v2");
   assert.deepEqual(body.release, { release_id: "all-v0.2.1", commit_sha: "0123456789abcdef" });
   assert.equal(body.recommended_action, "ask_human");
+  assertNoTokenUsageFields(body);
 });
 
 test("recommend_tools rejects legacy body credentials without echoing them", async () => {
@@ -293,3 +294,16 @@ test("rejects unsupported writes and unknown routes", async () => {
   assert.equal(writeResponse.status, 405);
   assert.equal(unknownResponse.status, 404);
 });
+
+function assertNoTokenUsageFields(value: unknown): void {
+  const forbidden = new Set(["usage", "token_usage", "input_tokens", "cached_input_tokens", "output_tokens", "total_tokens"]);
+  if (Array.isArray(value)) {
+    for (const item of value) assertNoTokenUsageFields(item);
+    return;
+  }
+  if (typeof value !== "object" || value === null) return;
+  for (const [key, child] of Object.entries(value)) {
+    assert.equal(forbidden.has(key), false, `public response leaked ${key}`);
+    assertNoTokenUsageFields(child);
+  }
+}

@@ -84,11 +84,12 @@ Until separate tracks are intentionally introduced, `all-v*` is the only product
 | Search Index | `public/data/search_index.json` | Retrieval |
 | Golden Queries | `public/data/golden_queries.json` | Evaluation definitions |
 | Eval Summary | `public/data/eval_summary.json` | Release evaluation status |
+| Eval Token Usage | `public/reports/eval_token_usage.json` | Per-attempt provider-reported token evidence, retries, and totals |
 | D1 Seed | `public/data/d1_seed.sql` | Versioned read-model seed |
 | Manifest | `public/data/manifest.json` | Data, schema, rule, index, and release versions |
 | Artifact Manifest | `dist-pages/artifact-manifest.json` | Critical checksums and build evidence |
 
-The reviewed bundle also includes provider configuration without secrets, field provenance v1 and v2, conflicts, URL validation v1 and v2, data-quality report, Review Summary v2, discovery and intervention artifacts, automatic review, release admission, promotion evidence, MCP examples, and the smoke checklist.
+The reviewed bundle also includes provider configuration without secrets, field provenance v1 and v2, conflicts, URL validation v1 and v2, data-quality report, Review Summary v2, discovery and intervention artifacts, automatic review, release admission, promotion evidence, MCP examples, the smoke checklist, and normalized Golden Query token evidence.
 
 ## Local Commands
 
@@ -178,9 +179,9 @@ The production job does not rerun ingestion, pipeline, evaluation, URL checks, r
 
 ### Reviewed Bundle Evidence
 
-`agent-radar-all-<run_id>` contains `dist-pages`, full review Markdown under `artifacts/review`, and Wrangler dry-run output. The GitHub Actions summary presents compact release ID and SHA, data version, golden results, source-attention signals, interventions, admission blockers, promotion failures, missing provenance, and crawl failures before approval.
+`agent-radar-all-<run_id>` contains `dist-pages`, full review Markdown under `artifacts/review`, and Wrangler dry-run output. The GitHub Actions summary presents compact release ID and SHA, data version, golden results, provider/model pairs, token totals and availability, retry count, average reported usage, five highest-usage cases, source-attention signals, interventions, admission blockers, promotion failures, missing provenance, and crawl failures before approval.
 
-The artifact manifest records Git SHA, data version, eval model and categories, source diffs, crawl, overrides, discovery, intervention, provenance, automatic review, admission, promotion, timestamps, and critical checksums. The checksum-covered data manifest records rules and index versions.
+The artifact manifest records Git SHA, data version, eval model and categories, the validated compact token-usage summary, source diffs, crawl, overrides, discovery, intervention, provenance, automatic review, admission, promotion, timestamps, and critical checksums. Finalization recomputes token arithmetic and case/release identity before trusting the checksum; a self-consistent checksum cannot legitimize corrupted evidence. Missing or malformed provider usage remains a visible warning and does not create a token threshold. The checksum-covered data manifest records rules and index versions.
 
 ### Production Evidence
 
@@ -224,6 +225,7 @@ All of these must pass:
 - 24/24 provider-backed golden queries and 4/4 critical safety cases.
 - Index build, automatic review, release admission, and promotion check.
 - Artifact manifest generation and critical checksums.
+- `eval_token_usage.v1` release/case identity, arithmetic, manifest summary, and checksum validation.
 - Immutable reviewed-bundle upload and exact restoration.
 - One GitHub `production` environment approval.
 - D1 migration and approved feedback writeback.

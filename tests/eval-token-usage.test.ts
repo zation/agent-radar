@@ -92,7 +92,7 @@ test("validator rejects release, ordering, arithmetic, and attempt tampering", (
   badTotal.summary.total_tokens += 1;
   assert.throws(() => validateEvalTokenUsageArtifact(badTotal), /summary|total/i);
   const badAttempt = clone(artifact);
-  badAttempt.cases[0]!.attempts[0]!.usage.total_tokens = 99;
+  badAttempt.cases[0].attempts[0].usage.total_tokens = 99;
   assert.throws(() => validateEvalTokenUsageArtifact(badAttempt), /case|summary|total/i);
 });
 

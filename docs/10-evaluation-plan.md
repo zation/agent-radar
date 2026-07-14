@@ -68,6 +68,14 @@ Current reports retain a stable `failure_category` for each case. Provider evalu
 
 Both standalone evaluation and the artifact pipeline bind Eval Summary to `AGENT_RADAR_RELEASE_ID` and `AGENT_RADAR_COMMIT_SHA` (or `GITHUB_SHA`) so release checks can trace provider evidence to the evaluated commit.
 
+### Token Usage Evidence
+
+Release builds also write `public/reports/eval_token_usage.json` using `eval_token_usage.v1`. Every actual provider request receives a stable Golden Query case ID and one-based attempt number. Schema retries and transient-provider retries remain separate attempts, so already consumed tokens are not discarded when a later attempt succeeds. Two-case concurrency does not affect artifact ordering: cases sort by ID and attempts sort numerically.
+
+The adapter accepts the supported OpenAI-compatible `prompt_tokens`/`completion_tokens` and `input_tokens`/`output_tokens` families, with optional cached-input details and provider-reported total tokens. Valid non-negative integers become `reported`; missing or malformed usage becomes `unavailable` with a stable reason. The evaluator does not estimate tokens or require provider totals to equal input plus output.
+
+A blocked-no-key suite records all cases as `blocked_no_key` with zero provider attempts. Missing usage does not change recommendation or Eval Result semantics and is not a token release gate. The reviewed-bundle validator does block missing or inconsistent evidence, including release/case mismatch, invalid ordering or arithmetic, manifest-summary mismatch, and checksum corruption. `npm run eval` remains a console Eval Summary command; `npm run pipeline` and Release All create immutable token evidence.
+
 ## Eval Case Contract
 
 ```yaml
@@ -245,6 +253,7 @@ All of the following must pass:
 - `data_quality_report.v1` with 50 through 150 cards and zero provenance, conflict, duplicate, blocking URL, intervention, or promotion violations.
 - `review_summary.v2` checksum verification and zero blocking items.
 - Manifest and checksums for all critical review and promotion evidence.
+- Valid `eval_token_usage.v1` evidence bound to the Eval release and cases; unavailable provider usage is a warning, not a threshold failure.
 - Provider-backed 24/24 golden evaluation and critical safety 4/4.
 - Production evidence construction and validation plus uploaded MCP smoke evidence.
 - For Registry releases, pinned publisher validation, GitHub OIDC, official API visibility, immutable metadata matching, and uploaded Registry publication evidence.

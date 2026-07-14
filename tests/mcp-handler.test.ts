@@ -14,7 +14,12 @@ const repository = createStaticRepository({
   index: buildSearchIndex(reviewedToolCardFixtures, ratings)
 });
 const service = createToolService(repository, {
-  versionInfo: { release_id: "all-v0.6.3", commit_sha: "abc123" }
+  versionInfo: { release_id: "all-v0.6.3", commit_sha: "abc123" },
+  recommendationClient: {
+    recommend() {
+      return Promise.resolve({ recommended_action: "no_reliable_match", candidates: [], rejected_candidates: [] });
+    },
+  },
 });
 const handler = createMcpHttpHandler(service, {
   serverVersion: "0.6.3",
@@ -131,6 +136,19 @@ test("recommend_tools returns a safe MCP tool error when the header is missing",
   assert.deepEqual(JSON.parse(rpc.result.content[0].text), rpc.result.structuredContent);
 });
 
+test("recommend_tools MCP output does not expose internal token usage", async () => {
+  const rpc = await readRpcResponse<ToolCallRpcResponse>(await handler(rpcRequest({
+    jsonrpc: "2.0",
+    id: 21,
+    method: "tools/call",
+    params: { name: "recommend_tools", arguments: { task: "choose" } },
+  }, { "X-Agent-Radar-LLM-API-Key": "test-secret" })));
+
+  assert.equal(rpc.result.isError, undefined);
+  assertNoTokenUsageFields(rpc.result.structuredContent);
+  assertNoTokenUsageFields(JSON.parse(rpc.result.content[0].text));
+});
+
 test("SDK validates tool arguments and protocol methods", async () => {
   const invalid = await readRpcResponse<Partial<ToolCallRpcResponse & ProtocolErrorRpcResponse>>(await handler(rpcRequest({
     jsonrpc: "2.0",
@@ -195,3 +213,16 @@ test("MCP guards allow an explicitly configured localhost host", async () => {
   }));
   assert.equal(response.status, 204);
 });
+
+function assertNoTokenUsageFields(value: unknown): void {
+  const forbidden = new Set(["usage", "token_usage", "input_tokens", "cached_input_tokens", "output_tokens", "total_tokens"]);
+  if (Array.isArray(value)) {
+    for (const item of value) assertNoTokenUsageFields(item);
+    return;
+  }
+  if (typeof value !== "object" || value === null) return;
+  for (const [key, child] of Object.entries(value)) {
+    assert.equal(forbidden.has(key), false, `public MCP output leaked ${key}`);
+    assertNoTokenUsageFields(child);
+  }
+}
