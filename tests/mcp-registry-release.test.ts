@@ -16,7 +16,7 @@ const metadata = JSON.parse(await readFile("server.json", "utf8")) as Record<str
 const source = {
   repository: "zation/agent-radar",
   runId: "31000000001",
-  releaseTag: "all-v0.6.3",
+  releaseTag: "all-v0.6.4",
   gitSha: "abcdef1234567890"
 };
 
@@ -73,7 +73,7 @@ test("rejects incomplete, failed, or identity-mismatched source smoke", () => {
 test("release validation CLI rebuilds checksum-bound production evidence before publication", async () => {
   const directory = await mkdtemp(join(tmpdir(), "agent-radar-registry-release-"));
   const paths = Object.fromEntries(["manifest", "seed", "smoke", "production", "metadata"].map((name) => [name, join(directory, `${name}.json`)])) as Record<string, string>;
-  const seed = "INSERT INTO release_meta VALUES ('all-v0.6.3');\n";
+  const seed = "INSERT INTO release_meta VALUES ('all-v0.6.4');\n";
   const manifest = {
     schema_version: "artifact_manifest.v1",
     git_sha: source.gitSha,

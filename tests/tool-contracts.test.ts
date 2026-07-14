@@ -65,3 +65,26 @@ test("MCP manifest derives schemas and annotations from shared contracts", () =>
   assert.equal(Object.hasOwn(recommendation.input_schema.properties as object, "api_key"), false);
   assert.equal(typeof recommendation.output_schema, "object");
 });
+
+test("every public MCP input parameter has a description", () => {
+  const manifest = buildMcpToolManifest();
+
+  for (const tool of manifest.tools) {
+    assert.deepEqual(
+      findUndescribedProperties(tool.input_schema),
+      [],
+      `${tool.name} has input parameters without descriptions`
+    );
+  }
+});
+
+function findUndescribedProperties(schema: Record<string, unknown>, parent = ""): string[] {
+  const properties = schema.properties as Record<string, Record<string, unknown>> | undefined;
+  if (!properties) return [];
+
+  return Object.entries(properties).flatMap(([name, property]) => {
+    const path = parent ? `${parent}.${name}` : name;
+    const missing = typeof property.description === "string" && property.description.trim() ? [] : [path];
+    return [...missing, ...findUndescribedProperties(property, path)];
+  });
+}

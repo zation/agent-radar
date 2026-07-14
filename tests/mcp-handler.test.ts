@@ -51,7 +51,11 @@ interface InitializeRpcResponse {
 
 interface ToolsListRpcResponse {
   result: {
-    tools: Array<{ name: string; annotations?: { readOnlyHint?: boolean } }>;
+    tools: Array<{
+      name: string;
+      inputSchema?: { properties?: Record<string, { description?: string }> };
+      annotations?: { readOnlyHint?: boolean };
+    }>;
   };
 }
 
@@ -90,6 +94,12 @@ test("SDK MCP handler initializes and lists the shared read-only tools", async (
     "search_tools", "get_tool_card", "recommend_tools", "explain_rating"
   ]);
   assert.equal(listed.result.tools.every((tool) => tool.annotations?.readOnlyHint), true);
+  assert.equal(
+    listed.result.tools.every((tool) =>
+      Object.values(tool.inputSchema?.properties ?? {}).every((property) => property.description?.trim())
+    ),
+    true
+  );
 });
 
 test("SDK MCP tool calls return matching text and structured content", async () => {

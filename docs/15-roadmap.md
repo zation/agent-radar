@@ -44,6 +44,7 @@
 - 旧 Compare、Review 和 eval 状态弹层已退出 Web 导航；Tool Detail 使用真实 OAuth/D1 feedback 控件。
 - Workers 风格只读 API 已实现 `search_tools`、`get_tool_card`、`recommend_tools`、`explain_rating`。
 - v0.6 已精确锁定 `@modelcontextprotocol/server@2.0.0-beta.3` 与 `zod@4.4.3`，以官方 SDK 的无状态 Streamable HTTP handler 替换手写 MCP dispatcher；HTTP、manifest 与 MCP 共享严格 Tool Contract 和 transport-neutral Tool Service。
+- 四个 MCP 工具的所有公开输入参数（包括嵌套 `filters`）均已在共享 Zod contract 中提供 JSON Schema `description`，递归契约测试会阻止后续新增无说明参数。
 - `recommend_tools` 已移除 body/tool input 中的 `api_key`，统一使用可选 secret header `X-Agent-Radar-LLM-API-Key`，优先级为 request header、显式 Worker fallback、typed missing-key error；Web key 只保留在 component memory。
 - `/api/mcp` 已增加 Host、Origin、method、CORS 与 65,536-byte UTF-8 body guard；v2 smoke evidence 固定覆盖七项检查及 structured/text parity。
 - 根目录 remote-only `server.json` 已发布为 `io.github.zation/agent-radar@0.6.3`，声明生产 `streamable-http` endpoint、optional secret header 和无 packages 约束；官方 `mcp-publisher` v1.8.0 validation 已通过。

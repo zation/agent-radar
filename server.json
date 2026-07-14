@@ -3,7 +3,7 @@
   "name": "io.github.zation/agent-radar",
   "title": "Agent Radar",
   "description": "Search, inspect, recommend, and explain rated AI tools through Agent Radar.",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "repository": {
     "url": "https://github.com/zation/agent-radar",
     "source": "github"
