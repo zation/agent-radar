@@ -110,7 +110,10 @@ The Worker exposes read-oriented endpoints for:
 
 `recommend_tools` accepts its ordinary query and optional model as tool input. A per-request provider credential is sent only in the optional secret header `X-Agent-Radar-LLM-API-Key`; it is never part of the tool schema or response. The Worker may use its configured server-side fallback when that header is absent.
 
-The remote-only Agent Radar MCP server is published in the official Registry as `io.github.zation/agent-radar`, backed by the production Streamable HTTP endpoint and evidence-bound GitHub OIDC publication.
+The remote-only Agent Radar MCP server is published in the official Registry as `io.github.zation/agent-radar`, backed by the production Streamable HTTP endpoint and evidence-bound GitHub OIDC publication. You can connect to and use it through either of these listings:
+
+- [Smithery: `zation/agent-radar`](https://smithery.ai/servers/zation/agent-radar)
+- [Official MCP Registry: `io.github.zation/agent-radar`](https://registry.modelcontextprotocol.io/?q=io.github.zation%2Fagent-radar)
 
 ## Documentation
 
