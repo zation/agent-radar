@@ -312,7 +312,7 @@ checkout
 
 Normal review does not generate per-item approval requests. Scripts, rules, LLM evaluation, automatic review, release admission, and promotion-check results remain in the reviewed bundle. The GitHub `production` environment gate is the only routine human release confirmation. `Approval Record` is evidence-backed break-glass only; high-risk execution, destructive actions, and safety-boundary changes still require confirmation.
 
-`all-v0.6.4` is the current verified production baseline. Release All run `29307115828`, commit `f7902af30e2d566c0a7900a8e03ed00e9067a856`, and deployment `5435538293` bind the reviewed bundle and production evidence; real-provider golden evaluation 24/24, critical safety 4/4, and deployed `/api/mcp` smoke 7/7 passed. Registry workflow run `29307691850` independently bound and verified the active/latest official remote record.
+`all-v0.7.0` is the current verified production baseline. Release All run `29326321908`, commit `f4f53290367d0e5bfda6347f2f372f7cca061c6e`, and deployment `5439377930` bind the reviewed bundle and production evidence; real-provider golden evaluation 24/24, critical safety 4/4, and deployed `/api/mcp` smoke 7/7 passed. The reviewed bundle also binds `eval_token_usage.v1` with 24/24 reported attempts and 639,795 total tokens. The active/latest official Registry record remains `io.github.zation/agent-radar@0.6.4` and points to the same production remote.
 
 ## v0.4 P2 Feedback Processing
 

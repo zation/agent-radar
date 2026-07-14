@@ -68,7 +68,7 @@ Historical Cloudflare Pages workflows are not part of production and have no dua
 
 `all-vX.Y.Z` represents one complete data, Web, API, and MCP release attempt. Never reuse a failed or superseded tag; increment the patch version. A tag becomes a verified production release only after reviewed-bundle checks, production approval, deployment, smoke checks, and production evidence all succeed. For a Registry release, `all-vX.Y.Z` maps exactly to Registry version `X.Y.Z`; an existing conflicting Registry version is never overwritten.
 
-`all-v0.6.4` is the current verified baseline. Release All run `29307115828` and production deployment `5435538293` bind commit `f7902af30e2d566c0a7900a8e03ed00e9067a856`, reviewed bundle `agent-radar-all-29307115828`, production evidence, and the Worker endpoint. Provider evaluation passed 24/24, critical safety passed 4/4, and MCP smoke passed 7/7. Registry workflow run `29307691850` uploaded `mcp-registry-publication-evidence-29307115828` after independently confirming the active/latest official `io.github.zation/agent-radar@0.6.4` record.
+`all-v0.7.0` is the current verified baseline. Release All run `29326321908` and production deployment `5439377930` bind commit `f4f53290367d0e5bfda6347f2f372f7cca061c6e`, reviewed bundle `agent-radar-all-29326321908`, production evidence, and the Worker endpoint. Provider evaluation passed 24/24, critical safety passed 4/4, and MCP smoke passed 7/7. The reviewed usage evidence records 24/24 reported requests and 639,795 total tokens. The active/latest official Registry record remains `io.github.zation/agent-radar@0.6.4` and points to the same production remote.
 
 Until separate tracks are intentionally introduced, `all-v*` is the only production release entry point.
 
