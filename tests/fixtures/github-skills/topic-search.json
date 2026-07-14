@@ -1,0 +1,29 @@
+{
+  "items": [
+    {
+      "full_name": "anthropics/skills",
+      "html_url": "https://github.com/anthropics/skills",
+      "default_branch": "main",
+      "stargazers_count": 161046,
+      "license": null,
+      "pushed_at": "2026-07-13T22:31:37Z",
+      "topics": ["agent-skills"]
+    },
+    {
+      "full_name": "DietrichGebert/ponytail",
+      "html_url": "https://github.com/DietrichGebert/ponytail",
+      "default_branch": "main",
+      "stargazers_count": 82816,
+      "license": { "spdx_id": "MIT" },
+      "pushed_at": "2026-07-13T10:00:00Z",
+      "topics": ["agent-skills"]
+    },
+    {
+      "full_name": "example/third",
+      "html_url": "https://github.com/example/third",
+      "default_branch": "main",
+      "stargazers_count": 1,
+      "topics": ["agent-skills"]
+    }
+  ]
+}

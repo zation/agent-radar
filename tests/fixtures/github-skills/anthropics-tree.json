@@ -1,0 +1,12 @@
+{
+  "sha": "tree-anthropics",
+  "truncated": false,
+  "tree": [
+    { "path": "skills/pdf/SKILL.md", "mode": "100644", "type": "blob", "sha": "fixture-sha" },
+    { "path": "skills/pdf/REFERENCE.md", "mode": "100644", "type": "blob", "sha": "reference-sha" },
+    { "path": "template/SKILL.md", "mode": "100644", "type": "blob", "sha": "template-sha" },
+    { "path": "skills/generated-example/SKILL.md", "mode": "100644", "type": "blob", "sha": "generated-sha" },
+    { "path": "skills/link/SKILL.md", "mode": "120000", "type": "blob", "sha": "link-sha" },
+    { "path": "skills/../escape/SKILL.md", "mode": "100644", "type": "blob", "sha": "escape-sha" }
+  ]
+}

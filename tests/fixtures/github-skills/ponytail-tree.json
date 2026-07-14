@@ -1,0 +1,9 @@
+{
+  "sha": "tree-ponytail",
+  "truncated": false,
+  "tree": [
+    { "path": "skills/ponytail/SKILL.md", "mode": "100644", "type": "blob", "sha": "fixture-sha" },
+    { "path": ".openclaw/skills/ponytail/SKILL.md", "mode": "100644", "type": "blob", "sha": "compat-sha" },
+    { "path": "benchmarks/arms/caveman-SKILL.md", "mode": "100644", "type": "blob", "sha": "benchmark-sha" }
+  ]
+}
