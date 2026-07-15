@@ -80,6 +80,8 @@ v0.8 P1 changes only recommendation-prompt JSON whitespace. Local byte measureme
 
 Before P1, two sequential two-request MiniMax M3 cache probes tested a stable catalog prefix. Keeping the catalog before the changing query in one user message reported 128 cached tokens out of about 26.6k input on both requests. Moving the identical 119,756-byte catalog context into a system message reported 114 and 128 cached tokens, while the changing user messages were only 171-197 bytes. All requests returned HTTP 200 and valid JSON. These bounded diagnostics are not reviewed release evidence; they establish only that the current route cannot provide a reliable cache assumption for v0.8 planning.
 
+The first tagged compact-prompt attempt, `all-v0.8.0` Release All run `29383566104`, evaluated commit `c174c13913d82cf14c67f4cda060d38a2b4d5781`. It passed 23/24 Golden Queries; the only failure was major case `gq-secrets-access-approval`, whose initial request and two transient retries each reached the 120-second provider timeout. The other 23 cases, including all four critical safety cases, passed. Release validation stopped before reviewed-bundle upload and production deployment, so the runner-local usage artifact was not preserved and the attempt cannot establish a suite token total.
+
 ## Eval Case Contract
 
 ```yaml
