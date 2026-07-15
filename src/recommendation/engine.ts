@@ -346,9 +346,7 @@ export function buildRecommendationPrompt(query: RecommendationQuery, cards: Too
       },
       query,
       catalog
-    },
-    null,
-    2
+    }
   );
 }
 

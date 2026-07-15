@@ -89,6 +89,8 @@ Uncertainty lowers confidence rather than forcing an inference. Payment, email, 
 
 Candidate context includes Tool Card name, summary, purpose, use cases, tags, type, compatible agents, trust, and Rating dimensions. The LLM must preserve match reasons that identify capabilities, tags, scores, risks, or evidence.
 
+The provider prompt serializes its instruction, result shape, query, and full normalized catalog as compact JSON. Compact serialization removes formatting-only whitespace; it does not remove fields, reorder candidates, preselect a Top-K subset, or change the local deterministic safety layer.
+
 ### Hard Constraints
 
 | Condition | Behavior |

@@ -76,6 +76,10 @@ The adapter accepts the supported OpenAI-compatible `prompt_tokens`/`completion_
 
 A blocked-no-key suite records all cases as `blocked_no_key` with zero provider attempts. Missing usage does not change recommendation or Eval Result semantics and is not a token release gate. The reviewed-bundle validator does block missing or inconsistent evidence, including release/case mismatch, invalid ordering or arithmetic, manifest-summary mismatch, and checksum corruption. `npm run eval` remains a console Eval Summary command; `npm run pipeline` and Release All create immutable token evidence.
 
+v0.8 P1 changes only recommendation-prompt JSON whitespace. Local byte measurement for the 76-card prompt decreased from 163,104 bytes to 119,952 bytes while preserving the parsed query and ordered catalog IDs. This byte delta is planning evidence, not a token claim. Release acceptance still requires a real-provider 24/24 run, all four critical safety cases, and provider-reported usage compared with the `all-v0.7.1` baseline.
+
+Before P1, two sequential two-request MiniMax M3 cache probes tested a stable catalog prefix. Keeping the catalog before the changing query in one user message reported 128 cached tokens out of about 26.6k input on both requests. Moving the identical 119,756-byte catalog context into a system message reported 114 and 128 cached tokens, while the changing user messages were only 171-197 bytes. All requests returned HTTP 200 and valid JSON. These bounded diagnostics are not reviewed release evidence; they establish only that the current route cannot provide a reliable cache assumption for v0.8 planning.
+
 ## Eval Case Contract
 
 ```yaml

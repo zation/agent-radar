@@ -169,6 +169,8 @@ Inputs: Recommendation Query, Tool Cards, Rating Results, risk preference, and u
 
 Output: `Recommendation Result`.
 
+v0.8 P1 keeps the full normalized catalog and existing provider message contract, but serializes the recommendation prompt as compact JSON. This removes formatting-only whitespace without changing candidate availability, deterministic safety inputs, or public result schemas. Catalog retrieval and provider caching are not part of P1.
+
 Dependency: `docs/09-recommendation-engine.md`.
 
 Failure handling: missing key/model returns a recoverable error; unknown `tool_id` enters `rejected_candidates`; insufficient candidates return `no_reliable_match`; local safety never normalizes high risk to direct `use`.

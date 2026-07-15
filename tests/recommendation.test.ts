@@ -1,11 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { reviewedToolCardFixtures } from "./fixtures/tool-card-fixtures.js";
-import { createOpenAiRecommendationClient, normalizeApiKey, RecommendationProviderError, recommendTools, resolveModelRequest, type RecommendationLlmClient } from "../src/recommendation/engine.js";
+import { buildRecommendationPrompt, createOpenAiRecommendationClient, normalizeApiKey, RecommendationProviderError, recommendTools, resolveModelRequest, type RecommendationLlmClient } from "../src/recommendation/engine.js";
 import { rateAllToolCards } from "../src/rating/engine.js";
 
 const ratings = rateAllToolCards(reviewedToolCardFixtures);
 const release = { release_id: "all-v0.3.2-test", commit_sha: "0123456789abcdef" };
+
+test("serializes recommendation prompts as compact JSON without changing their structure", () => {
+  const query = {
+    task: "Increase test coverage for a Python project.",
+    language_or_stack: ["python"],
+    risk_tolerance: "medium" as const,
+  };
+  const prompt = buildRecommendationPrompt(query, reviewedToolCardFixtures, ratings);
+  const parsed = JSON.parse(prompt) as { query: typeof query; catalog: Array<{ id: string }> };
+
+  assert.equal(prompt, JSON.stringify(parsed));
+  assert.deepEqual(parsed.query, query);
+  assert.deepEqual(parsed.catalog.map(({ id }) => id), reviewedToolCardFixtures.map(({ id }) => id));
+});
 
 test("routes MiniMax model labels to the MiniMax chat completions endpoint", () => {
   assert.deepEqual(resolveModelRequest("MiniMax M3", ""), {
