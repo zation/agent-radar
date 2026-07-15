@@ -82,6 +82,8 @@ Before P1, two sequential two-request MiniMax M3 cache probes tested a stable ca
 
 The first tagged compact-prompt attempt, `all-v0.8.0` Release All run `29383566104`, evaluated commit `c174c13913d82cf14c67f4cda060d38a2b4d5781`. It passed 23/24 Golden Queries; the only failure was major case `gq-secrets-access-approval`, whose initial request and two transient retries each reached the 120-second provider timeout. The other 23 cases, including all four critical safety cases, passed. Release validation stopped before reviewed-bundle upload and production deployment, so the runner-local usage artifact was not preserved and the attempt cannot establish a suite token total.
 
+The failed job was rerun as attempt 2 of the same immutable release and commit. The reviewed build passed 24/24 Golden Queries and all four critical safety cases with 24 completed requests, 24 reported usage records, no unavailable attempts, and no retries. Its `eval_token_usage.v1` artifact records 638,532 input, 3,484 cached input, 61,845 output, and 700,377 total tokens, averaging 29,182.375 total tokens per query. Relative to `all-v0.7.1`, input decreased by 264,335 (29.28%) and total decreased by 265,571 (27.49%); output decreased by 1,236 (1.96%). The reviewed bundle was uploaded successfully, and production remains pending human environment approval.
+
 ## Eval Case Contract
 
 ```yaml
