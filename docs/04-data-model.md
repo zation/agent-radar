@@ -443,6 +443,22 @@ All four feedback artifacts belong to the reviewed bundle and are checksum-bound
 
 ## Schema Versioning and Migration
 
+### Installable Skill Dataset Contracts
+
+`agent_radar_skill_channel.v1` is the mutable compatibility pointer at `data/skill/channels/v1/latest.json`. It contains `data_contract_version`, `release_id`, and the fixed-origin path, byte size, and SHA-256 of the selected immutable release manifest.
+
+`agent_radar_skill_data_manifest.v1` is stored under `data/skill/releases/<release_id>/manifest.json`. It contains:
+
+- `data_contract_version`: currently `agent_radar_skill_dataset.v1`.
+- `minimum_client_version`: minimum local Skill client capable of reading the dataset.
+- `release_id`, `commit_sha`, `data_version`, and `published_at` provenance.
+- Exactly three allowlisted file records for `tool_cards.jsonl`, `ratings.jsonl`, and `search_index.json`.
+- Each file's expected schema version, exact byte size, and canonical `sha256:<lowercase hex>` checksum.
+
+`agent_radar_local_release.v1` is a local verification marker written only after every downloaded file passes compatibility, size, checksum, parsing, and record-schema validation. `agent_radar_local_pointer.v1` names the active verified release. Neither local file is a published data authority.
+
+Ordinary data additions or corrections produce a new immutable release without changing these contract versions. An incompatible required-field, semantic, file-layout, or checksum change requires a new dataset contract major and a separate channel such as `channels/v2/latest.json`. A v1 client must reject unsupported contracts or minimum client versions and keep its previous verified release.
+
 Small additive fields retain major version while updating docs/schema. Semantic changes increment major version, such as `tool_card.v2`. Removal requires deprecation before migration.
 
 Every migration documents reason, affected fields, automatic conversion, human-review list, and impact on ingestion, rating, recommendation, and evaluation.

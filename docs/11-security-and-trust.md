@@ -49,6 +49,8 @@ BYOK credentials authenticate one recommendation request only. HTTP and MCP requ
 
 The remote MCP boundary is stateless and read-only for tool execution and installation. Before SDK dispatch, the Worker enforces the production Host allowlist, Origin policy, POST-only method policy with CORS preflight, and a fixed UTF-8 request-byte limit. Registry metadata marks the recommendation header optional and secret; publication evidence omits request headers entirely.
 
+The installable Agent Skill is also read-only for tool execution and installation. Only explicit `sync` performs a network request; local search and context construction do not transmit the task and require no provider credential. The client fixes the v1 channel path, restricts manifest and file URLs to the configured origin and release prefix, allows only three expected files, caps metadata, per-file, and total sizes, verifies SHA-256 and record schemas, and switches releases only after writing a local verification marker. A failed update leaves the prior pointer unchanged. SHA-256 detects corruption and mismatch but does not independently authenticate a maliciously replaced channel and dataset; HTTPS, the fixed production origin, reviewed-bundle checksums, and release provenance remain the P2 authenticity boundary. Installing the Skill never authorizes installation, authentication, or execution of a recommended third-party tool.
+
 ### Data Exfiltration
 
 Hosted or API tools may send files, code, email, or database records off-device. Recommendations state when data leaves the local environment. Sensitive and enterprise use should prefer official, local, or lower-permission alternatives.

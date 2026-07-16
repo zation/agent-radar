@@ -3,6 +3,7 @@ import { loadPreviousReleaseArtifacts } from "../pipeline/previous-artifacts.js"
 import { config } from "dotenv";
 import { readFile } from "node:fs/promises";
 import { validateFeedbackBuildInput } from "../feedback-processing/preparer.js";
+import { join } from "node:path";
 
 config({ override: false, quiet: true });
 const feedbackPath = process.env.AGENT_RADAR_FEEDBACK_BUILD_INPUT;
@@ -17,6 +18,7 @@ const previous = await loadPreviousReleaseArtifacts({
   ingestionReviewPath: process.env.AGENT_RADAR_PREVIOUS_INGESTION_REVIEW,
   restoredRoot: process.env.AGENT_RADAR_PREVIOUS_REVIEWED_ROOT ?? "previous-reviewed-bundle",
 });
+const previousReviewedRoot = process.env.AGENT_RADAR_PREVIOUS_REVIEWED_ROOT ?? "previous-reviewed-bundle";
 const summary = await buildArtifacts({
   outputDir: "public",
   generatedAt: new Date().toISOString(),
@@ -31,5 +33,6 @@ const summary = await buildArtifacts({
     release_id: process.env.AGENT_RADAR_RELEASE_ID ?? "dev",
     commit_sha: process.env.AGENT_RADAR_COMMIT_SHA ?? process.env.GITHUB_SHA ?? "dev",
   },
+  previousSkillDataRoot: join(previousReviewedRoot, "dist-pages", "data", "skill"),
 });
 console.log(JSON.stringify(summary, null, 2));

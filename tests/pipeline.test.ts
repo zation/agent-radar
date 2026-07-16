@@ -19,7 +19,15 @@ interface ManifestFile {
   eval_report: string;
   eval_token_usage: string;
   rules_versions: { rating: string; feedback: string };
-  schema_versions: { tool_card: string; source_registry: string; rating_result: string; eval_token_usage: string };
+  schema_versions: {
+    tool_card: string;
+    source_registry: string;
+    rating_result: string;
+    eval_token_usage: string;
+    skill_data_channel: string;
+    skill_data_manifest: string;
+    skill_dataset: string;
+  };
   source_registry: string;
   source_registry_diff: string;
   source_registry_review: string;
@@ -36,6 +44,7 @@ interface ManifestFile {
   mcp_examples: string;
   mcp_smoke_checklist: string;
   feedback_summary: string;
+  skill_data_channel: string;
 }
 
 function mockGitHubRepo(fullName: string): Record<string, unknown> {
@@ -184,6 +193,18 @@ test("builds MVP data artifacts and an eval report", async () => {
     assert.equal(manifest.mcp_smoke_checklist, "data/mcp_smoke_checklist.json");
     assert.equal(manifest.eval_token_usage, "reports/eval_token_usage.json");
     assert.equal(manifest.schema_versions.eval_token_usage, "eval_token_usage.v1");
+    assert.equal(manifest.skill_data_channel, "data/skill/channels/v1/latest.json");
+    assert.equal(manifest.schema_versions.skill_data_channel, "agent_radar_skill_channel.v1");
+    assert.equal(manifest.schema_versions.skill_data_manifest, "agent_radar_skill_data_manifest.v1");
+    assert.equal(manifest.schema_versions.skill_dataset, "agent_radar_skill_dataset.v1");
+    const skillChannel = JSON.parse(await readFile(join(outputDir, manifest.skill_data_channel), "utf8")) as {
+      release_id: string;
+      manifest_path: string;
+      manifest_sha256: string;
+    };
+    assert.equal(skillChannel.release_id, release.release_id);
+    assert.equal(skillChannel.manifest_path, `/data/skill/releases/${release.release_id}/manifest.json`);
+    assert.match(skillChannel.manifest_sha256, /^sha256:[a-f0-9]{64}$/);
 
     const sourceRegistry = JSON.parse(await readFile(join(outputDir, "data", "source_registry.json"), "utf8"));
     assert.equal(sourceRegistry.schema_version, "source_registry.v1");

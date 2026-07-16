@@ -191,6 +191,18 @@ Runtime boundary: same Static Assets deployment as Web and data artifacts; read-
 
 Tests: schema contracts, recursive public-parameter description coverage, request/response examples, and seven deployed smoke checks covering initialization, tool listing, three representative read calls, missing recommendation credential, and write-method rejection using the URL reported by Wrangler deploy.
 
+### Installable Agent Skill
+
+Responsibility: distribute a portable local-first decision surface backed by compatible, verified reviewed data without requiring MCP or per-query network access.
+
+Inputs: an explicit v1 data synchronization request, a development-task description, optional search filters, stable Tool IDs, and local risk constraints.
+
+Outputs: local status, search results, Tool Card lookups, rating explanations, and recommendation context bound to one verified release.
+
+Implementation boundary: `src/skill-data/release.ts` generates `agent_radar_skill_channel.v1` and immutable `agent_radar_skill_data_manifest.v1` releases from the same reviewed Tool Cards, Ratings, and Search Index used elsewhere. It revalidates inherited releases before copying them from the previous reviewed bundle. `skills/agent-radar/SKILL.md` owns trigger, local reasoning, and action-ceiling instructions. Its dependency-free client synchronizes into a versioned cache, verifies contract compatibility, size, SHA-256, and record schemas, and atomically switches `current.json`. Local queries read one release and never call MCP or the hosted recommendation endpoint.
+
+Tests: standard Skill validation, local installer discovery, release inheritance and tamper rejection, atomic fallback, offline search, local action ceilings, and full pipeline artifact checks.
+
 ### Web UI
 
 Responsibility: human browsing, search, recommendation, and evaluation transparency.

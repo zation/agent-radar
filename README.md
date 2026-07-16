@@ -104,6 +104,22 @@ The Worker exposes read-oriented endpoints for:
 - `/api/explain_rating`
 - `/api/version`
 
+### Installable Agent Skill
+
+Install the repository-owned `agent-radar` Skill with the open Agent Skills CLI:
+
+```bash
+npx skills add zation/agent-radar --skill agent-radar
+```
+
+For Codex, you can also ask `$skill-installer` to install the Skill directly from:
+
+```text
+https://github.com/zation/agent-radar/tree/main/skills/agent-radar
+```
+
+The Skill is local-first. Run its explicit `sync` command to download the latest compatible reviewed Tool Cards, Ratings, and Search Index into a versioned cache. The client verifies the v1 channel, release manifest, file sizes, SHA-256 checksums, and record schemas before atomically switching the active local release. Search, Tool Card inspection, rating explanation, and recommendation-context construction then run without MCP, without a provider key, and without transmitting the task. A failed update keeps the last verified release active.
+
 ### MCP
 
 `/api/mcp` provides a stateless Streamable HTTP MCP interface built with the official TypeScript SDK v2 beta. It exposes `search_tools`, `get_tool_card`, `recommend_tools`, and `explain_rating`; all four tools are read-only with respect to tool execution and installation. `/api/mcp_manifest` exposes the same shared contracts for simpler HTTP integrations.

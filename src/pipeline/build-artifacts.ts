@@ -35,6 +35,7 @@ import {
   buildDataQualityReport,
   type DataQualityReport,
 } from "../validation/data-quality-report.js";
+import { buildSkillDataRelease } from "../skill-data/release.js";
 
 export interface BuildArtifactsOptions {
   outputDir: string;
@@ -50,6 +51,7 @@ export interface BuildArtifactsOptions {
   allowBenchmarkProxyDns?: boolean;
   feedbackBuildInput?: FeedbackBuildInput;
   release?: { release_id: string; commit_sha: string };
+  previousSkillDataRoot?: string;
 }
 
 export interface BuildArtifactsSummary {
@@ -183,7 +185,10 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
           feedback_summary: "feedback_summary.v1",
           search_index: "search_index.v1",
           source_registry: "source_registry.v1",
-          eval_token_usage: "eval_token_usage.v1"
+          eval_token_usage: "eval_token_usage.v1",
+          skill_data_channel: "agent_radar_skill_channel.v1",
+          skill_data_manifest: "agent_radar_skill_data_manifest.v1",
+          skill_dataset: "agent_radar_skill_dataset.v1"
         },
         rules_versions: {
           rating: "rating_rules.v0.2",
@@ -213,6 +218,7 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
         d1_seed: "data/d1_seed.sql",
         eval_report: `reports/eval-${dataVersion}.md`,
         eval_token_usage: "reports/eval_token_usage.json",
+        skill_data_channel: "data/skill/channels/v1/latest.json",
         published_at: generatedAt
       },
       null,
@@ -220,6 +226,13 @@ export async function buildArtifacts(options: BuildArtifactsOptions): Promise<Bu
     ),
     "utf8"
   );
+  await buildSkillDataRelease({
+    publicDataDir,
+    release,
+    dataVersion,
+    publishedAt: generatedAt,
+    previousSkillDataRoot: options.previousSkillDataRoot,
+  });
 
   return {
     toolCount: toolCards.length,

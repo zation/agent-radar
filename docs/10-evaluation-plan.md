@@ -47,6 +47,10 @@ The BYOK provider generates recommendation content. Local code assembles context
 - OpenAI, MiniMax, and DeepSeek model labels route to the correct endpoint and model ID.
 - API keys appear only in authorization headers, including normalized pasted `Bearer` values.
 - Recommendation request keys are absent from HTTP and MCP input schemas and travel only through `X-Agent-Radar-LLM-API-Key`; tests also cover the explicit server fallback and typed missing-key result.
+- The installable Agent Skill has valid metadata and performs explicit v1 synchronization without MCP or a recommendation credential.
+- Release tests verify channel/manifest identity, file size and SHA-256, inherited-release revalidation, and tamper rejection.
+- Client tests verify temporary-directory download, atomic release and pointer switching, offline search, local schema validation, and preservation of the prior release after a failed checksum.
+- Local recommendation-context tests verify that high or tolerance-exceeding risk cannot exceed `ask_human` and unknown-trust code execution cannot exceed `avoid`.
 - Provider calls time out after 120 seconds and surface as typed request failures.
 - Recoverable errors are returned when required recommendation credentials or model configuration are missing.
 - Safety recovery never bypasses permission, trust, or action ceilings.
@@ -67,6 +71,8 @@ AGENT_RADAR_LLM_API_KEY=... AGENT_RADAR_LLM_MODEL=gpt-4.1 npm run eval
 Current reports retain a stable `failure_category` for each case. Provider evaluation runs no more than two cases concurrently, preserves source order in its report, retries one schema error or up to two transient provider request failures, and applies a 120-second timeout to each provider request. Transient request retries use a five-second backoff; authentication, rate-limit, and model-configuration failures are not retried. A release-quality claim must come from Provider Evaluation, not only Contract Evaluation.
 
 Both standalone evaluation and the artifact pipeline bind Eval Summary to `AGENT_RADAR_RELEASE_ID` and `AGENT_RADAR_COMMIT_SHA` (or `GITHUB_SHA`) so release checks can trace provider evidence to the evaluated commit.
+
+The v0.9 Skill does not claim equivalence with the hosted Recommendation Result. It uses the same reviewed Tool Cards, Ratings, and Search Index, then lets the host model reason over a bounded local context under deterministic per-candidate action ceilings. Existing provider-backed Golden Queries remain authoritative for the hosted recommendation surface; P2 adds local context, empty-result, high-risk, and unknown-trust execution contract coverage for the Skill surface.
 
 ### Token Usage Evidence
 

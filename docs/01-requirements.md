@@ -299,6 +299,22 @@ The feedback loop was not part of the MVP reliable release path. The implemented
 - Do not guess critical fields.
 - Do not make news summaries, trends, or marketing copy the core product.
 
+### FR-15 Installable Agent Skill
+
+Provide a repository-owned `agent-radar` Skill that portable Skill installers and Codex can discover from `skills/agent-radar`.
+
+Acceptance criteria:
+
+- Use minimal common `SKILL.md` frontmatter and include Codex UI metadata without making it required for other agents.
+- Guide agents through explicit data synchronization, local search, Tool Card inspection, rating explanation, contextual recommendation, and conservative action interpretation.
+- Publish a stable v1 compatibility channel and immutable release manifests containing exact file schemas, byte sizes, and SHA-256 checksums.
+- Preserve earlier v1 release directories across deployments only after revalidating their manifests and contents; never overwrite an inherited release ID.
+- Download into a same-filesystem temporary directory and atomically switch the current pointer only after compatibility, size, checksum, and schema validation passes.
+- Perform task search and recommendation-context construction locally without MCP, a provider credential, or task transmission.
+- Keep the last verified release active when synchronization fails or the newest release requires a newer client or unsupported dataset contract.
+- Never install, authorize, or execute a recommended tool, and never relax `ask_human`, `avoid`, or `no_reliable_match`.
+- Pass the standard Skill validator, local installer discovery, repository contract tests, and public-language checks.
+
 ## Requirements Acceptance Matrix
 
 | ID | Capability | Current status | Primary input | Primary output | Verification |
@@ -317,6 +333,7 @@ The feedback loop was not part of the MVP reliable release path. The implemented
 | FR-12 | Reports | Eval report implemented; ecosystem report absent | Structured data | Markdown | Source-citation check |
 | FR-13 | Corrections | Override and break-glass approval implemented | Request and public evidence | Override Record | Provenance and audit |
 | FR-14 | Feedback | GitHub OAuth, D1 current votes, Issue classification/writeback, and bounded rating adjustment implemented | Authenticated vote and reviewed GitHub Issue evidence | Feedback artifacts and Rating Result v2 | Contract tests, replay checks, production evidence |
+| FR-15 | Installable Agent Skill | v0.9 P2 local-first implementation in `skills/agent-radar` | Explicit sync plus local development task | Verified local dataset and decision context | Manifest, checksum, atomic fallback, Skill, and installer tests |
 
 ## Current Implementation Notes
 

@@ -190,6 +190,33 @@ Human confirmation is mandatory when:
 
 The system and agent must explain required permissions, why the task may need them, lower-permission alternatives, and that least privilege still applies after confirmation.
 
+## Workflow 8: A Coding Agent Uses the Installed Skill
+
+### Trigger
+
+The user asks a coding agent to choose, compare, or assess an AI Agent, Skill, MCP Server, CLI, Framework, Prompt, or Rules package, and the repository-owned `agent-radar` Skill is installed.
+
+### Normal Path
+
+1. Invoke the Skill and inspect the active local release with `status`.
+2. If no verified release exists or the user wants fresh data, explicitly run `sync`. Do not perform hidden background synchronization.
+3. Search the verified local catalog before naming a preferred tool.
+4. Inspect the leading Tool Cards and rating explanations by stable `tool_id`.
+5. Build local recommendation context when task constraints, permission boundaries, or trade-offs require it; do not transmit the task to Agent Radar.
+6. Preserve release provenance, candidate action ceilings, risk warnings, evidence, unsuitable conditions, and rejected alternatives in the user-facing answer.
+7. Apply project policy and request human confirmation before any later installation, authorization, or sensitive access.
+
+### Failure Paths
+
+| Condition | Agent response |
+| --- | --- |
+| Synchronization endpoint is unavailable | Continue with the last verified release and disclose possible staleness |
+| Channel, manifest, size, checksum, or schema validation fails | Delete the temporary download, preserve the current pointer, and report the stable failure reason |
+| New dataset requires an unsupported contract or newer client | Keep the old release and ask the user to update the Skill |
+| No verified local release exists | Ask to run explicit synchronization; do not invent Agent Radar evidence |
+| Candidate ceiling says `ask_human` or `avoid`, or search is empty | Preserve the ceiling or return `no_reliable_match`; do not weaken it |
+| User asks to install a recommendation | Treat installation as a separate action governed by project policy and confirmation |
+
 ## Flow
 
 ```text

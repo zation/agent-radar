@@ -27,6 +27,12 @@ Local development uses files, JSON or JSONL, Wrangler local D1 with the producti
 
 One Cloudflare Worker deployment serves Web, versioned static artifacts, read-only HTTP API, stateless Streamable HTTP MCP, and D1-backed feedback. A release is triggered by an immutable `all-v*` tag or a manual workflow selection of an existing `all-v*` tag.
 
+### Agent Skill Distribution
+
+`skills/agent-radar` is distributed from the source repository and installed by a compatible Agent Skills installer or a Codex GitHub-directory install. The Skill code creates no separate runtime, credential store, or release track. The existing pipeline publishes `data/skill/channels/v1/latest.json` plus `data/skill/releases/<release-id>/` inside Worker Static Assets. Each new reviewed bundle restores the previous successful bundle, validates every inherited v1 release manifest and file, preserves those immutable directories, adds the current release, and advances only the v1 channel pointer. The client downloads data only during explicit `sync`; all task queries use the verified cache.
+
+Retaining every v1 release increases the static bundle by three data files and one manifest per release. Monitor Worker Static Assets file count and bundle size. Any later pruning or object-storage migration requires a separate retention, cost, compatibility, and rollback design; P2 does not silently remove published v1 release paths.
+
 ## Single-Worker Architecture
 
 ```text
@@ -88,6 +94,8 @@ Until separate tracks are intentionally introduced, `all-v*` is the only product
 | D1 Seed | `public/data/d1_seed.sql` | Versioned read-model seed |
 | Manifest | `public/data/manifest.json` | Data, schema, rule, index, and release versions |
 | Artifact Manifest | `dist-pages/artifact-manifest.json` | Critical checksums and build evidence |
+| Skill Dataset Channel | `public/data/skill/channels/v1/latest.json` | Latest compatible immutable Skill dataset release |
+| Skill Dataset Release | `public/data/skill/releases/<release-id>/` | Checksummed Tool Cards, Ratings, Search Index, and release manifest |
 
 The reviewed bundle also includes provider configuration without secrets, field provenance v1 and v2, conflicts, URL validation v1 and v2, data-quality report, Review Summary v2, discovery and intervention artifacts, automatic review, release admission, promotion evidence, MCP examples, the smoke checklist, and normalized Golden Query token evidence.
 
@@ -112,6 +120,14 @@ npm run data-quality:check
 npm run review-summary:check
 npm run mcp:smoke
 npm run preview:build
+```
+
+For the installable Skill, also run:
+
+```bash
+python3 /path/to/skill-creator/scripts/quick_validate.py skills/agent-radar
+npx --yes skills add . --list
+node --test dist/tests/skill-distribution.test.js
 ```
 
 - `npm test` builds TypeScript and runs the Node suite.
