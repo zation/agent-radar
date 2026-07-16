@@ -35,7 +35,7 @@
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP、v0.2、v0.3、v0.4、v0.5、v0.6、v0.7 和 v0.8 均已完成，v0.9 P2 已完成实现并进入生产发布。`all-v0.8.0` 是当前已验证生产基线；Release All run `29383566104`、commit `c174c13913d82cf14c67f4cda060d38a2b4d5781`、production deployment `5459363215`、24/24 real-provider golden eval、4/4 critical safety 和 7/7 MCP smoke 均已通过。生产目录包含 76 张 Tool Card，其中 23 张来自首批动态 Skill 扩展；24 次请求均报告 usage，0 unavailable、0 retry，total 700,377 tokens，较 `all-v0.7.1` 减少 27.49%。官方 MCP Registry 记录仍为 active/latest `io.github.zation/agent-radar@0.6.4`，指向同一生产 remote。v0.9 P1 的在线 HTTP adapter 在提交前被 P2 local-first 方案取代；P2 implementation commit `0846e592` 已通过 421/421 tests、Skill validator、installer discovery、lint、stylelint、public-language、Web build 和 diff checks，生产证据尚待 `all-v0.9.0` Release All 完成。
+实际情况：MVP、v0.2、v0.3、v0.4、v0.5、v0.6、v0.7、v0.8 和 v0.9 均已完成。`all-v0.9.0` 是当前已验证生产基线；Release All run `29495610187`、commit `e09cb486a7d47a4f94a619a10706688a46645ea8`、production deployment `5472837690`、76 张 Tool Card、24/24 real-provider golden eval、4/4 critical safety 和 7/7 MCP smoke 均已通过。v0.9 P1 的在线 HTTP adapter 在提交前被 P2 local-first 方案取代；P2 implementation commit `0846e592` 已通过 421/421 tests、Skill validator、installer discovery、lint、stylelint、public-language、Web build 和 diff checks。生产 Skill channel 指向不可变 `all-v0.9.0` manifest；独立全新缓存验证已完成 channel/manifest/checksum 校验、原子 sync、ready status、离线 search 和 recommendation context。官方 MCP Registry `io.github.zation/agent-radar@0.9.0` 已由 run `29496620814` 发布并轮询验证。
 
 v0.7 P1 已实现并完成生产验收：`eval_token_usage.v1` 记录 MiniMax M3 的 24 次 request attempts，24 次均有 provider-reported usage，0 次 unavailable、0 次 retry；input 581,819、cached input 3,272、output 57,976、total 639,795，平均每条 Golden Query 26,658.125 tokens。独立 Data Build、定时扩量、prompt caching/batching 和 Top-K 预检索不属于当前批准范围。
 
@@ -664,7 +664,9 @@ v0.8 P1 前进行了两组各两次、严格顺序执行的 MiniMax M3 诊断请
 - P2 Plan：[`v0.9 P2 Local-First Skill Dataset Implementation Plan`](superpowers/plans/2026-07-16-v0.9-p2-local-first-skill-dataset.md)（Completed；实现提交 `0846e592`；已冻结）。
 - P2 范围：发布 `dataset.v1` 兼容 channel 和不可变 release manifests；Skill 显式 sync 后校验版本、大小、SHA-256 与 schemas，原子切换本地缓存，并离线执行 status、search、get、explain 和 recommendation context。
 - 安全边界：Skill 不调用 MCP 或 hosted recommendation，不需要 provider key，不传输任务；安装本 Skill仍不授权安装、认证或执行任何被推荐工具；本地 context 不能放宽 `ask_human`、`avoid` 和 `no_reliable_match`。
-- 验收：旧 release 继承与防篡改、checksum 失败回退、断网搜索、action ceiling、标准 Skill validator、通用 installer 和全量 repository checks 通过；实现提交和发布验收完成后再冻结 P2 Spec/Plan。
+- 验收：旧 release 继承与防篡改、checksum 失败回退、断网搜索、action ceiling、标准 Skill validator、通用 installer 和全量 repository checks 通过；P2 Spec/Plan 已在实现提交记录后冻结。
+- 生产证据：`all-v0.9.0` 的 Release All run `29495610187` 和 production deployment `5472837690` 绑定 commit `e09cb486a7d47a4f94a619a10706688a46645ea8` 与 reviewed bundle `agent-radar-all-29495610187`。生产数据质量为 76 张 Tool Card、0 gates；Golden Queries 24/24、critical safety 4/4、MCP smoke 7/7。Skill channel 返回 `agent_radar_skill_channel.v1`，manifest SHA-256 为 `sha256:b434bb2ca681cb2969497ff1b50769416db7a0655d1f69b28251cdc33ed00a72`；独立生产 sync 验证得到 `status=ready`，release/commit/data version 分别为 `all-v0.9.0`、`e09cb486a7d47a4f94a619a10706688a46645ea8`、`data-2026-07-06`，search 与低风险 recommendation context 均成功。
+- Registry 证据：首次自动 run `29496620814` 在 Worker 切换后立即复查版本时遇到短暂传播竞态；公网 `/api/version` 稳定后重跑同一 run 成功，完成 fresh MCP smoke、GitHub OIDC publication、官方 Registry polling 和 `mcp-registry-publication-evidence-29495610187` 上传，发布版本为 `io.github.zation/agent-radar@0.9.0`。
 - 不做：在线安装市场、第三方工具一键安装/执行、background sync、install hook、manifest signing、新服务或 credential store、HTTP/MCP schema 改动。
 
 ### Backlog
