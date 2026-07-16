@@ -118,7 +118,7 @@ For Codex, you can also ask `$skill-installer` to install the Skill directly fro
 https://github.com/zation/agent-radar/tree/main/skills/agent-radar
 ```
 
-The Skill is local-first. Run its explicit `sync` command to download the latest compatible reviewed Tool Cards, Ratings, and Search Index into a versioned cache. The client verifies the v1 channel, release manifest, file sizes, SHA-256 checksums, and record schemas before atomically switching the active local release. Search, Tool Card inspection, rating explanation, and recommendation-context construction then run without MCP, without a provider key, and without transmitting the task. A failed update keeps the last verified release active.
+The Skill is local-first. Run its explicit `sync` command to download the latest compatible reviewed Tool Cards, Ratings, and Search Index into a versioned cache. The client verifies the v1 channel, release manifest, file sizes, SHA-256 checksums, and record schemas before atomically switching the active local release. Search, Tool Card inspection, rating explanation, and recommendation-context construction then run without MCP, without a provider key, and without transmitting the task. A failed update keeps the last verified release active. When invoked, the Skill announces that Agent Radar is in use; every successful client result carries `source: "agent-radar-skill"`, and every Agent Radar-backed answer ends with the verified release ID and data version. Commit SHA remains available in the structured result for audit.
 
 ### MCP
 

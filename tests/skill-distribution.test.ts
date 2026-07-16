@@ -19,7 +19,27 @@ test("installable Agent Radar skill has valid local-first metadata", async () =>
   assert.doesNotMatch(skill, /\[TODO/);
   assert.match(skill, /does not call MCP/);
   assert.match(skill, /agent-radar\.mjs sync/);
+  assert.match(skill, /Using Agent Radar Skill\./);
+  assert.match(skill, /Agent Radar provenance: <release_id> · <data_version>/);
+  assert.match(skill, /Do not display the commit SHA/);
+  assert.match(skill, /source: "agent-radar-skill"/);
   assert.match(metadata, /default_prompt: "Use \$agent-radar /);
+});
+
+test("skill client marks status before synchronization with its source", async (t) => {
+  const cacheDir = await mkdtemp(join(tmpdir(), "agent-radar-skill-unsynced-"));
+  t.after(() => rm(cacheDir, { recursive: true, force: true }));
+  const status = JSON.parse((await execFileAsync(
+    process.execPath,
+    [scriptPath, "status"],
+    { env: { ...process.env, AGENT_RADAR_CACHE_DIR: cacheDir } }
+  )).stdout) as { source: string; status: string };
+  assert.deepEqual(status, {
+    source: "agent-radar-skill",
+    status: "not_synced",
+    client_version: "0.9.1",
+    recovery: "Run agent-radar.mjs sync."
+  });
 });
 
 test("skill client atomically syncs verified data and searches offline", async (t) => {
@@ -48,9 +68,11 @@ test("skill client atomically syncs verified data and searches offline", async (
   };
 
   const sync = JSON.parse((await execFileAsync(process.execPath, [scriptPath, "sync"], { env })).stdout) as {
+    source: string;
     status: string;
     release_id: string;
   };
+  assert.equal(sync.source, "agent-radar-skill");
   assert.deepEqual({ status: sync.status, release_id: sync.release_id }, { status: "synced", release_id: "all-v0.9.1" });
   assert.deepEqual(requestedPaths, [
     "/data/skill/channels/v1/latest.json",
@@ -65,15 +87,36 @@ test("skill client atomically syncs verified data and searches offline", async (
     process.execPath,
     [scriptPath, "search", '{"query":"browser automation","top_k":3}'],
     { env }
-  )).stdout) as { release: { release_id: string }; results: Array<{ tool_id: string }> };
+  )).stdout) as { source: string; release: { release_id: string }; results: Array<{ tool_id: string }> };
+  assert.equal(search.source, "agent-radar-skill");
   assert.equal(search.release.release_id, "all-v0.9.1");
   assert.deepEqual(search.results.map(({ tool_id }) => tool_id), ["mcp-browser-automation"]);
+
+  const status = JSON.parse((await execFileAsync(process.execPath, [scriptPath, "status"], { env })).stdout) as {
+    source: string;
+  };
+  const get = JSON.parse((await execFileAsync(
+    process.execPath,
+    [scriptPath, "get", "mcp-browser-automation"],
+    { env }
+  )).stdout) as { source: string };
+  const explain = JSON.parse((await execFileAsync(
+    process.execPath,
+    [scriptPath, "explain", "mcp-browser-automation"],
+    { env }
+  )).stdout) as { source: string };
+  assert.deepEqual([status.source, get.source, explain.source], [
+    "agent-radar-skill",
+    "agent-radar-skill",
+    "agent-radar-skill"
+  ]);
 
   const context = JSON.parse((await execFileAsync(
     process.execPath,
     [scriptPath, "context", '{"task":"browser automation","risk_tolerance":"low"}'],
     { env }
-  )).stdout) as { candidates: Array<{ maximum_allowed_action: string }> };
+  )).stdout) as { source: string; candidates: Array<{ maximum_allowed_action: string }> };
+  assert.equal(context.source, "agent-radar-skill");
   assert.equal(context.candidates[0]?.maximum_allowed_action, "ask_human");
 
   const unsafeContext = JSON.parse((await execFileAsync(

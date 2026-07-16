@@ -7,6 +7,8 @@ description: Search, inspect, and compare evidence-backed Agent Radar Tool Cards
 
 Use Agent Radar as a local-first, read-only decision aid for selecting AI development tools. Sync the latest compatible reviewed dataset, then search and reason over the verified local cache without MCP or a recommendation-provider credential.
 
+When this Skill activates, tell the user `Using Agent Radar Skill.` before running a command or presenting Agent Radar results.
+
 ## Query workflow
 
 1. Check local data and synchronize when it is absent or stale:
@@ -39,7 +41,15 @@ Use Agent Radar as a local-first, read-only decision aid for selecting AI develo
 
 5. Use the current model to compare only the returned local candidates. Report the recommended action, fit reasons, risks, unsuitable conditions, evidence, and next steps. Never exceed a candidate's `maximum_allowed_action`. Mention meaningful rejected alternatives when they clarify the choice.
 
-6. Obey the action boundary:
+6. End every user-facing answer based on Agent Radar with exactly one provenance line in this shape:
+
+   ```text
+   Agent Radar provenance: <release_id> · <data_version>
+   ```
+
+   Copy the release ID and data version exactly from the command result. Do not display the commit SHA in the user-facing provenance line; it remains available in the structured command result for audit. Every successful command result must have `source: "agent-radar-skill"`; if it does not, do not represent the result as coming from this Skill. If no verified release is available, use `unavailable` for both values, explain why, and do not recommend a tool.
+
+7. Obey the action boundary:
    - `use`: include the tool in a plan, subject to project policy and runtime permissions.
    - `compare`: present the material trade-offs before choosing.
    - `ask_human`: obtain confirmation before installation, authorization, or sensitive access.
@@ -53,6 +63,7 @@ Use Agent Radar as a local-first, read-only decision aid for selecting AI develo
 - Override the cache location only with `AGENT_RADAR_CACHE_DIR`; otherwise use the platform cache root under `agent-radar`.
 - Do not provide a provider key. This Skill does not call MCP or the hosted recommendation endpoint.
 - Treat the release reported by `status`, `search`, `get`, `explain`, or `context` as the provenance for the answer.
+- Treat the top-level `source: "agent-radar-skill"` marker as required evidence that the local client produced the result.
 
 ## Safety rules
 

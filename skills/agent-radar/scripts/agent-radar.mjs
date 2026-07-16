@@ -11,7 +11,8 @@ import { URL } from "node:url";
 
 /* global AbortController, fetch */
 
-const CLIENT_VERSION = "0.9.0";
+const CLIENT_VERSION = "0.9.1";
+const RESULT_SOURCE = "agent-radar-skill";
 const CHANNEL_SCHEMA = "agent_radar_skill_channel.v1";
 const MANIFEST_SCHEMA = "agent_radar_skill_data_manifest.v1";
 const DATASET_CONTRACT = "agent_radar_skill_dataset.v1";
@@ -480,7 +481,7 @@ async function main() {
     } else {
       fail(`Unknown command.\n\n${usage()}`, 2);
     }
-    process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ ...result, source: RESULT_SOURCE }, null, 2)}\n`);
   } catch (error) {
     if (error instanceof Error && error.message === "data_not_synced") {
       fail("Agent Radar data is not synced. Run: agent-radar.mjs sync");

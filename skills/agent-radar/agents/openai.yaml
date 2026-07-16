@@ -1,4 +1,4 @@
 interface:
   display_name: "Agent Radar"
   short_description: "Evidence-backed AI tool selection"
-  default_prompt: "Use $agent-radar to find and assess AI tools for this task."
+  default_prompt: "Use $agent-radar to find and assess AI tools for this task, announce its use, and include release provenance."

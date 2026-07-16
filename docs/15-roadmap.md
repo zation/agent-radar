@@ -28,14 +28,14 @@
 | v0.6 | 标准化并公开发布远程 MCP | 官方 TypeScript SDK v2、secret header、官方 MCP Registry remote publication |
 | v0.7 | 扩展数据前建立评测成本可观测性 | P1 Golden Query token usage、P2 Tool Card 数据扩展 |
 | v0.8 | 降低真实 provider 评测 token 消耗 | P1 紧凑 recommendation prompt；P2 候选检索因质量风险取消 |
-| v0.9 | 把 Agent Radar 作为可安装、local-first Skill 分发 | P1 在线适配方案被取代；P2 版本化数据同步、离线查询与原子回退 |
+| v0.9 | 把 Agent Radar 作为可安装、local-first Skill 分发 | P1 在线适配方案被取代；P2 版本化数据同步与离线查询；P3 发布身份收敛门禁 |
 | v1.0 | 稳定公开数据和接口 | 稳定 API/MCP、可复现评测、插件化扩展 |
 
 ## 当前进度快照
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP、v0.2、v0.3、v0.4、v0.5、v0.6、v0.7、v0.8 和 v0.9 均已完成。`all-v0.9.0` 是当前已验证生产基线；Release All run `29495610187`、commit `e09cb486a7d47a4f94a619a10706688a46645ea8`、production deployment `5472837690`、76 张 Tool Card、24/24 real-provider golden eval、4/4 critical safety 和 7/7 MCP smoke 均已通过。v0.9 P1 的在线 HTTP adapter 在提交前被 P2 local-first 方案取代；P2 implementation commit `0846e592` 已通过 421/421 tests、Skill validator、installer discovery、lint、stylelint、public-language、Web build 和 diff checks。生产 Skill channel 指向不可变 `all-v0.9.0` manifest；独立全新缓存验证已完成 channel/manifest/checksum 校验、原子 sync、ready status、离线 search 和 recommendation context。官方 MCP Registry `io.github.zation/agent-radar@0.9.0` 已由 run `29496620814` 发布并轮询验证。
+实际情况：MVP、v0.2、v0.3、v0.4、v0.5、v0.6、v0.7 和 v0.8 均已完成；v0.9 P2 已完成生产发布，P3 发布身份收敛门禁待实施。`all-v0.9.0` 是当前已验证生产基线；Release All run `29495610187`、commit `e09cb486a7d47a4f94a619a10706688a46645ea8`、production deployment `5472837690`、76 张 Tool Card、24/24 real-provider golden eval、4/4 critical safety 和 7/7 MCP functional smoke 均已通过。v0.9 P1 的在线 HTTP adapter 在提交前被 P2 local-first 方案取代；P2 implementation commit `0846e592` 已通过 421/421 tests、Skill validator、installer discovery、lint、stylelint、public-language、Web build 和 diff checks。生产 Skill channel 指向不可变 `all-v0.9.0` manifest；独立全新缓存验证已完成 channel/manifest/checksum 校验、原子 sync、ready status、离线 search 和 recommendation context。官方 MCP Registry `io.github.zation/agent-radar@0.9.0` 已由 run `29496620814` 发布并轮询验证。该 Release All 的首次 smoke 命中过渡期旧 Worker 并报告 `serverInfo.version=0.8.0`，现有 smoke 未把目标版本作为断言，因此不能把 7/7 解释为发布身份已收敛；发布完成后的独立检查已确认 `/api/version` 和 MCP `serverInfo.version=0.9.0`。
 
 v0.7 P1 已实现并完成生产验收：`eval_token_usage.v1` 记录 MiniMax M3 的 24 次 request attempts，24 次均有 provider-reported usage，0 次 unavailable、0 次 retry；input 581,819、cached input 3,272、output 57,976、total 639,795，平均每条 Golden Query 26,658.125 tokens。独立 Data Build、定时扩量、prompt caching/batching 和 Top-K 预检索不属于当前批准范围。
 
@@ -667,6 +667,10 @@ v0.8 P1 前进行了两组各两次、严格顺序执行的 MiniMax M3 诊断请
 - 验收：旧 release 继承与防篡改、checksum 失败回退、断网搜索、action ceiling、标准 Skill validator、通用 installer 和全量 repository checks 通过；P2 Spec/Plan 已在实现提交记录后冻结。
 - 生产证据：`all-v0.9.0` 的 Release All run `29495610187` 和 production deployment `5472837690` 绑定 commit `e09cb486a7d47a4f94a619a10706688a46645ea8` 与 reviewed bundle `agent-radar-all-29495610187`。生产数据质量为 76 张 Tool Card、0 gates；Golden Queries 24/24、critical safety 4/4、MCP smoke 7/7。Skill channel 返回 `agent_radar_skill_channel.v1`，manifest SHA-256 为 `sha256:b434bb2ca681cb2969497ff1b50769416db7a0655d1f69b28251cdc33ed00a72`；独立生产 sync 验证得到 `status=ready`，release/commit/data version 分别为 `all-v0.9.0`、`e09cb486a7d47a4f94a619a10706688a46645ea8`、`data-2026-07-06`，search 与低风险 recommendation context 均成功。
 - Registry 证据：首次自动 run `29496620814` 在 Worker 切换后立即复查版本时遇到短暂传播竞态；公网 `/api/version` 稳定后重跑同一 run 成功，完成 fresh MCP smoke、GitHub OIDC publication、官方 Registry polling 和 `mcp-registry-publication-evidence-29495610187` 上传，发布版本为 `io.github.zation/agent-radar@0.9.0`。
+- Skill 调用可观察性 follow-up：当前分支要求 Skill 在使用前明确声明、在最终答复以 `<release_id> · <data_version>` 展示简洁 provenance，并让 `sync`、`status`、`search`、`get`、`explain` 和 `context` 的所有成功结果携带 `source: "agent-radar-skill"`。Commit SHA 仅保留在结构化结果中用于审计；该标记不记录任务、不产生 telemetry，也不替代 checksum 或发布真实性边界。
+- P3 状态：Planned；在实施前创建独立 Spec/Plan，不修改已冻结的 P2 Spec/Plan。
+- P3 范围：建立发布身份收敛门禁。部署后先以有界重试轮询 `/api/version`，要求 `release_id` 和 `commit_sha` 同时等于本次不可变 tag/SHA；随后向 MCP smoke runner 传入预期 server version，并要求 `initialize.serverInfo.version` 严格等于由 tag 派生的新版本。Registry publication 复用同一身份检查，不接受前一版本或只验证字段存在。
+- P3 验收：旧边缘实例、版本不匹配、SHA 不匹配和收敛超时均阻断发布；production smoke evidence 同时记录 expected/actual release ID、commit SHA 和 MCP server version；Release All 与 Registry workflow 的回归测试覆盖成功、重试后成功和超时失败三条路径。
 - 不做：在线安装市场、第三方工具一键安装/执行、background sync、install hook、manifest signing、新服务或 credential store、HTTP/MCP schema 改动。
 
 ### Backlog

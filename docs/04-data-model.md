@@ -457,6 +457,8 @@ All four feedback artifacts belong to the reviewed bundle and are checksum-bound
 
 `agent_radar_local_release.v1` is a local verification marker written only after every downloaded file passes compatibility, size, checksum, parsing, and record-schema validation. `agent_radar_local_pointer.v1` names the active verified release. Neither local file is a published data authority.
 
+Every successful `agent-radar.mjs` command emits an additive top-level `source` field with the fixed value `agent-radar-skill`. Query commands also retain their `release` object; synchronization and status commands retain top-level `release_id`, `commit_sha`, and `data_version`. This marker identifies the local client as the producer. User-facing answers display the exact release ID and data version without labels that duplicate their prefixes; commit SHA remains available in the structured result for audit. These fields are not an authentication signature and do not create telemetry or a persistent invocation log.
+
 Ordinary data additions or corrections produce a new immutable release without changing these contract versions. An incompatible required-field, semantic, file-layout, or checksum change requires a new dataset contract major and a separate channel such as `channels/v2/latest.json`. A v1 client must reject unsupported contracts or minimum client versions and keep its previous verified release.
 
 Small additive fields retain major version while updating docs/schema. Semantic changes increment major version, such as `tool_card.v2`. Removal requires deprecation before migration.
