@@ -255,7 +255,7 @@ Review may keep the automatic result, correct data or classification, change rat
 
 ## Verified Baseline
 
-`all-v0.9.1` is the current verified production baseline. Release All run `29500799822` and production deployment `5473955458` bind evidence to commit `8bb9cc281da0afa68a13d93705ef616445b8a743`. The reviewed catalog contains 76 Tool Cards; real-provider golden evaluation passed 24/24, critical safety passed 4/4, and functional MCP smoke passed 7/7. Official Registry `io.github.zation/agent-radar@0.9.1` is active. Because that functional smoke initially observed the previous MCP version during edge propagation, it is not identity-convergence evidence; v0.9 P3 requires the new convergence and exact-version contracts for the next release.
+`all-v0.9.2` is the current verified production baseline. Release All run `29504976126` and production deployment `5474831332` bind evidence to commit `60d289bdfa6d0ac8013c4a5e7f37cf358f796eba`. The reviewed catalog contains 76 Tool Cards; real-provider golden evaluation passed 24/24 and critical safety passed 4/4. `release_identity_convergence.v1` observed exact tag/SHA in one attempt, `mcp_smoke_result.v3` recorded expected/actual server version `0.9.2`, and all seven checks passed. Registry run `29505964111` repeated both identity gates and published active/latest `io.github.zation/agent-radar@0.9.2`.
 
 The first real Issue classification and writeback observation completed in `all-v0.5.1`: Issue #1 produced `needs-human-review` with reason code `insufficient_information` and remained open, while Issue #2 produced `rejected` with reason code `invalid_context` and closed. Both received the expected processing label, classifier comment, release marker, and final state.
 
