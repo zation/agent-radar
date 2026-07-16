@@ -24,23 +24,33 @@ const source = {
 
 function production(endpoint = "https://agent-radar.zation1.workers.dev/api/mcp") {
   return {
-    schema_version: "production_release_evidence.v1",
+    schema_version: "production_release_evidence.v2",
     github: { repository: source.repository, run_id: source.runId, sha: source.gitSha, release_tag: source.releaseTag },
     deployment: {
       environment: "production",
       worker_base_url: endpoint.replace(/\/api\/mcp$/, ""),
       mcp_endpoint: endpoint
     },
-    smoke: { passed: true, total: 7, passed_checks: 7, failed: 0 }
+    smoke: { passed: true, total: 7, passed_checks: 7, failed: 0 },
+    identity: {
+      expected_release_id: source.releaseTag,
+      actual_release_id: source.releaseTag,
+      expected_commit_sha: source.gitSha,
+      actual_commit_sha: source.gitSha,
+      expected_server_version: registryVersion,
+      actual_server_version: registryVersion,
+      convergence_attempts: 1,
+      convergence_started_at: "2026-07-13T08:00:00Z",
+      converged_at: "2026-07-13T08:00:01Z"
+    }
   };
 }
 
 function smoke(endpoint = "https://agent-radar.zation1.workers.dev/api/mcp") {
   return {
-    schema_version: "mcp_smoke_result.v2",
+    schema_version: "mcp_smoke_result.v3",
     endpoint,
-    release_id: source.releaseTag,
-    commit_sha: source.gitSha,
+    identity: { expected_server_version: registryVersion, actual_server_version: registryVersion },
     generated_at: "2026-07-13T08:00:00Z",
     passed: true,
     summary: { total: 7, passed: 7, failed: 0 },
@@ -81,12 +91,14 @@ test("rejects incomplete, failed, or identity-mismatched source smoke", () => {
   const incomplete = smoke();
   incomplete.checks = incomplete.checks.slice(1);
   assert.throws(() => validateMcpRegistryReleaseInputs(production(), incomplete, metadata, source), /exact seven checks/i);
-  assert.throws(() => validateMcpRegistryReleaseInputs(production(), { ...smoke(), commit_sha: "deadbeef" }, metadata, source), /smoke identity/i);
+  assert.throws(() => validateMcpRegistryReleaseInputs(production(), {
+    ...smoke(), identity: { expected_server_version: registryVersion, actual_server_version: "0.7.1" }
+  }, metadata, source), /smoke identity/i);
 });
 
 test("release validation CLI rebuilds checksum-bound production evidence before publication", async () => {
   const directory = await mkdtemp(join(tmpdir(), "agent-radar-registry-release-"));
-  const paths = Object.fromEntries(["manifest", "seed", "smoke", "production", "metadata"].map((name) => [name, join(directory, `${name}.json`)])) as Record<string, string>;
+  const paths = Object.fromEntries(["manifest", "seed", "smoke", "identity", "production", "metadata"].map((name) => [name, join(directory, `${name}.json`)])) as Record<string, string>;
   const seed = `INSERT INTO release_meta VALUES ('${source.releaseTag}');\n`;
   const manifest = {
     schema_version: "artifact_manifest.v1",
@@ -107,12 +119,23 @@ test("release validation CLI rebuilds checksum-bound production evidence before 
       writeFile(paths.manifest, JSON.stringify(manifest), "utf8"),
       writeFile(paths.seed, seed, "utf8"),
       writeFile(paths.smoke, JSON.stringify(smoke()), "utf8"),
+      writeFile(paths.identity, JSON.stringify({
+        schema_version: "release_identity_convergence.v1",
+        version_url: "https://agent-radar.zation1.workers.dev/api/version",
+        expected: { release_id: source.releaseTag, commit_sha: source.gitSha },
+        actual: { release_id: source.releaseTag, commit_sha: source.gitSha },
+        attempts: 1,
+        started_at: "2026-07-13T08:00:00Z",
+        converged_at: "2026-07-13T08:00:01Z",
+        converged: true
+      }), "utf8"),
       writeFile(paths.metadata, `${JSON.stringify(metadata, null, 2)}\n`, "utf8")
     ]);
     const evidence = await buildProductionReleaseEvidence({
       manifestPath: paths.manifest,
       d1SeedPath: paths.seed,
       smokeResultPath: paths.smoke,
+      identityResultPath: paths.identity,
       repository: source.repository,
       runId: source.runId,
       gitSha: source.gitSha,
@@ -127,6 +150,7 @@ test("release validation CLI rebuilds checksum-bound production evidence before 
       "dist/src/cli/validate-mcp-registry-release.js",
       "--production-evidence", paths.production,
       "--smoke-result", paths.smoke,
+      "--identity-result", paths.identity,
       "--metadata", paths.metadata,
       "--manifest", paths.manifest,
       "--d1-seed", paths.seed,

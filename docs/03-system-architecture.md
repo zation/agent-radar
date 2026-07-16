@@ -334,7 +334,8 @@ checkout
   -> persist auto-review results in immutable reviewed bundle
   -> GitHub production environment approval
   -> deploy reviewed bundle to one Cloudflare Worker
-  -> MCP deploy-output smoke
+  -> bounded /api/version tag + SHA convergence
+  -> exact tag-derived MCP server-version smoke
   -> persist production release evidence
 ```
 
@@ -342,7 +343,9 @@ Normal review does not generate per-item approval requests. Scripts, rules, LLM 
 
 Registry metadata has no separately maintained release version. Preview finalization derives `server.json.version` from the same immutable `all-v*` tag injected into the Worker, stores `server.json` in `dist-pages`, and covers it with the reviewed artifact manifest checksum. The publication workflow validates and publishes that exact bundle file.
 
-`all-v0.8.0` is the current verified production baseline. Release All run `29383566104`, commit `c174c13913d82cf14c67f4cda060d38a2b4d5781`, and deployment `5459363215` bind the immutable reviewed bundle and production evidence; the deployed catalog contains 76 Tool Cards, including 23 dynamically discovered Skills. Real-provider golden evaluation 24/24, critical safety 4/4, and deployed `/api/mcp` smoke 7/7 passed. The reviewed bundle also binds `eval_token_usage.v1` with 24/24 reported attempts, no unavailable usage or retries, and 700,377 total tokens. The active/latest official Registry record remains `io.github.zation/agent-radar@0.6.4` and points to the same production remote.
+`release-identity-convergence.ts` owns the shared post-deploy identity gate. It polls the metadata-bound production origin with uncached, timed JSON requests and returns `release_identity_convergence.v1` only after observed `release_id` and `commit_sha` exactly match the immutable tag/SHA. Release All then runs `mcp_smoke_result.v3`, whose initialize check requires the exact canonical tag-derived server version. `production_release_evidence.v2` binds both actual observations. Registry publication reruns the same convergence CLI and version-aware smoke before OIDC; it does not implement a second shell-only identity policy.
+
+`all-v0.9.1` is the current verified production baseline. Release All run `29500799822`, commit `8bb9cc281da0afa68a13d93705ef616445b8a743`, and deployment `5473955458` bind the immutable reviewed bundle and production evidence; the deployed catalog contains 76 Tool Cards. Real-provider golden evaluation 24/24, critical safety 4/4, and deployed `/api/mcp` functional smoke 7/7 passed. Official Registry `io.github.zation/agent-radar@0.9.1` is active. That release's smoke observed the prior server version during edge propagation; v0.9 P3 closes this evidence gap for the next release with the blocking convergence design above.
 
 ## v0.4 P2 Feedback Processing
 

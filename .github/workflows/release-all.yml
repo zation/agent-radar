@@ -178,9 +178,11 @@ jobs:
             --var AGENT_RADAR_LLM_BASE_URL:${{ vars.AGENT_RADAR_LLM_BASE_URL }}
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Smoke test deployed Worker MCP
+      - name: Wait for deployed release identity
         env:
           DEPLOY_OUTPUT: ${{ steps.deploy.outputs.command-output }}
+          AGENT_RADAR_RELEASE_ID: ${{ github.ref_name }}
+          AGENT_RADAR_COMMIT_SHA: ${{ github.sha }}
         run: |
           set -euo pipefail
           npm run build
@@ -190,7 +192,14 @@ jobs:
             exit 1
           fi
           echo "AGENT_RADAR_WORKER_BASE_URL=$WORKER_BASE_URL" >> "$GITHUB_ENV"
-          AGENT_RADAR_MCP_BASE_URL="$WORKER_BASE_URL" node dist/src/cli/run-mcp-smoke.js | tee mcp-smoke-result.json
+          AGENT_RADAR_WORKER_BASE_URL="$WORKER_BASE_URL" \
+            AGENT_RADAR_IDENTITY_EVIDENCE=release-identity-convergence.json \
+            node dist/src/cli/wait-for-release-identity.js
+
+      - name: Smoke test converged Worker MCP
+        env:
+          AGENT_RADAR_RELEASE_ID: ${{ github.ref_name }}
+        run: AGENT_RADAR_MCP_BASE_URL="$AGENT_RADAR_WORKER_BASE_URL" node dist/src/cli/run-mcp-smoke.js | tee mcp-smoke-result.json
 
       - name: Resolve production deployment
         env:
@@ -249,5 +258,6 @@ jobs:
           name: agent-radar-mcp-smoke-${{ github.run_id }}
           path: |
             mcp-smoke-result.json
+            release-identity-convergence.json
             production-release-evidence.json
           if-no-files-found: error

@@ -49,16 +49,14 @@ test("MCP smoke runner verifies all deployed SDK and read-only boundaries", asyn
 
   const result = await runMcpSmokeTest({
     baseUrl: "https://agent-radar.example/",
-    releaseId: "all-v0.6.3",
-    commitSha: "abc123",
+    expectedServerVersion: "0.6.3",
     generatedAt: "2026-07-13T12:00:00Z",
     fetchImpl
   });
 
-  assert.equal(result.schema_version, "mcp_smoke_result.v2");
+  assert.equal(result.schema_version, "mcp_smoke_result.v3");
   assert.equal(result.endpoint, "https://agent-radar.example/api/mcp");
-  assert.equal(result.release_id, "all-v0.6.3");
-  assert.equal(result.commit_sha, "abc123");
+  assert.deepEqual(result.identity, { expected_server_version: "0.6.3", actual_server_version: "0.6.3" });
   assert.equal(result.generated_at, "2026-07-13T12:00:00Z");
   assert.equal(result.passed, true);
   assert.deepEqual(result.summary, { total: 7, passed: 7, failed: 0 });
@@ -70,8 +68,7 @@ test("MCP smoke runner verifies all deployed SDK and read-only boundaries", asyn
 test("MCP smoke runner records all failed deployed checks without leaking response bodies", async () => {
   const result = await runMcpSmokeTest({
     baseUrl: "https://agent-radar.example",
-    releaseId: "all-v0.6.3",
-    commitSha: "abc123",
+    expectedServerVersion: "0.6.3",
     generatedAt: "2026-07-13T12:00:00Z",
     fetchImpl: () => Promise.resolve(jsonResponse({ secret: "must-not-leak" }, 500))
   });
@@ -79,6 +76,28 @@ test("MCP smoke runner records all failed deployed checks without leaking respon
   assert.equal(result.passed, false);
   assert.equal(result.summary.failed, 7);
   assert.equal(JSON.stringify(result).includes("must-not-leak"), false);
+});
+
+test("MCP smoke rejects a previous deployed server version", async () => {
+  const result = await runMcpSmokeTest({
+    baseUrl: "https://agent-radar.example",
+    expectedServerVersion: "0.9.2",
+    generatedAt: "2026-07-16T12:00:00Z",
+    fetchImpl: (_input, init) => {
+      const body = typeof init?.body === "string" ? JSON.parse(init.body) as SmokeRequestBody : undefined;
+      if (body?.method === "initialize") {
+        return Promise.resolve(jsonResponse({ jsonrpc: "2.0", id: body.id, result: {
+          serverInfo: { name: "io.github.zation/agent-radar", version: "0.9.1" }, capabilities: { tools: {} }
+        } }));
+      }
+      return Promise.resolve(jsonResponse({}, 500));
+    }
+  });
+
+  assert.equal(result.passed, false);
+  assert.equal(result.checks[0]?.passed, false);
+  assert.match(result.checks[0]?.message ?? "", /did not match expected version 0\.9\.2/);
+  assert.deepEqual(result.identity, { expected_server_version: "0.9.2", actual_server_version: "0.9.1" });
 });
 
 function toolResult(id: string | number | undefined, output: Record<string, unknown>, isError = false): Response {

@@ -18,8 +18,10 @@ interface EvidenceFixture {
   manifestPath: string;
   d1SeedPath: string;
   smokeResultPath: string;
+  identityResultPath: string;
   manifest: Record<string, unknown>;
   smoke: Record<string, unknown>;
+  identity: Record<string, unknown>;
   d1SeedSha256: string;
 }
 
@@ -28,7 +30,7 @@ test("builds immutable production evidence from the reviewed bundle and deployed
     const evidence = await buildProductionReleaseEvidence(optionsFor(fixture));
     const manifestSha256 = sha256(await readFile(fixture.manifestPath));
 
-    assert.equal(evidence.schema_version, "production_release_evidence.v1");
+    assert.equal(evidence.schema_version, "production_release_evidence.v2");
     assert.deepEqual(evidence.github, {
       repository: "zation/agent-radar",
       run_id: "29012144469",
@@ -50,6 +52,17 @@ test("builds immutable production evidence from the reviewed bundle and deployed
       feedback_processing_plan_checksum: `sha256:${"c".repeat(64)}`
     });
     assert.deepEqual(evidence.smoke, { passed: true, total: 7, passed_checks: 7, failed: 0 });
+    assert.deepEqual(evidence.identity, {
+      expected_release_id: "all-v0.2.5",
+      actual_release_id: "all-v0.2.5",
+      expected_commit_sha: "abc123",
+      actual_commit_sha: "abc123",
+      expected_server_version: "0.2.5",
+      actual_server_version: "0.2.5",
+      convergence_attempts: 2,
+      convergence_started_at: "2026-07-10T00:00:00Z",
+      converged_at: "2026-07-10T00:00:05Z"
+    });
     assert.equal(evidence.generated_at, "2026-07-10T00:00:00Z");
     assert.match(renderProductionReleaseEvidenceMarkdown(evidence), /### Production Release Evidence/);
     assert.match(renderProductionReleaseEvidenceMarkdown(evidence), /PASS 7\/7/);
@@ -203,7 +216,7 @@ test("rejects an MCP smoke result with the wrong schema version", async () => {
 
     await assert.rejects(
       buildProductionReleaseEvidence(optionsFor(fixture)),
-      /MCP smoke result schema_version must be mcp_smoke_result.v2/
+      /MCP smoke result schema_version must be mcp_smoke_result.v3/
     );
   });
 });
@@ -349,22 +362,28 @@ test("rejects evidence when the smoke endpoint is not the deployed Worker MCP en
   });
 });
 
-test("rejects evidence when MCP smoke release identity differs from GitHub", async () => {
+test("rejects evidence when MCP smoke expected server version differs from the tag", async () => {
   await withFixture(async (fixture) => {
-    await writeSmokeResult(fixture, { ...fixture.smoke, release_id: "all-v0.6.1" });
+    await writeSmokeResult(fixture, {
+      ...fixture.smoke,
+      identity: { expected_server_version: "0.2.4", actual_server_version: "0.2.5" }
+    });
     await assert.rejects(
       buildProductionReleaseEvidence(optionsFor(fixture)),
-      /MCP smoke release_id must match the GitHub release tag/
+      /Expected and actual MCP server version must match the GitHub release tag/
     );
   });
 });
 
-test("rejects evidence when MCP smoke commit differs from GitHub", async () => {
+test("rejects evidence when observed release commit differs from GitHub", async () => {
   await withFixture(async (fixture) => {
-    await writeSmokeResult(fixture, { ...fixture.smoke, commit_sha: "deadbe" });
+    await writeIdentityResult(fixture, {
+      ...fixture.identity,
+      actual: { release_id: "all-v0.2.5", commit_sha: "deadbe" }
+    });
     await assert.rejects(
       buildProductionReleaseEvidence(optionsFor(fixture)),
-      /MCP smoke commit_sha must match the GitHub SHA/
+      /Expected and actual release commit must match the GitHub SHA/
     );
   });
 });
@@ -517,6 +536,7 @@ test("CLI writes the evidence JSON and prints its Markdown summary", async () =>
         AGENT_RADAR_ARTIFACT_MANIFEST: fixture.manifestPath,
         AGENT_RADAR_D1_SEED: fixture.d1SeedPath,
         AGENT_RADAR_MCP_SMOKE_RESULT: fixture.smokeResultPath,
+        AGENT_RADAR_IDENTITY_EVIDENCE: fixture.identityResultPath,
         GITHUB_REPOSITORY: "zation/agent-radar",
         GITHUB_RUN_ID: "29012144469",
         GITHUB_SHA: "abc123",
@@ -530,7 +550,7 @@ test("CLI writes the evidence JSON and prints its Markdown summary", async () =>
     });
 
     const evidence = JSON.parse(await readFile(outputPath, "utf8")) as { schema_version?: string };
-    assert.equal(evidence.schema_version, "production_release_evidence.v1");
+    assert.equal(evidence.schema_version, "production_release_evidence.v2");
     assert.match(stdout, /### Production Release Evidence/);
   });
 });
@@ -550,6 +570,7 @@ async function createFixture(): Promise<EvidenceFixture> {
   const manifestPath = join(directory, "artifact-manifest.json");
   const d1SeedPath = join(dataDirectory, "d1_seed.sql");
   const smokeResultPath = join(directory, "mcp-smoke-result.json");
+  const identityResultPath = join(directory, "release-identity-convergence.json");
   const d1Seed = "CREATE TABLE tool_cards (id TEXT PRIMARY KEY);\n";
   const d1SeedSha256 = sha256(d1Seed);
   const manifest = {
@@ -568,10 +589,9 @@ async function createFixture(): Promise<EvidenceFixture> {
     checksums: { "data/d1_seed.sql": d1SeedSha256, "data/feedback_processing_plan.json": `sha256:${"c".repeat(64)}` }
   };
   const smoke = {
-    schema_version: "mcp_smoke_result.v2",
+    schema_version: "mcp_smoke_result.v3",
     endpoint: "https://agent-radar.example/api/mcp",
-    release_id: "all-v0.2.5",
-    commit_sha: "abc123",
+    identity: { expected_server_version: "0.2.5", actual_server_version: "0.2.5" },
     generated_at: "2026-07-10T00:00:00Z",
     passed: true,
     summary: { total: 7, passed: 7, failed: 0 },
@@ -585,13 +605,25 @@ async function createFixture(): Promise<EvidenceFixture> {
       { id: "write-method-rejected", passed: true, message: "ok" }
     ]
   };
+  const identity = {
+    schema_version: "release_identity_convergence.v1",
+    version_url: "https://agent-radar.example/api/version",
+    expected: { release_id: "all-v0.2.5", commit_sha: "abc123" },
+    actual: { release_id: "all-v0.2.5", commit_sha: "abc123" },
+    attempts: 2,
+    started_at: "2026-07-10T00:00:00Z",
+    converged_at: "2026-07-10T00:00:05Z",
+    converged: true
+  };
 
   await mkdir(dataDirectory, { recursive: true });
   await writeFile(d1SeedPath, d1Seed, "utf8");
-  await writeManifest({ directory, manifestPath, d1SeedPath, smokeResultPath, manifest, smoke, d1SeedSha256 }, manifest);
-  await writeSmokeResult({ directory, manifestPath, d1SeedPath, smokeResultPath, manifest, smoke, d1SeedSha256 }, smoke);
+  const fixture = { directory, manifestPath, d1SeedPath, smokeResultPath, identityResultPath, manifest, smoke, identity, d1SeedSha256 };
+  await writeManifest(fixture, manifest);
+  await writeSmokeResult(fixture, smoke);
+  await writeIdentityResult(fixture, identity);
 
-  return { directory, manifestPath, d1SeedPath, smokeResultPath, manifest, smoke, d1SeedSha256 };
+  return fixture;
 }
 
 function optionsFor(fixture: EvidenceFixture) {
@@ -599,6 +631,7 @@ function optionsFor(fixture: EvidenceFixture) {
     manifestPath: fixture.manifestPath,
     d1SeedPath: fixture.d1SeedPath,
     smokeResultPath: fixture.smokeResultPath,
+    identityResultPath: fixture.identityResultPath,
     repository: "zation/agent-radar",
     runId: "29012144469",
     gitSha: "abc123",
@@ -616,6 +649,10 @@ async function writeManifest(fixture: EvidenceFixture, manifest: Record<string, 
 
 async function writeSmokeResult(fixture: EvidenceFixture, smoke: Record<string, unknown>): Promise<void> {
   await writeFile(fixture.smokeResultPath, JSON.stringify(smoke, null, 2), "utf8");
+}
+
+async function writeIdentityResult(fixture: EvidenceFixture, identity: Record<string, unknown>): Promise<void> {
+  await writeFile(fixture.identityResultPath, JSON.stringify(identity, null, 2), "utf8");
 }
 
 function smokeChecks(fixture: EvidenceFixture): Array<Record<string, unknown>> {

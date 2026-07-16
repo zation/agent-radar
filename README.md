@@ -128,6 +128,8 @@ The Skill is local-first. Run its explicit `sync` command to download the latest
 
 The remote-only Agent Radar MCP server is published in the official Registry as `io.github.zation/agent-radar`, backed by the production Streamable HTTP endpoint and evidence-bound GitHub OIDC publication. You can connect to and use it through either of these listings:
 
+Production completion requires release identity convergence before functional smoke: bounded polling must observe the exact immutable tag and commit SHA from `/api/version`, then MCP `initialize.serverInfo.version` must equal the SemVer derived from that tag. The same gate runs again before Registry publication, so a previous edge version cannot pass as the new release.
+
 - [Smithery: `zation/agent-radar`](https://smithery.ai/servers/zation/agent-radar)
 - [Official MCP Registry: `io.github.zation/agent-radar`](https://registry.modelcontextprotocol.io/?q=io.github.zation%2Fagent-radar)
 

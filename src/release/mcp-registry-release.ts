@@ -34,8 +34,9 @@ export function validateMcpRegistryReleaseInputs(
   const github = requireRecord(production.github, "Production evidence GitHub identity");
   const deployment = requireRecord(production.deployment, "Production deployment evidence");
   const productionSmoke = requireRecord(production.smoke, "Production smoke evidence");
+  const productionIdentity = requireRecord(production.identity, "Production release identity evidence");
 
-  if (production.schema_version !== "production_release_evidence.v1"
+  if (production.schema_version !== "production_release_evidence.v2"
     || github.repository !== source.repository
     || github.run_id !== source.runId
     || github.release_tag !== source.releaseTag
@@ -52,14 +53,23 @@ export function validateMcpRegistryReleaseInputs(
     || productionSmoke.passed_checks !== 7 || productionSmoke.failed !== 0) {
     throw new Error("Production evidence must report all seven MCP smoke checks passed");
   }
+  if (productionIdentity.expected_release_id !== source.releaseTag
+    || productionIdentity.actual_release_id !== source.releaseTag
+    || productionIdentity.expected_commit_sha !== source.gitSha
+    || productionIdentity.actual_commit_sha !== source.gitSha
+    || productionIdentity.expected_server_version !== metadata.version
+    || productionIdentity.actual_server_version !== metadata.version) {
+    throw new Error("Production release identity must match the selected tag, SHA, and Registry version");
+  }
 
   const smoke = requireRecord(smokeResult, "Source MCP smoke result");
   const summary = requireRecord(smoke.summary, "Source MCP smoke summary");
-  if (smoke.schema_version !== "mcp_smoke_result.v2") {
+  if (smoke.schema_version !== "mcp_smoke_result.v3") {
     throw new Error("Source MCP smoke schema_version is invalid");
   }
-  if (smoke.release_id !== source.releaseTag || smoke.commit_sha !== source.gitSha) {
-    throw new Error("Source MCP smoke identity must match the selected tag and SHA");
+  const smokeIdentity = requireRecord(smoke.identity, "Source MCP smoke identity");
+  if (smokeIdentity.expected_server_version !== metadata.version || smokeIdentity.actual_server_version !== metadata.version) {
+    throw new Error("Source MCP smoke identity must match the selected Registry version");
   }
   if (smoke.endpoint !== endpoint) {
     throw new Error("Source MCP smoke endpoint must match immutable Registry metadata");

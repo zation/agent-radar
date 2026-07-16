@@ -16,6 +16,7 @@ async function readJson(path: string): Promise<unknown> {
 
 const productionEvidencePath = option("--production-evidence", "source-evidence/production-release-evidence.json");
 const smokeResultPath = option("--smoke-result", "source-evidence/mcp-smoke-result.json");
+const identityResultPath = option("--identity-result", "source-evidence/release-identity-convergence.json");
 const repository = option("--repository");
 const runId = option("--run-id");
 const releaseTag = option("--release-tag");
@@ -38,6 +39,7 @@ const rebuilt = await buildProductionReleaseEvidence({
   manifestPath,
   d1SeedPath: option("--d1-seed"),
   smokeResultPath,
+  identityResultPath,
   repository,
   runId,
   gitSha,

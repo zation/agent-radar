@@ -41,8 +41,11 @@ test("all release workflow uses environment approval before Worker deploy", asyn
   assert.match(workflow, /deploy-production:[\s\S]*--name=\$\{\{ vars\.CLOUDFLARE_PROJECT_NAME \|\| 'agent-radar' \}\}/);
   assert.match(workflow, /deploy-production:[\s\S]*--var AGENT_RADAR_LLM_MODEL:\$\{\{ vars\.AGENT_RADAR_LLM_MODEL \|\| 'deepseek-v4-flash' \}\}/);
   assert.match(workflow, /deploy-production:[\s\S]*--var AGENT_RADAR_LLM_BASE_URL:\$\{\{ vars\.AGENT_RADAR_LLM_BASE_URL \}\}/);
-  assert.match(workflow, /deploy-production:[\s\S]*Smoke test deployed Worker MCP/);
-  assert.match(workflow, /deploy-production:[\s\S]*AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);
+  assert.match(workflow, /deploy-production:[\s\S]*Wait for deployed release identity/);
+  assert.match(workflow, /deploy-production:[\s\S]*Smoke test converged Worker MCP/);
+  assert.match(workflow, /wait-for-release-identity\.js/);
+  assert.match(workflow, /release-identity-convergence\.json/);
+  assert.match(workflow, /AGENT_RADAR_MCP_BASE_URL="\$AGENT_RADAR_WORKER_BASE_URL"/);
   assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   assert.match(workflow, /gh api --method GET/);
   assert.match(workflow, /AGENT_RADAR_PRODUCTION_DEPLOYMENT_ID/);
@@ -50,7 +53,11 @@ test("all release workflow uses environment approval before Worker deploy", asyn
   assert.match(workflow, /production-release-evidence\.json/);
   assert.equal(workflow.indexOf("- name: Download reviewed bundle") < workflow.indexOf("- name: Deploy Cloudflare Worker"), true);
   assert.equal(
-    workflow.indexOf("Smoke test deployed Worker MCP") < workflow.indexOf("Build production release evidence"),
+    workflow.indexOf("Smoke test converged Worker MCP") < workflow.indexOf("Build production release evidence"),
+    true,
+  );
+  assert.equal(
+    workflow.indexOf("Wait for deployed release identity") < workflow.indexOf("Smoke test converged Worker MCP"),
     true,
   );
 });
@@ -159,7 +166,11 @@ test("MCP Registry workflow publishes only evidence-bound Release All runs throu
   assert.match(workflow, /REGISTRY_METADATA_PATH="\$RUNNER_TEMP\/agent-radar-source-reviewed-bundle\/dist-pages\/server\.json"/);
   assert.match(workflow, /REGISTRY_METADATA_PATH=\$REGISTRY_METADATA_PATH.*\$GITHUB_ENV/);
   assert.match(workflow, /production-release-evidence\.json/);
-  assert.match(workflow, /\/api\/version/);
+  assert.match(workflow, /Revalidate deployed release identity/);
+  assert.match(workflow, /wait-for-release-identity\.js/);
+  assert.match(workflow, /fresh-release-identity-convergence\.json/);
+  assert.match(workflow, /mcp_smoke_result\.v3/);
+  assert.match(workflow, /production_release_evidence\.v2/);
   assert.match(workflow, /AGENT_RADAR_MCP_BASE_URL="\$WORKER_BASE_URL"/);
   assert.match(workflow, /jq -r '\.remotes\[0\]\.url' "\$REGISTRY_METADATA_PATH"/);
   assert.match(workflow, /classifyMcpRegistryRecord/);
@@ -171,4 +182,12 @@ test("MCP Registry workflow publishes only evidence-bound Release All runs throu
   assert.match(workflow, /Poll official MCP Registry/);
   assert.match(workflow, /build-mcp-registry-evidence\.js/);
   assert.match(workflow, /mcp-registry-publication-evidence-\$\{\{ env\.SOURCE_RUN_ID \}\}/);
+  assert.equal(
+    workflow.indexOf("Revalidate deployed release identity") < workflow.indexOf("Run fresh production MCP smoke"),
+    true,
+  );
+  assert.equal(
+    workflow.indexOf("Run fresh production MCP smoke") < workflow.indexOf("Publish metadata with GitHub OIDC"),
+    true,
+  );
 });

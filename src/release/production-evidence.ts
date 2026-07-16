@@ -3,6 +3,8 @@ import { readFile } from "node:fs/promises";
 import type { McpSmokeResult } from "../api/mcp-smoke-runner.js";
 import { REQUIRED_MCP_SMOKE_CHECK_IDS } from "../api/mcp-smoke-contract.js";
 import type { ArtifactManifest } from "../preview/manifest.js";
+import { registryVersionFromTag } from "./mcp-registry.js";
+import type { ReleaseIdentityConvergenceResult } from "./release-identity-convergence.js";
 
 const d1SeedChecksumPath = "data/d1_seed.sql";
 const canonicalSha256Pattern = /^sha256:[0-9a-f]{64}$/;
@@ -17,6 +19,7 @@ export interface BuildProductionReleaseEvidenceOptions {
   manifestPath: string;
   d1SeedPath: string;
   smokeResultPath: string;
+  identityResultPath: string;
   repository: string;
   runId: string;
   gitSha: string;
@@ -28,7 +31,7 @@ export interface BuildProductionReleaseEvidenceOptions {
 }
 
 export interface ProductionReleaseEvidence {
-  schema_version: "production_release_evidence.v1";
+  schema_version: "production_release_evidence.v2";
   github: {
     repository: string;
     run_id: string;
@@ -55,6 +58,17 @@ export interface ProductionReleaseEvidence {
     passed_checks: number;
     failed: 0;
   };
+  identity: {
+    expected_release_id: string;
+    actual_release_id: string;
+    expected_commit_sha: string;
+    actual_commit_sha: string;
+    expected_server_version: string;
+    actual_server_version: string;
+    convergence_attempts: number;
+    convergence_started_at: string;
+    converged_at: string;
+  };
   generated_at: string;
 }
 
@@ -63,13 +77,15 @@ export async function buildProductionReleaseEvidence(
 ): Promise<ProductionReleaseEvidence> {
   validateReleaseMetadata(options);
   const workerBaseUrl = parseProductionWorkerOrigin(options.workerBaseUrl);
-  const [manifestContents, d1SeedContents, smokeResultContents] = await Promise.all([
+  const [manifestContents, d1SeedContents, smokeResultContents, identityResultContents] = await Promise.all([
     readFile(options.manifestPath),
     readFile(options.d1SeedPath),
-    readFile(options.smokeResultPath)
+    readFile(options.smokeResultPath),
+    readFile(options.identityResultPath)
   ]);
   const manifest = parseArtifactManifest(manifestContents);
   const smokeResult = parseMcpSmokeResult(smokeResultContents);
+  const identityResult = parseReleaseIdentityResult(identityResultContents);
   const d1SeedSha256 = sha256(d1SeedContents);
   const expectedMcpEndpoint = `${workerBaseUrl}/api/mcp`;
 
@@ -86,15 +102,23 @@ export async function buildProductionReleaseEvidence(
   if (normalizeMcpEndpoint(smokeResult.endpoint) !== expectedMcpEndpoint) {
     throw new Error("MCP smoke endpoint must match the production Worker MCP endpoint.");
   }
-  if (smokeResult.release_id !== options.releaseTag) {
-    throw new Error("MCP smoke release_id must match the GitHub release tag.");
+  if (identityResult.version_url !== `${workerBaseUrl}/api/version`) {
+    throw new Error("Release identity endpoint must match the production Worker version endpoint.");
   }
-  if (smokeResult.commit_sha !== options.gitSha) {
-    throw new Error("MCP smoke commit_sha must match the GitHub SHA.");
+  if (identityResult.expected.release_id !== options.releaseTag || identityResult.actual.release_id !== options.releaseTag) {
+    throw new Error("Expected and actual release identity must match the GitHub release tag.");
+  }
+  if (identityResult.expected.commit_sha !== options.gitSha || identityResult.actual.commit_sha !== options.gitSha) {
+    throw new Error("Expected and actual release commit must match the GitHub SHA.");
+  }
+  const expectedServerVersion = registryVersionFromTag(options.releaseTag);
+  if (smokeResult.identity.expected_server_version !== expectedServerVersion
+    || smokeResult.identity.actual_server_version !== expectedServerVersion) {
+    throw new Error("Expected and actual MCP server version must match the GitHub release tag.");
   }
 
   return {
-    schema_version: "production_release_evidence.v1",
+    schema_version: "production_release_evidence.v2",
     github: {
       repository: options.repository,
       run_id: options.runId,
@@ -121,6 +145,17 @@ export async function buildProductionReleaseEvidence(
       passed_checks: smokeResult.summary.passed,
       failed: 0
     },
+    identity: {
+      expected_release_id: identityResult.expected.release_id,
+      actual_release_id: identityResult.actual.release_id,
+      expected_commit_sha: identityResult.expected.commit_sha,
+      actual_commit_sha: identityResult.actual.commit_sha,
+      expected_server_version: smokeResult.identity.expected_server_version,
+      actual_server_version: smokeResult.identity.actual_server_version,
+      convergence_attempts: identityResult.attempts,
+      convergence_started_at: identityResult.started_at,
+      converged_at: identityResult.converged_at
+    },
     generated_at: options.generatedAt
   };
 }
@@ -135,6 +170,7 @@ export function renderProductionReleaseEvidenceMarkdown(evidence: ProductionRele
     `- Reviewed bundle: ${markdownInline(evidence.bundle.artifact_name)}`,
     `- Checksums: manifest=${markdownInline(evidence.bundle.manifest_sha256)} d1_seed=${markdownInline(evidence.bundle.d1_seed_sha256)} feedback_plan=${markdownInline(evidence.bundle.feedback_processing_plan_checksum)}`,
     `- MCP smoke: PASS ${evidence.smoke.passed_checks}/${evidence.smoke.total}`,
+    `- Release identity: ${markdownInline(evidence.identity.actual_release_id)} sha=${markdownInline(evidence.identity.actual_commit_sha)} mcp=${markdownInline(evidence.identity.actual_server_version)} attempts=${evidence.identity.convergence_attempts}`,
     `- Generated at: ${markdownInline(evidence.generated_at)}`,
     ""
   ].join("\n");
@@ -216,14 +252,16 @@ function parseMcpSmokeResult(contents: Buffer): McpSmokeResult {
   if (!isPlainObject(value)) {
     throw new Error("MCP smoke result must be an object.");
   }
-  if (value.schema_version !== "mcp_smoke_result.v2") {
-    throw new Error("MCP smoke result schema_version must be mcp_smoke_result.v2.");
+  if (value.schema_version !== "mcp_smoke_result.v3") {
+    throw new Error("MCP smoke result schema_version must be mcp_smoke_result.v3.");
   }
   if (typeof value.endpoint !== "string" || !value.endpoint || typeof value.passed !== "boolean"
-    || typeof value.release_id !== "string" || !value.release_id
-    || typeof value.commit_sha !== "string" || !gitShaPattern.test(value.commit_sha)
     || typeof value.generated_at !== "string" || !isValidUtcTimestamp(value.generated_at)) {
     throw new Error("MCP smoke result fields must contain a valid endpoint and passed flag.");
+  }
+  const identity = requireRecord(value.identity, "MCP smoke identity");
+  if (!isSingleLineString(identity.expected_server_version) || !isSingleLineString(identity.actual_server_version)) {
+    throw new Error("MCP smoke identity must contain expected and actual server versions.");
   }
   if (!isPlainObject(value.summary)) {
     throw new Error("MCP smoke result summary must be an object.");
@@ -283,10 +321,12 @@ function parseMcpSmokeResult(contents: Buffer): McpSmokeResult {
   }
 
   return {
-    schema_version: "mcp_smoke_result.v2",
+    schema_version: "mcp_smoke_result.v3",
     endpoint: value.endpoint,
-    release_id: value.release_id,
-    commit_sha: value.commit_sha,
+    identity: {
+      expected_server_version: identity.expected_server_version,
+      actual_server_version: identity.actual_server_version
+    },
     generated_at: value.generated_at,
     passed: true,
     summary: {
@@ -296,6 +336,27 @@ function parseMcpSmokeResult(contents: Buffer): McpSmokeResult {
     },
     checks: typedChecks
   };
+}
+
+function parseReleaseIdentityResult(contents: Buffer): ReleaseIdentityConvergenceResult {
+  const value = parseJson(contents, "release identity convergence result");
+  const result = requireRecord(value, "Release identity convergence result");
+  const expected = requireRecord(result.expected, "Expected release identity");
+  const actual = requireRecord(result.actual, "Actual release identity");
+  if (result.schema_version !== "release_identity_convergence.v1" || result.converged !== true
+    || !isSingleLineString(result.version_url)
+    || !isSingleLineString(expected.release_id) || !gitShaPattern.test(String(expected.commit_sha))
+    || !isSingleLineString(actual.release_id) || !gitShaPattern.test(String(actual.commit_sha))
+    || !Number.isInteger(result.attempts) || (result.attempts as number) <= 0
+    || !isValidUtcTimestamp(result.started_at) || !isValidUtcTimestamp(result.converged_at)) {
+    throw new Error("Release identity convergence result is invalid.");
+  }
+  return result as unknown as ReleaseIdentityConvergenceResult;
+}
+
+function requireRecord(value: unknown, label: string): Record<string, unknown> {
+  if (!isPlainObject(value)) throw new Error(`${label} must be an object.`);
+  return value;
 }
 
 function parseJson(contents: Buffer, label: string): unknown {

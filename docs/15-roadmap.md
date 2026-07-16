@@ -669,9 +669,10 @@ v0.8 P1 前进行了两组各两次、严格顺序执行的 MiniMax M3 诊断请
 - Registry 证据：首次自动 run `29496620814` 在 Worker 切换后立即复查版本时遇到短暂传播竞态；公网 `/api/version` 稳定后重跑同一 run 成功，完成 fresh MCP smoke、GitHub OIDC publication、官方 Registry polling 和 `mcp-registry-publication-evidence-29495610187` 上传，发布版本为 `io.github.zation/agent-radar@0.9.0`。
 - Skill 调用可观察性 follow-up：当前分支要求 Skill 在使用前明确声明、在最终答复以 `<release_id> · <data_version>` 展示简洁 provenance，并让 `sync`、`status`、`search`、`get`、`explain` 和 `context` 的所有成功结果携带 `source: "agent-radar-skill"`。Commit SHA 仅保留在结构化结果中用于审计；该标记不记录任务、不产生 telemetry，也不替代 checksum 或发布真实性边界。
 - 调用可观察性生产证据：`all-v0.9.1` 的 Release All run `29500799822` 和 deployment `5473955458` 绑定 commit `8bb9cc281da0afa68a13d93705ef616445b8a743` 与 reviewed bundle `agent-radar-all-29500799822`；24/24 Golden Queries、4/4 critical safety、7/7 functional smoke 均通过。生产 channel manifest SHA-256 为 `sha256:f02549d350849727280835668bec8afdc3e841456d35e99ffd27d49968be2a0b`；已安装客户端 `0.9.1` 同步后返回 `source=agent-radar-skill`、`status=ready` 和 release `all-v0.9.1`。Registry run `29501685660` 已发布 active `io.github.zation/agent-radar@0.9.1`。
-- P3 状态：Planned；在实施前创建独立 Spec/Plan，不修改已冻结的 P2 Spec/Plan。
+- P3 状态：Implemented locally，待提交与下一次生产发布验证。独立 [`v0.9 P3 Release Identity Convergence Design`](superpowers/specs/2026-07-16-v0.9-p3-release-identity-convergence-design.md) 与 [`Implementation Plan`](superpowers/plans/2026-07-16-v0.9-p3-release-identity-convergence.md) 已建立；P2 Spec/Plan 保持冻结。
 - P3 范围：建立发布身份收敛门禁。部署后先以有界重试轮询 `/api/version`，要求 `release_id` 和 `commit_sha` 同时等于本次不可变 tag/SHA；随后向 MCP smoke runner 传入预期 server version，并要求 `initialize.serverInfo.version` 严格等于由 tag 派生的新版本。Registry publication 复用同一身份检查，不接受前一版本或只验证字段存在。
 - P3 验收：旧边缘实例、版本不匹配、SHA 不匹配和收敛超时均阻断发布；production smoke evidence 同时记录 expected/actual release ID、commit SHA 和 MCP server version；Release All 与 Registry workflow 的回归测试覆盖成功、重试后成功和超时失败三条路径。
+- P3 本地证据：共享 `release_identity_convergence.v1` poller/CLI 已接入 Release All 与 Registry；`mcp_smoke_result.v3` 严格断言 tag-derived server version；`production_release_evidence.v2` 绑定 expected/actual release、SHA、server version、attempts 与 timestamps。全量 429/429 tests 和 public-language check 已通过；生产收敛证据须由下一不可变 `all-v*` release 生成。
 - 不做：在线安装市场、第三方工具一键安装/执行、background sync、install hook、manifest signing、新服务或 credential store、HTTP/MCP schema 改动。
 
 ### Backlog

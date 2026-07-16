@@ -70,6 +70,7 @@ jobs:
             --dir "$RUNNER_TEMP/agent-radar-source-reviewed-bundle"
           test -f "$RUNNER_TEMP/agent-radar-source-evidence/production-release-evidence.json"
           test -f "$RUNNER_TEMP/agent-radar-source-evidence/mcp-smoke-result.json"
+          test -f "$RUNNER_TEMP/agent-radar-source-evidence/release-identity-convergence.json"
           test -f "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/artifact-manifest.json"
           test -f "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/data/d1_seed.sql"
           REGISTRY_METADATA_PATH="$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/server.json"
@@ -84,7 +85,7 @@ jobs:
             --arg run_id "$SOURCE_RUN_ID" \
             --arg sha "$SOURCE_SHA" \
             --arg tag "$SOURCE_TAG" '
-              .schema_version == "production_release_evidence.v1" and
+              .schema_version == "production_release_evidence.v2" and
               .github.repository == $repository and
               .github.run_id == $run_id and
               .github.sha == $sha and
@@ -93,12 +94,17 @@ jobs:
               .smoke.passed == true and
               .smoke.total == 7 and
               .smoke.passed_checks == 7 and
-              .smoke.failed == 0
+              .smoke.failed == 0 and
+              .identity.expected_release_id == $tag and
+              .identity.actual_release_id == $tag and
+              .identity.expected_commit_sha == $sha and
+              .identity.actual_commit_sha == $sha
             ' "$RUNNER_TEMP/agent-radar-source-evidence/production-release-evidence.json" >/dev/null
-          jq -e --arg sha "$SOURCE_SHA" --arg tag "$SOURCE_TAG" '
-            .schema_version == "mcp_smoke_result.v2" and
-            .release_id == $tag and
-            .commit_sha == $sha and
+          REGISTRY_VERSION="${SOURCE_TAG#all-v}"
+          jq -e --arg version "$REGISTRY_VERSION" '
+            .schema_version == "mcp_smoke_result.v3" and
+            .identity.expected_server_version == $version and
+            .identity.actual_server_version == $version and
             .passed == true and
             .summary == {"total": 7, "passed": 7, "failed": 0}
           ' "$RUNNER_TEMP/agent-radar-source-evidence/mcp-smoke-result.json" >/dev/null
@@ -129,6 +135,7 @@ jobs:
           node dist/src/cli/validate-mcp-registry-release.js \
             --production-evidence "$RUNNER_TEMP/agent-radar-source-evidence/production-release-evidence.json" \
             --smoke-result "$RUNNER_TEMP/agent-radar-source-evidence/mcp-smoke-result.json" \
+            --identity-result "$RUNNER_TEMP/agent-radar-source-evidence/release-identity-convergence.json" \
             --metadata "$REGISTRY_METADATA_PATH" \
             --manifest "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/artifact-manifest.json" \
             --d1-seed "$RUNNER_TEMP/agent-radar-source-reviewed-bundle/dist-pages/data/d1_seed.sql" \
@@ -139,22 +146,20 @@ jobs:
           MCP_ENDPOINT="$(jq -r '.remotes[0].url' "$REGISTRY_METADATA_PATH")"
           echo "WORKER_BASE_URL=${MCP_ENDPOINT%/api/mcp}" >> "$GITHUB_ENV"
 
-      - name: Revalidate deployed version
+      - name: Revalidate deployed release identity
         run: |
-          set -euo pipefail
-          curl --fail --silent --show-error --retry 3 "$WORKER_BASE_URL/api/version" > production-version.json
-          jq -e --arg tag "$SOURCE_TAG" --arg sha "$SOURCE_SHA" '
-            .release_id == $tag and .commit_sha == $sha
-          ' production-version.json >/dev/null
+          AGENT_RADAR_WORKER_BASE_URL="$WORKER_BASE_URL" \
+            AGENT_RADAR_RELEASE_ID="$SOURCE_TAG" \
+            AGENT_RADAR_COMMIT_SHA="$SOURCE_SHA" \
+            AGENT_RADAR_IDENTITY_EVIDENCE=fresh-release-identity-convergence.json \
+            node dist/src/cli/wait-for-release-identity.js
 
       - name: Run fresh production MCP smoke
-        env:
-          AGENT_RADAR_MCP_BASE_URL: ${{ env.WORKER_BASE_URL }}
-          AGENT_RADAR_RELEASE_ID: ${{ env.SOURCE_TAG }}
-          AGENT_RADAR_COMMIT_SHA: ${{ env.SOURCE_SHA }}
         run: |
           set -euo pipefail
-          AGENT_RADAR_MCP_BASE_URL="$WORKER_BASE_URL" node dist/src/cli/run-mcp-smoke.js | tee fresh-mcp-smoke-result.json
+          AGENT_RADAR_MCP_BASE_URL="$WORKER_BASE_URL" \
+            AGENT_RADAR_RELEASE_ID="$SOURCE_TAG" \
+            node dist/src/cli/run-mcp-smoke.js | tee fresh-mcp-smoke-result.json
 
       - name: Query official MCP Registry before publication
         run: |
@@ -246,6 +251,7 @@ jobs:
           name: mcp-registry-publication-evidence-${{ env.SOURCE_RUN_ID }}
           path: |
             mcp-registry-publication-evidence.json
+            fresh-release-identity-convergence.json
             fresh-mcp-smoke-result.json
             registry-response.json
           if-no-files-found: error

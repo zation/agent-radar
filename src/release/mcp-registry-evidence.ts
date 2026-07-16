@@ -46,7 +46,7 @@ export interface McpRegistryPublicationEvidence {
     sha: string;
   };
   production_evidence: {
-    schema_version: "production_release_evidence.v1";
+    schema_version: "production_release_evidence.v2";
     sha256: string;
   };
   registry: {
@@ -140,7 +140,7 @@ export async function buildMcpRegistryPublicationEvidence(
       sha: options.gitSha
     },
     production_evidence: {
-      schema_version: "production_release_evidence.v1",
+      schema_version: "production_release_evidence.v2",
       sha256: sha256(productionContents)
     },
     registry: {
@@ -192,7 +192,7 @@ function validateProductionEvidence(
   options: BuildMcpRegistryPublicationEvidenceOptions,
   metadata: McpRegistryMetadata
 ): void {
-  if (production.schema_version !== "production_release_evidence.v1") {
+  if (production.schema_version !== "production_release_evidence.v2") {
     throw new Error("Production evidence schema_version is invalid");
   }
   if (!isRecord(production.github)
@@ -206,6 +206,15 @@ function validateProductionEvidence(
     || production.deployment.environment !== "production"
     || production.deployment.mcp_endpoint !== metadata.remotes[0].url) {
     throw new Error("Production MCP endpoint must match MCP Registry metadata");
+  }
+  if (!isRecord(production.identity)
+    || production.identity.expected_release_id !== options.releaseTag
+    || production.identity.actual_release_id !== options.releaseTag
+    || production.identity.expected_commit_sha !== options.gitSha
+    || production.identity.actual_commit_sha !== options.gitSha
+    || production.identity.expected_server_version !== metadata.version
+    || production.identity.actual_server_version !== metadata.version) {
+    throw new Error("Production release identity must match MCP Registry metadata");
   }
 }
 

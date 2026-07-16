@@ -11,10 +11,12 @@ export interface McpSmokeCheckResult {
 }
 
 export interface McpSmokeResult {
-  schema_version: "mcp_smoke_result.v2";
+  schema_version: "mcp_smoke_result.v3";
   endpoint: string;
-  release_id: string;
-  commit_sha: string;
+  identity: {
+    expected_server_version: string;
+    actual_server_version: string;
+  };
   generated_at: string;
   passed: boolean;
   summary: { total: number; passed: number; failed: number };
@@ -23,8 +25,7 @@ export interface McpSmokeResult {
 
 export interface RunMcpSmokeTestOptions {
   baseUrl: string;
-  releaseId?: string;
-  commitSha?: string;
+  expectedServerVersion: string;
   generatedAt?: string;
   fetchImpl?: typeof fetch;
 }
@@ -45,8 +46,15 @@ interface McpToolCallResult {
 export async function runMcpSmokeTest(options: RunMcpSmokeTestOptions): Promise<McpSmokeResult> {
   const endpoint = new URL(buildMcpSmokeChecklistArtifact().endpoint, normalizeBaseUrl(options.baseUrl)).toString();
   const fetchImpl = options.fetchImpl ?? fetch;
+  const expectedServerVersion = requireExpectedServerVersion(options.expectedServerVersion);
+  let actualServerVersion = "unknown";
   const checks: McpSmokeCheckResult[] = [
-    await runCheck("initialize", () => checkInitialize(endpoint, fetchImpl)),
+    await runCheck("initialize", async () => {
+      const initialized = await checkInitialize(endpoint, fetchImpl, expectedServerVersion, (observed) => {
+        actualServerVersion = observed;
+      });
+      return initialized.message;
+    }),
     await runCheck("tools-list", () => checkToolsList(endpoint, fetchImpl)),
     await runCheck("search-tools", () => checkSearchTools(endpoint, fetchImpl)),
     await runCheck("get-tool-card", () => checkGetToolCard(endpoint, fetchImpl)),
@@ -59,10 +67,12 @@ export async function runMcpSmokeTest(options: RunMcpSmokeTestOptions): Promise<
   }
   const passed = checks.filter((check) => check.passed).length;
   return {
-    schema_version: "mcp_smoke_result.v2",
+    schema_version: "mcp_smoke_result.v3",
     endpoint,
-    release_id: options.releaseId ?? "unknown",
-    commit_sha: options.commitSha ?? "unknown",
+    identity: {
+      expected_server_version: expectedServerVersion,
+      actual_server_version: actualServerVersion
+    },
     generated_at: options.generatedAt ?? new Date().toISOString(),
     passed: passed === checks.length,
     summary: { total: checks.length, passed, failed: checks.length - passed },
@@ -81,7 +91,12 @@ async function runCheck(
   }
 }
 
-async function checkInitialize(endpoint: string, fetchImpl: typeof fetch): Promise<string> {
+async function checkInitialize(
+  endpoint: string,
+  fetchImpl: typeof fetch,
+  expectedServerVersion: string,
+  observeServerVersion: (version: string) => void
+): Promise<{ actualServerVersion: string; message: string }> {
   const response = await postJsonRpc(endpoint, fetchImpl, {
     jsonrpc: "2.0",
     id: 1,
@@ -96,10 +111,18 @@ async function checkInitialize(endpoint: string, fetchImpl: typeof fetch): Promi
   if (result?.serverInfo?.name !== "io.github.zation/agent-radar") {
     throw new Error("initialize result must include serverInfo.name=io.github.zation/agent-radar.");
   }
+  const actualServerVersion = requireObservedServerVersion(result.serverInfo.version);
+  observeServerVersion(actualServerVersion);
+  if (actualServerVersion !== expectedServerVersion) {
+    throw new Error(`initialize serverInfo.version did not match expected version ${expectedServerVersion}.`);
+  }
   if (!result.capabilities || !("tools" in result.capabilities)) {
     throw new Error("initialize result must advertise the tools capability.");
   }
-  return `initialize returned Agent Radar serverInfo version ${result.serverInfo.version ?? "unknown"}.`;
+  return {
+    actualServerVersion,
+    message: `initialize returned expected Agent Radar serverInfo version ${actualServerVersion}.`
+  };
 }
 
 async function checkToolsList(endpoint: string, fetchImpl: typeof fetch): Promise<string> {
@@ -239,6 +262,21 @@ function normalizeBaseUrl(baseUrl: string): string {
   const trimmed = baseUrl.trim();
   if (!trimmed) throw new Error("AGENT_RADAR_MCP_BASE_URL is required for MCP smoke tests.");
   return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
+}
+
+function requireExpectedServerVersion(value: string): string {
+  const trimmed = value?.trim();
+  if (!trimmed || trimmed !== value || /[\u0000-\u001f\u007f]/.test(trimmed)) {
+    throw new Error("expectedServerVersion is required and must be a single-line string.");
+  }
+  return trimmed;
+}
+
+function requireObservedServerVersion(value: unknown): string {
+  if (typeof value !== "string" || !value || value !== value.trim() || /[\u0000-\u001f\u007f]/.test(value)) {
+    throw new Error("initialize serverInfo.version must be a non-empty single-line string.");
+  }
+  return value;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

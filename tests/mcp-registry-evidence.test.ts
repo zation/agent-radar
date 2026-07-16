@@ -21,7 +21,7 @@ const source = {
 
 function productionEvidence(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
-    schema_version: "production_release_evidence.v1",
+    schema_version: "production_release_evidence.v2",
     github: {
       repository: source.repository,
       run_id: source.runId,
@@ -32,6 +32,14 @@ function productionEvidence(overrides: Record<string, unknown> = {}): Record<str
       environment: "production",
       worker_base_url: "https://agent-radar.zation1.workers.dev",
       mcp_endpoint: "https://agent-radar.zation1.workers.dev/api/mcp"
+    },
+    identity: {
+      expected_release_id: source.releaseTag,
+      actual_release_id: source.releaseTag,
+      expected_commit_sha: source.gitSha,
+      actual_commit_sha: source.gitSha,
+      expected_server_version: registryVersion,
+      actual_server_version: registryVersion
     },
     ...overrides
   };

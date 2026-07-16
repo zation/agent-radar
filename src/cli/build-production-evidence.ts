@@ -8,6 +8,7 @@ const evidence = await buildProductionReleaseEvidence({
   manifestPath: process.env.AGENT_RADAR_ARTIFACT_MANIFEST ?? "dist-pages/artifact-manifest.json",
   d1SeedPath: process.env.AGENT_RADAR_D1_SEED ?? "dist-pages/data/d1_seed.sql",
   smokeResultPath: process.env.AGENT_RADAR_MCP_SMOKE_RESULT ?? "mcp-smoke-result.json",
+  identityResultPath: process.env.AGENT_RADAR_IDENTITY_EVIDENCE ?? "release-identity-convergence.json",
   repository: requireEnv("GITHUB_REPOSITORY"),
   runId: requireEnv("GITHUB_RUN_ID"),
   gitSha: requireEnv("GITHUB_SHA"),

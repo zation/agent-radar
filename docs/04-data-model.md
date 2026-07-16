@@ -459,6 +459,14 @@ All four feedback artifacts belong to the reviewed bundle and are checksum-bound
 
 Every successful `agent-radar.mjs` command emits an additive top-level `source` field with the fixed value `agent-radar-skill`. Query commands also retain their `release` object; synchronization and status commands retain top-level `release_id`, `commit_sha`, and `data_version`. This marker identifies the local client as the producer. User-facing answers display the exact release ID and data version without labels that duplicate their prefixes; commit SHA remains available in the structured result for audit. These fields are not an authentication signature and do not create telemetry or a persistent invocation log.
 
+### Release Identity Evidence Contracts
+
+`release_identity_convergence.v1` is observed post-deploy evidence. It contains the fixed production `/api/version` URL, expected and actual release ID and commit SHA, positive attempt count, start/convergence timestamps, and `converged: true`. No successful artifact exists for an exhausted or mismatched check.
+
+`mcp_smoke_result.v3` retains exactly seven functional check IDs and adds `identity.expected_server_version` plus `identity.actual_server_version`. The initialize check passes only when both are equal and the server name is `io.github.zation/agent-radar`.
+
+`production_release_evidence.v2` binds GitHub run/tag/SHA, production deployment, reviewed bundle checksums, smoke summary, and a release `identity` object. The identity object records expected/actual release ID, commit SHA, MCP server version, convergence attempts, and timestamps. Registry validation intentionally rejects older evidence schemas.
+
 Ordinary data additions or corrections produce a new immutable release without changing these contract versions. An incompatible required-field, semantic, file-layout, or checksum change requires a new dataset contract major and a separate channel such as `channels/v2/latest.json`. A v1 client must reject unsupported contracts or minimum client versions and keep its previous verified release.
 
 Small additive fields retain major version while updating docs/schema. Semantic changes increment major version, such as `tool_card.v2`. Removal requires deprecation before migration.

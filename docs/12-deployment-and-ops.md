@@ -46,7 +46,8 @@ enabled Source Registry
   -> build immutable reviewed bundle
   -> GitHub production environment approval
   -> deploy the reviewed assets and same-ref Worker
-  -> seven-check deployed MCP smoke and production evidence
+  -> bounded deployed release/SHA convergence
+  -> exact-version seven-check MCP smoke and production evidence
   -> evidence-bound GitHub OIDC Registry publication
 ```
 
@@ -74,7 +75,7 @@ Historical Cloudflare Pages workflows are not part of production and have no dua
 
 `all-vX.Y.Z` represents one complete data, Web, API, and MCP release attempt. Never reuse a failed or superseded tag; increment the patch version. A tag becomes a verified production release only after reviewed-bundle checks, production approval, deployment, smoke checks, and production evidence all succeed. For a Registry release, `all-vX.Y.Z` maps exactly to Registry version `X.Y.Z`; an existing conflicting Registry version is never overwritten.
 
-`all-v0.8.0` is the current verified baseline. Release All run `29383566104` and production deployment `5459363215` bind commit `c174c13913d82cf14c67f4cda060d38a2b4d5781`, reviewed bundle `agent-radar-all-29383566104`, production evidence, and the Worker endpoint. The deployed catalog contains 76 Tool Cards, including 23 dynamically discovered Skills. Provider evaluation passed 24/24, critical safety passed 4/4, and MCP smoke passed 7/7. The reviewed usage evidence records 24/24 reported requests, no unavailable usage or retries, and 700,377 total tokens. The active/latest official Registry record remains `io.github.zation/agent-radar@0.6.4` and points to the same production remote.
+`all-v0.9.1` is the current verified baseline. Release All run `29500799822` and production deployment `5473955458` bind commit `8bb9cc281da0afa68a13d93705ef616445b8a743`, reviewed bundle `agent-radar-all-29500799822`, production evidence, and the Worker endpoint. The deployed catalog contains 76 Tool Cards; provider evaluation passed 24/24, critical safety passed 4/4, and functional MCP smoke passed 7/7. Official Registry `io.github.zation/agent-radar@0.9.1` is active. That release's functional smoke initially observed MCP `0.9.0` during propagation; the P3 gates below make such identity drift blocking for future releases.
 
 Until separate tracks are intentionally introduced, `all-v*` is the only production release entry point.
 
@@ -184,7 +185,8 @@ immutable all-v* tag
   -> apply approved feedback writeback plan
   -> apply D1 migrations
   -> deploy same-ref Worker with reviewed dist-pages
-  -> run MCP smoke
+  -> poll /api/version until tag and SHA converge
+  -> run exact tag-derived MCP version smoke
   -> bind the unique production deployment
   -> upload production release evidence
 ```
@@ -205,14 +207,15 @@ The artifact manifest records Git SHA, data version, eval model and categories, 
 
 After deployment, `agent-radar-mcp-smoke-<run_id>` contains:
 
-- `mcp-smoke-result.json` with initialization, tool listing, read-only calls, and boundary checks.
-- `production-release-evidence.json` binding repository, run, SHA, tag, unique production deployment ID, bundle name, manifest SHA, D1 seed and feedback snapshot checksums, Worker and MCP endpoints, and smoke summary.
+- `release-identity-convergence.json` with expected/actual release ID and SHA, attempts, and timestamps.
+- `mcp-smoke-result.json` with expected/actual MCP server version, initialization, tool listing, read-only calls, and boundary checks.
+- `production-release-evidence.json` binding repository, run, SHA, tag, unique production deployment ID, bundle name, manifest SHA, D1 seed and feedback snapshot checksums, Worker and MCP endpoints, observed identity, and smoke summary.
 
-The workflow resolves exactly one deployment for the current repository, run, SHA, and tag. Evidence validation checks release metadata, manifest SHA binding, D1 checksum, endpoints, and all required smoke checks. Any ambiguity or mismatch fails production.
+The workflow resolves exactly one deployment for the current repository, run, SHA, and tag. It then uses the shared identity CLI with bounded requests and per-request timeouts; smoke starts only after observed release ID and SHA converge, and initialize must return the exact tag-derived server version. Evidence validation checks release metadata, actual identity, manifest SHA binding, D1 checksum, endpoints, and all required smoke checks. Any ambiguity, mismatch, or exhaustion fails production.
 
 ### MCP Registry Publication Evidence
 
-`.github/workflows/publish-mcp-registry.yml` runs only after a successful `Release All` run or for an explicitly selected successful run ID. It downloads production evidence, source smoke, and the reviewed bundle before checkout; rebuilds the production evidence from the reviewed manifest, D1 seed, and smoke result; requires the bundle's `server.json` checksum and endpoint/run/tag/SHA identity to match that evidence; revalidates `/api/version`; runs fresh MCP smoke against the metadata-derived endpoint; verifies the pinned `mcp-publisher` v1.8.0 archive checksum; validates the generated `server.json`; and authenticates with GitHub OIDC only when publication is required.
+`.github/workflows/publish-mcp-registry.yml` runs only after a successful `Release All` run or for an explicitly selected successful run ID. It downloads production evidence, source convergence/smoke, and the reviewed bundle before checkout; rebuilds production evidence from the reviewed manifest, D1 seed, convergence result, and smoke result; requires the bundle's `server.json` checksum and endpoint/run/tag/SHA/version identity to match; reruns the shared bounded convergence gate; runs fresh exact-version MCP smoke against the metadata-derived endpoint; verifies the pinned `mcp-publisher` v1.8.0 archive checksum; validates the generated `server.json`; and authenticates with GitHub OIDC only when publication is required.
 
 Generated `dist-pages/server.json` is remote-only and declares `io.github.zation/agent-radar`, the tag-derived version, one production `streamable-http` endpoint, the optional secret recommendation header, and no installable package. The same file is served as a Worker Static Asset at `/server.json`. The publication workflow treats an active/latest identical record as idempotent success and a mismatch at the same name/version as an immutable conflict. After bounded official API polling, `mcp-registry-publication-evidence.json` records the source run/tag/SHA, production-evidence checksum, canonical metadata checksum, Registry active/latest status and timestamps, endpoint, repository, and query identity without request headers.
 

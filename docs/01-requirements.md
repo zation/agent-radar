@@ -257,6 +257,12 @@ Data generation, rating, and recommendation are replayable.
 
 Acceptance: releases record data, rules, index versions, and evaluation results and can roll back.
 
+### NFR-08 Release Identity Convergence
+
+A successful deployment command is not sufficient release evidence. Release All and MCP Registry publication must use the same bounded convergence check against the production Worker.
+
+Acceptance: `/api/version` must return the immutable release tag and source SHA before smoke begins; MCP `initialize.serverInfo.version` must equal the canonical SemVer derived from that tag; mismatch, malformed response, request exhaustion, or timeout blocks production evidence and Registry publication. Evidence records expected and actual identity plus attempt count and timestamps.
+
 ## MVP Scope
 
 MVP must implement:
@@ -334,6 +340,7 @@ Acceptance criteria:
 | FR-13 | Corrections | Override and break-glass approval implemented | Request and public evidence | Override Record | Provenance and audit |
 | FR-14 | Feedback | GitHub OAuth, D1 current votes, Issue classification/writeback, and bounded rating adjustment implemented | Authenticated vote and reviewed GitHub Issue evidence | Feedback artifacts and Rating Result v2 | Contract tests, replay checks, production evidence |
 | FR-15 | Installable Agent Skill | v0.9 P2 local-first implementation in `skills/agent-radar` | Explicit sync plus local development task | Verified local dataset and decision context | Manifest, checksum, atomic fallback, Skill, and installer tests |
+| FR-16 | Release identity convergence | v0.9 P3 shared blocking gate | Immutable tag, source SHA, production endpoint | Observed release/SHA and exact MCP server version evidence | Immediate, retry, mismatch, exhaustion, and workflow-order tests |
 
 ## Current Implementation Notes
 
