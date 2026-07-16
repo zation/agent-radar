@@ -145,7 +145,7 @@ Production completion requires release identity convergence before functional sm
 - [Security and Trust](docs/11-security-and-trust.md)
 - [Deployment and Operations](docs/12-deployment-and-ops.md)
 - [Web UI](docs/14-web-ui.md)
-- [Roadmap](docs/15-roadmap.md)
+- [Delivery work](docs/delivery/)
 
 ## Development and Contributing
 

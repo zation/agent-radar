@@ -16,7 +16,7 @@ Agent Radar is a rating and recommendation system for AI Agents, Skills, MCP Ser
 
 ## Required Documents
 
-- Product or scope changes: `docs/00-product-brief.md`, `docs/01-requirements.md`, `docs/15-roadmap.md`
+- Product or scope changes: `docs/00-product-brief.md`, `docs/01-requirements.md`, and the relevant active files under `docs/delivery/`
 - Architecture or module changes: `docs/03-system-architecture.md`
 - Data structure changes: `docs/04-data-model.md`, `docs/05-taxonomy.md`
 - Rating changes: `docs/06-rating-rules.md`, `docs/10-evaluation-plan.md`
@@ -27,19 +27,23 @@ Agent Radar is a rating and recommendation system for AI Agents, Skills, MCP Ser
 
 ## Document Responsibilities and Priority
 
-- `README.md` and `docs/00-14` are the authoritative sources for current product, requirement, architecture, and domain implementation facts. Update technical facts in the corresponding domain document; do not rely on a Roadmap, Spec, or Plan to redefine them.
-- `docs/15-roadmap.md` is the single source of truth for the current development stage, priorities, milestones, and completion status. The Roadmap must link relevant Specs and Plans without duplicating complete designs or implementation steps.
-- `docs/superpowers/specs/**` records design decisions for individual changes and answers why the change exists, what it does, and what it excludes. After approval, a Spec constrains implementation. After completion, add its status, implementation commit, and Roadmap link, then freeze it.
-- `docs/superpowers/plans/**` records execution for an individual Spec and answers which files change, in what order, and how the work is verified. After execution, add its status and implementation commit, then freeze it; do not continue using it to track current project progress.
-- If documents conflict, current domain facts come from `README.md` or the corresponding `docs/00-14` document, while current stage and progress come from `docs/15-roadmap.md`. Completed Specs and Plans are decision and execution history only and must not override current facts.
+- `README.md` and `docs/00-14` are the authoritative sources for current product, requirement, architecture, and domain implementation facts. Update technical facts in the corresponding domain document; delivery documents must not redefine implemented facts.
+- `docs/delivery/backlog/*.md` contains unapproved candidate work. A Backlog item records the problem, expected value, constraints, and promotion conditions; it is not an implementation commitment and must not have a Plan.
+- `docs/delivery/vX.Y/pN-spec.md` records an active version increment's design decisions and answers why the change exists, what it does, and what it excludes. Once approved, a Spec constrains implementation.
+- `docs/delivery/vX.Y/pN-plan.md` records execution for the matching Spec and answers which files change, in what order, and how the work is verified. Do not duplicate the Spec or use a separate version summary document.
+- `docs/delivery/archived/vX.Y/**` contains frozen completed or superseded version history. v0.x files use legacy names and formats and are exempt from new frontmatter and pairing rules; only erroneous links, status facts, or commit SHAs may be corrected.
+- `docs/delivery/archived/v0.x-roadmap.md` is a frozen historical snapshot. It is not a current status or priority source.
+- If documents conflict, current domain facts come from `README.md` or the corresponding `docs/00-14` document. Current delivery scope and lifecycle come directly from active Spec and Plan frontmatter plus their directory location. Archived documents never override current facts.
 
-Every Spec and Plan must declare the following at the beginning:
+New delivery documents use YAML frontmatter:
 
-- `Status`: `Draft`, `Approved`, `Completed`, or `Superseded`.
-- `Implementation commits`: use `None` before completion and actual commit SHAs after completion.
-- `Current status source`: link to `docs/15-roadmap.md` or the corresponding authoritative domain document.
+- Backlog: `kind: backlog`, stable `id`, `status` (`candidate`, `ready`, `blocked`, or `rejected`), `priority`, `domains`, and `created_at`.
+- Spec: `kind: spec`, `version`, `increment`, `status` (`draft`, `approved`, `completed`, or `superseded`), and `implementation_commits`.
+- Plan: `kind: plan`, `version`, `increment`, `status` (`draft`, `active`, `completed`, or `cancelled`), relative `spec`, and `implementation_commits`.
 
-When a feature is completed, update the corresponding authoritative domain document and Roadmap in the same change. Except for correcting an erroneous status, commit SHA, or link, do not modify a completed Spec or Plan; create a smaller new Spec/Plan for later iterations.
+Promote a Backlog item by moving and expanding it into a versioned `pN-spec.md`, preserving its stable ID as `source_backlog_id`; do not keep a duplicate Backlog copy. Create the matching Plan only when implementation planning begins. When an increment completes, update the corresponding authoritative domain documents, record implementation commits, and mark its Spec and Plan terminal. When every increment in a version is terminal, move the whole version directory to `docs/delivery/archived/vX.Y/`. Except for correcting an erroneous status, commit SHA, or link, do not modify completed delivery documents.
+
+Run `npm run docs:check` after delivery-document changes. Use `npm run docs:status` to derive the current Backlog and active-version status; do not commit a manually maintained status summary.
 
 ## Actions Allowed Without Additional Confirmation
 
