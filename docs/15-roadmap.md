@@ -35,7 +35,7 @@
 
 ~~截至当前分支，Agent Radar 已完成 MVP baseline 和 v0.2 功能 baseline，当前处于 v0.2 收口阶段。~~
 
-实际情况：MVP、v0.2、v0.3、v0.4、v0.5、v0.6、v0.7 和 v0.8 均已完成，v0.9 P2 已启动。`all-v0.8.0` 是当前已验证生产基线；Release All run `29383566104`、commit `c174c13913d82cf14c67f4cda060d38a2b4d5781`、production deployment `5459363215`、24/24 real-provider golden eval、4/4 critical safety 和 7/7 MCP smoke 均已通过。生产目录包含 76 张 Tool Card，其中 23 张来自首批动态 Skill 扩展；24 次请求均报告 usage，0 unavailable、0 retry，total 700,377 tokens，较 `all-v0.7.1` 减少 27.49%。官方 MCP Registry 记录仍为 active/latest `io.github.zation/agent-radar@0.6.4`，指向同一生产 remote。v0.9 P1 的在线 HTTP adapter 在提交前被 P2 local-first 方案取代；P2 当前已完成版本化 channel/release、checksum/schema 校验、旧 release 继承验证、原子本地同步、离线查询和失败回退实现，等待完整验证、实现提交和发布验收。
+实际情况：MVP、v0.2、v0.3、v0.4、v0.5、v0.6、v0.7 和 v0.8 均已完成，v0.9 P2 已完成实现并进入生产发布。`all-v0.8.0` 是当前已验证生产基线；Release All run `29383566104`、commit `c174c13913d82cf14c67f4cda060d38a2b4d5781`、production deployment `5459363215`、24/24 real-provider golden eval、4/4 critical safety 和 7/7 MCP smoke 均已通过。生产目录包含 76 张 Tool Card，其中 23 张来自首批动态 Skill 扩展；24 次请求均报告 usage，0 unavailable、0 retry，total 700,377 tokens，较 `all-v0.7.1` 减少 27.49%。官方 MCP Registry 记录仍为 active/latest `io.github.zation/agent-radar@0.6.4`，指向同一生产 remote。v0.9 P1 的在线 HTTP adapter 在提交前被 P2 local-first 方案取代；P2 implementation commit `0846e592` 已通过 421/421 tests、Skill validator、installer discovery、lint、stylelint、public-language、Web build 和 diff checks，生产证据尚待 `all-v0.9.0` Release All 完成。
 
 v0.7 P1 已实现并完成生产验收：`eval_token_usage.v1` 记录 MiniMax M3 的 24 次 request attempts，24 次均有 provider-reported usage，0 次 unavailable、0 次 retry；input 581,819、cached input 3,272、output 57,976、total 639,795，平均每条 Golden Query 26,658.125 tokens。独立 Data Build、定时扩量、prompt caching/batching 和 Top-K 预检索不属于当前批准范围。
 
@@ -660,8 +660,8 @@ v0.8 P1 前进行了两组各两次、严格顺序执行的 MiniMax M3 诊断请
 
 - P1 Spec：[`v0.9 P1: Installable Agent Radar Skill Design`](superpowers/specs/2026-07-16-v0.9-p1-installable-agent-radar-skill-design.md)（Superseded；无实现提交）。
 - P1 Plan：[`v0.9 P1 Installable Agent Radar Skill Implementation Plan`](superpowers/plans/2026-07-16-v0.9-p1-installable-agent-radar-skill.md)（Superseded；无实现提交）。
-- P2 Spec：[`v0.9 P2: Local-First Versioned Skill Dataset Design`](superpowers/specs/2026-07-16-v0.9-p2-local-first-skill-dataset-design.md)（Approved；实现中）。
-- P2 Plan：[`v0.9 P2 Local-First Skill Dataset Implementation Plan`](superpowers/plans/2026-07-16-v0.9-p2-local-first-skill-dataset.md)（Approved；实现中）。
+- P2 Spec：[`v0.9 P2: Local-First Versioned Skill Dataset Design`](superpowers/specs/2026-07-16-v0.9-p2-local-first-skill-dataset-design.md)（Completed；实现提交 `0846e592`；已冻结）。
+- P2 Plan：[`v0.9 P2 Local-First Skill Dataset Implementation Plan`](superpowers/plans/2026-07-16-v0.9-p2-local-first-skill-dataset.md)（Completed；实现提交 `0846e592`；已冻结）。
 - P2 范围：发布 `dataset.v1` 兼容 channel 和不可变 release manifests；Skill 显式 sync 后校验版本、大小、SHA-256 与 schemas，原子切换本地缓存，并离线执行 status、search、get、explain 和 recommendation context。
 - 安全边界：Skill 不调用 MCP 或 hosted recommendation，不需要 provider key，不传输任务；安装本 Skill仍不授权安装、认证或执行任何被推荐工具；本地 context 不能放宽 `ask_human`、`avoid` 和 `no_reliable_match`。
 - 验收：旧 release 继承与防篡改、checksum 失败回退、断网搜索、action ceiling、标准 Skill validator、通用 installer 和全量 repository checks 通过；实现提交和发布验收完成后再冻结 P2 Spec/Plan。
